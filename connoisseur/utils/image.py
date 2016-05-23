@@ -6,8 +6,6 @@ at (GitHub Gist)[https://gist.github.com/eerwitt/51aba4bffd9ddd5c581c].
 """
 
 import tensorflow as tf
-import argparse
-import os
 
 
 def resize_image_with_crop_or_pad(image, target_height, target_width):

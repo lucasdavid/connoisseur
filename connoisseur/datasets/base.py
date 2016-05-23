@@ -1,3 +1,11 @@
+"""
+Connoisseur Data Sets Base Class.
+
+Author: Lucas David -- <ld492@drexel.edu>
+Licence: MIT License 2016 (c)
+
+"""
+
 import abc
 import os
 import tarfile
@@ -7,34 +15,6 @@ from urllib import request
 import tensorflow as tf
 
 from ..utils import image as img_utils
-
-
-class DataSetParameters:
-    """Hold Initialization Parameters for Data Set Instances."""
-
-    def __init__(self, name, file_name=None,
-                 source=None, expected_size=None,
-                 save_in=None,
-                 batch_size=None, n_epochs=None,
-                 n_threads=None,
-                 random_state=None):
-
-        if file_name is not None:
-            self.file_name = file_name
-        if source is not None:
-            self.source = source
-        if expected_size is not None:
-            self.expected_size = expected_size
-        if save_in is not None:
-            self.save_in = save_in
-        if batch_size is not None:
-            self.batch_size = batch_size
-        if n_epochs is not None:
-            self.n_epochs = n_epochs
-        if n_threads is not None:
-            self.n_threads = n_threads
-        if random_state is not None:
-            self.random_state = random_state
 
 
 class DataSet(metaclass=abc.ABCMeta):
@@ -50,16 +30,12 @@ class DataSet(metaclass=abc.ABCMeta):
 
     DEFAULT_PARAMETERS = {}
 
-    def __init__(self, name, parameters=None):
+    def __init__(self, name, **parameters):
         self.name = name
 
-        if parameters is None:
-            parameters = DataSetParameters(**self.DEFAULT_PARAMETERS)
-        else:
-            # Set all unset parameters to their default values.
-            for k, v in self.DEFAULT_PARAMETERS.items():
-                if not hasattr(parameters, k):
-                    setattr(parameters, k, v)
+        for k, v in self.DEFAULT_PARAMETERS.items():
+            if k not in parameters:
+                parameters[k] = v
 
         self.parameters = parameters
 
@@ -83,22 +59,22 @@ class DataSet(metaclass=abc.ABCMeta):
         print('Downloading:', end=' ', flush=True)
         p = self.parameters
 
-        file_name = os.path.join(p.save_in, p.file_name)
+        file_name = os.path.join(p['save_in'], p['file_name'])
 
-        if not os.path.exists(p.save_in):
-            os.mkdir(p.save_in)
+        if not os.path.exists(p['save_in']):
+            os.mkdir(p['save_in'])
 
         if os.path.exists(file_name) and not override:
             stat = os.stat(file_name)
             print('(skipped)')
         else:
             file_name, _ = request.urlretrieve(
-                p.source, file_name,
+                p['source'], file_name,
                 reporthook=self._download_progress_hook)
             stat = os.stat(file_name)
             print('\nDone. %i bytes transferred.' % stat.st_size)
 
-        if stat.st_size != p.expected_size:
+        if stat.st_size != p['expected_size']:
             raise RuntimeError('File doesn\'t have expected size: (%i/%i)'
                                % (stat.st_size, p['expected_size']))
 
@@ -116,8 +92,8 @@ class DataSet(metaclass=abc.ABCMeta):
 
         p = self.parameters
 
-        zipped = os.path.join(p.save_in, p.file_name)
-        unzipped = os.path.join(p.save_in, self.name)
+        zipped = os.path.join(p['save_in'], p['file_name'])
+        unzipped = os.path.join(p['save_in'], self.name)
 
         if os.path.isdir(unzipped) and not override:
             print('(skipped)')
@@ -137,7 +113,7 @@ class DataSet(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError
 
-    def process(self):
+    def preprocess(self):
         """Submit Data to Pre-processing.
 
         For example, one can perform scaling or data whitening. By default,
@@ -147,7 +123,7 @@ class DataSet(metaclass=abc.ABCMeta):
         """
         return self
 
-    def next_batch(self):
+    def as_batches(self, size=None):
         """Returns The Next Data Batch.
 
         :return: tuple (data, target)
@@ -156,8 +132,9 @@ class DataSet(metaclass=abc.ABCMeta):
             raise RuntimeError('Cannot ask for next batch in data sets which '
                                'are not loaded.')
         p = self.parameters
-        return tf.train.batch([self.data, self.target],
-                              batch_size=p.batch_size)
+        size = size or p['batch_size']
+
+        return tf.train.batch([self.data, self.target], batch_size=size)
 
     @staticmethod
     def _get_specific_extractor(zipped):
@@ -190,25 +167,28 @@ class DataSet(metaclass=abc.ABCMeta):
 
 
 class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
-    def __init__(self, name, parameters=None):
-        super().__init__(name=name, parameters=parameters)
+    """Image Data Set.
+
+    Base class used by data sets of images.
+    """
+
+    def __init__(self, name, **parameters):
+        super().__init__(name=name, **parameters)
 
         self.image_names = None
 
-    def process(self):
+    def preprocess(self):
+        """Preprocess image samples.
+
+        Pre-processing consists on cropping and padding images to make sure
+        they are on the same size, as well as performing pixel whitening.
+
+        :return: self
+        """
         params = self.parameters
-
-        image = self.data
-        # Crop and pad image to get them to all .
-        # image = tf.image.resize_image_with_crop_or_pad(image, params.height,
-        #                                                params.width)
-        image = img_utils.resize_image_with_crop_or_pad(image,
-                                                        params.height,
-                                                        params.width)
-
-        image.set_shape([params.height, params.width, 3])
-
-        # Remove mean and normalize pixels.
+        # Crop and pad image to get them to all expected lengths.
+        image = img_utils.resize_image_with_crop_or_pad(self.data, params['height'], params['width'])
+        image.set_shape([params['height'], params['width'], 3])
         self.data = tf.image.per_image_whitening(image)
 
         return self

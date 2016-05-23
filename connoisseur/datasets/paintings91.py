@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import tensorflow as tf
 from scipy.io import loadmat
 
@@ -13,27 +12,26 @@ class Paintings91(base.ImageDataSet):
         'source': 'http://cat.cvc.uab.es/~joost/data/Paintings91.zip',
         'expected_size': 681584272,
         'batch_size': 50,
-        'height': 400,
-        'width': 400,
+        'height': 300,
+        'width': 300,
         'n_samples_per_epoch': 10,
         'n_threads': 2,
         'min_samples_in_queue': 0.4,
         'n_classes': 91,
         'save_in': '/tmp',
-
         'n_epochs': None,
     }
 
-    def __init__(self, parameters=None):
+    def __init__(self, **parameters):
         # Paintings91 already know its name.
-        super().__init__('Paintings91', parameters)
+        super().__init__('Paintings91', **parameters)
 
     def load(self, override=False):
         self.download(override=override).extract(override=override)
 
         params = self.parameters
 
-        base_folder = os.path.join(params.save_in, self.name, 'Paintings91')
+        base_folder = os.path.join(params['save_in'], self.name, 'Paintings91')
 
         if not os.path.exists(base_folder):
             raise RuntimeError('Data set not found. Have you downloaded and '
@@ -58,13 +56,10 @@ class Paintings91(base.ImageDataSet):
             tf.convert_to_tensor(target),
         )
 
-        image, target = (tf.train
-                         .slice_input_producer([image_names, target],
-                                               num_epochs=params.n_epochs))
+        image, target = tf.train.slice_input_producer([image_names, target], num_epochs=params['n_epochs'])
         image = tf.image.decode_jpeg(tf.read_file(image), channels=3)
-        # image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
         self.data = image
-        self.target = target
+        self.target = tf.cast(target, tf.float32)
 
         return self
