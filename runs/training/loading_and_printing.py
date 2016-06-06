@@ -18,9 +18,8 @@ def main():
     print(__doc__)
     started_at = time.time()
 
-    paintings91 = datasets.Paintings91(
-        datasets.Parameters(n_epochs=20, batch_size=50, n_threads=1,
-                            save_in='/home/ldavid/data'))
+    paintings91 = datasets.Paintings91(n_epochs=20, batch_size=50, n_threads=1, save_in='/media/ldavid/hdd/data')
+
     try:
         print('Fetching data set...', end=' ')
         paintings91.load().preprocess()
@@ -41,13 +40,11 @@ def main():
         try:
             while not c.should_stop():
                 i, l = s.run([images, labels])
+                print(i.shape, l.shape)
 
-                print(i.shape)
-                print(l.shape)
-
-        except tf.errors.OutOfRangeError:
-            print('Done training -- epoch limit reached')
+        except (tf.errors.OutOfRangeError, KeyboardInterrupt): pass
         finally:
+            print('Canceled.')
             c.request_stop()
 
         c.join(threads)

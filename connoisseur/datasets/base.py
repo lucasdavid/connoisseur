@@ -10,11 +10,14 @@ import abc
 import os
 import tarfile
 import zipfile
+import logging
 from urllib import request
 
 import tensorflow as tf
 
 from ..utils import image as img_utils
+
+logger = logging.getLogger('connoisseur')
 
 
 class DataSet(metaclass=abc.ABCMeta):
@@ -39,7 +42,9 @@ class DataSet(metaclass=abc.ABCMeta):
 
         self.parameters = parameters
 
-        self.data, self.target = None, None
+        self.train_data, self.train_target = None, None
+        self.validation_data, self.validation_target = None, None
+        self.test_data, self.test_target = None, None
         self._percentage_transferred = None
 
     @property
@@ -48,7 +53,7 @@ class DataSet(metaclass=abc.ABCMeta):
 
         :return: bool, True if data indicates a loaded tensor.
         """
-        return self.data is not None
+        return self.train_data is not None
 
     def download(self, override=False):
         """Download Data Set from the address indicated by `source` parameter.
@@ -123,18 +128,26 @@ class DataSet(metaclass=abc.ABCMeta):
         """
         return self
 
-    def as_batches(self, size=None):
+    def as_batches(self, phase='train', size=None):
         """Returns The Next Data Batch.
+
+        :param phase: str, default='train'
+            Current phase taking place. Options are: train, validation, test.
+        :param size: int, default=None
+            Batch size. If None, will use default passed in the construction of
+            this data set.
 
         :return: tuple (data, target)
         """
-        if not self.loaded:
-            raise RuntimeError('Cannot ask for next batch in data sets which '
-                               'are not loaded.')
-        p = self.parameters
-        size = size or p['batch_size']
+        assert phase in ('train', 'validation', 'test')
+        assert self.loaded, RuntimeError(
+            'Cannot ask for next batch in data sets which are not loaded.')
 
-        return tf.train.batch([self.data, self.target], batch_size=size)
+        size = size or self.parameters['batch_size']
+        data = getattr(self, '%s_data' % phase)
+        target = getattr(self, '%s_target' % phase)
+
+        return tf.train.batch([data, target], batch_size=size)
 
     @staticmethod
     def _get_specific_extractor(zipped):
@@ -175,7 +188,9 @@ class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
     def __init__(self, name, **parameters):
         super().__init__(name=name, **parameters)
 
-        self.image_names = None
+        self.train_image_names = None
+        self.validation_image_names = None
+        self.test_image_names = None
 
     def preprocess(self):
         """Preprocess image samples.
@@ -186,9 +201,19 @@ class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
         :return: self
         """
         params = self.parameters
-        # Crop and pad image to get them to all expected lengths.
-        image = img_utils.resize_image_with_crop_or_pad(self.data, params['height'], params['width'])
-        image.set_shape([params['height'], params['width'], 3])
-        self.data = tf.image.per_image_whitening(image)
+
+        for phase in ('train', 'validation', 'test'):
+            # Crop and pad image to get them to all expected lengths.
+            data = getattr(self, '%s_data' % phase)
+            # Skip phase if not set.
+            if data is None: continue
+
+            image = img_utils.resize_image_with_crop_or_pad(data,
+                                                            params['height'],
+                                                            params['width'])
+            image.set_shape([params['height'], params['width'], 3])
+            data = tf.image.per_image_whitening(image)
+
+            setattr(self, '%s_data' % phase, data)
 
         return self

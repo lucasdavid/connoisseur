@@ -8,5 +8,5 @@ Licence: MIT License 2016 (c)
 
 from . import utils
 
-from .two_layers import TwoLayers
-from .vgg import VGG
+from .two_layers import TwoConvLayers
+from .vgg import TruncatedVGG, VGG

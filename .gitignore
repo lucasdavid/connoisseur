@@ -76,3 +76,5 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+data/
