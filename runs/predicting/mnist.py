@@ -1,45 +1,40 @@
-"""Connoisseur Predicting Paintings91.
+"""Connoisseur Predicting MNIST.
 
 
 Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
 
 """
-import json
 import logging
 import os
 
-import tensorflow as tf
-
 import connoisseur as conn
+import tensorflow as tf
 
 config = tf.ConfigProto(allow_soft_placement=True)
 
 connoisseur_params = dict(session_config=config)
 
-data_set_params = dict(
+dataset_params = dict(
     n_epochs=1,
     n_threads=1,
-    train_validation_test_split=[1, 0],
+    train_validation_test_split=(.7, .3),
     save_in='../training/data/',
-    batch_size=20)
+    batch_size=50)
 
 
 def main():
-    os.makedirs(os.path.join(conn.settings.BASE_DIR, 'paintings91', 'logs'), exist_ok=True)
+    os.makedirs(os.path.join(conn.settings.BASE_DIR, 'mnist', 'logs'), exist_ok=True)
     logging.basicConfig(
-        filename=os.path.join(conn.settings.BASE_DIR, 'paintings91', 'logs', 'predicting.log'),
+        filename=os.path.join(conn.settings.BASE_DIR, 'mnist', 'logs', 'predicting.log'),
         level=logging.DEBUG)
-
     logger = logging.getLogger('connoisseur')
 
     t = conn.utils.Timer()
 
-    model = conn.connoisseurs.Paintings91(**connoisseur_params)
-    dataset = conn.datasets.Paintings91(**data_set_params)
+    model = conn.connoisseurs.MNIST(**connoisseur_params)
+    dataset = conn.datasets.MNIST(**dataset_params)
 
-    logger.info('Executing with the following parameters:\n%s',
-                json.dumps(dataset.parameters, indent=2))
     try:
         with tf.device('/gpu:1'):
             logger.info('fetching data set...')

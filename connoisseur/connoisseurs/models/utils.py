@@ -20,4 +20,3 @@ def normal_layer(shape, mean=0.0, stddev=.1, dtype=tf.float32, seed=None):
     b = tf.get_variable('biases', shape[-1],
                         initializer=tf.constant_initializer(0.0, dtype))
     return W, b
-

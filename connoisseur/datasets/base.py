@@ -64,25 +64,36 @@ class DataSet(metaclass=abc.ABCMeta):
         print('Downloading:', end=' ', flush=True)
         p = self.parameters
 
-        file_name = os.path.join(p['save_in'], p['file_name'])
+        file_names = p['file_name']
+        if not isinstance(file_names, (list, tuple)):
+            file_names = [file_names]
+        file_names = [os.path.join(p['save_in'], name) for name in file_names]
 
-        if not os.path.exists(p['save_in']):
-            os.mkdir(p['save_in'])
+        sources = p['source']
+        if not isinstance(sources, (list, tuple)):
+            sources = [sources]
 
-        if os.path.exists(file_name) and not override:
-            stat = os.stat(file_name)
-            print('(skipped)')
-        else:
-            file_name, _ = request.urlretrieve(
-                p['source'], file_name,
-                reporthook=self._download_progress_hook)
-            stat = os.stat(file_name)
-            print('\nDone. %i bytes transferred.' % stat.st_size)
+        expected_sizes = p['expected_size']
+        if not isinstance(expected_sizes, (list, tuple)):
+            expected_sizes = [expected_sizes]
 
-        if stat.st_size != p['expected_size']:
-            raise RuntimeError('File doesn\'t have expected size: (%i/%i)'
-                               % (stat.st_size, p['expected_size']))
+        os.makedirs(p['save_in'], exist_ok=True)
 
+        for file_name, source, expected_size in zip(file_names, sources,
+                                                    expected_sizes):
+            if os.path.exists(file_name) and not override:
+                stat = os.stat(file_name)
+                print('(skipped)')
+            else:
+                file_name, _ = request.urlretrieve(
+                    source, file_name,
+                    reporthook=self._download_progress_hook)
+                stat = os.stat(file_name)
+                print('\nDone. %i bytes transferred.' % stat.st_size)
+
+            if stat.st_size != expected_size:
+                raise RuntimeError('File does not have expected size: (%i/%i)'
+                                   % (stat.st_size, p['expected_size']))
         return self
 
     def extract(self, override=False):
@@ -97,17 +108,22 @@ class DataSet(metaclass=abc.ABCMeta):
 
         p = self.parameters
 
-        zipped = os.path.join(p['save_in'], p['file_name'])
-        unzipped = os.path.join(p['save_in'], self.name)
+        file_names = p['file_name']
+        if not isinstance(file_names, (list, tuple)):
+            file_names = [file_names]
 
-        if os.path.isdir(unzipped) and not override:
-            print('(skipped)')
-        else:
-            extractor = self._get_specific_extractor(zipped)
-            extractor.extractall(unzipped)
-            extractor.close()
+        for file_name in file_names:
+            zipped = os.path.join(p['save_in'], file_name)
+            unzipped = os.path.join(p['save_in'], self.name)
 
-            print('Done. Placed at %s.' % unzipped)
+            if os.path.isdir(unzipped) and not override:
+                print('(skipped)')
+            else:
+                extractor = self._get_specific_extractor(zipped)
+                extractor.extractall(unzipped)
+                extractor.close()
+
+                print('Done. Placed at %s.' % unzipped)
 
         return self
 
@@ -140,8 +156,8 @@ class DataSet(metaclass=abc.ABCMeta):
         :return: tuple (data, target)
         """
         assert phase in ('train', 'validation', 'test')
-        assert self.loaded, RuntimeError(
-            'Cannot ask for next batch in data sets which are not loaded.')
+        assert self.loaded, ('Cannot ask for next batch in '
+                             'data sets which are not loaded.')
 
         size = size or self.parameters['batch_size']
         data = getattr(self, '%s_data' % phase)
@@ -193,7 +209,7 @@ class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
         self.test_image_names = None
 
     def preprocess(self):
-        """Preprocess image samples.
+        """Pre-process image samples.
 
         Pre-processing consists on cropping and padding images to make sure
         they are on the same size, as well as performing pixel whitening.
@@ -205,13 +221,15 @@ class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
         for phase in ('train', 'validation', 'test'):
             # Crop and pad image to get them to all expected lengths.
             data = getattr(self, '%s_data' % phase)
-            # Skip phase if not set.
-            if data is None: continue
+
+            if data is None:
+                # Skip phase if not set.
+                continue
 
             image = img_utils.resize_image_with_crop_or_pad(data,
                                                             params['height'],
                                                             params['width'])
-            image.set_shape([params['height'], params['width'], 3])
+            image.set_shape([params['height'], params['width'], params['channels']])
             data = tf.image.per_image_whitening(image)
 
             setattr(self, '%s_data' % phase, data)

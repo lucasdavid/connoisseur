@@ -17,135 +17,59 @@ from .. import settings
 logger = logging.getLogger('connoisseur')
 
 
-class PersistentEstimator:
+class Connoisseur(BaseEstimator, ClassifierMixin):
+    """Connoisseur Base Class."""
+
     OUTER_SCOPE = None
 
-    def __init__(self, checkpoint_every=20, checkpoints_dir='default'):
-        if checkpoints_dir == 'default':
-            checkpoints_dir = os.path.join(settings.BASE_DIR,
-                                           self.__class__.__name__,
-                                           'checkpoints')
+    def __init__(self, n_epochs=100, learning_rate=0.001, dropout=.5,
+                 resume_training=True, checkpoint_every=100, checkpoints_dir='default',
+                 log_every=100, logs_dir='default', session_config=None):
+        self.n_epochs = n_epochs
+        self.learning_rate = learning_rate
+        self.dropout = dropout
+        self.resume_training = resume_training
         self.checkpoint_every = checkpoint_every
+        self.session_config = session_config
+        self.log_every = log_every
+
+        if checkpoints_dir == 'default':
+            checkpoints_dir = os.path.join(settings.BASE_DIR, self.OUTER_SCOPE, 'checkpoints')
+        if logs_dir == 'default':
+            logs_dir = os.path.join(settings.BASE_DIR, self.OUTER_SCOPE, 'logs')
+
+        # Create directories or confirm they exist.
+        os.makedirs(os.path.join(checkpoints_dir, 'opt'), exist_ok=True)
+        os.makedirs(logs_dir, exist_ok=True)
+
         self.checkpoints_dir = checkpoints_dir
+        self.logs_dir = logs_dir
 
         self._saver = self._optimal_saver = None
         self.loss_ = self.best_loss_ = np.inf
         self.epoch_ = 0
 
-        # Create directory or confirm it exists.
-        os.makedirs(os.path.join(checkpoints_dir, 'opt'), exist_ok=True)
-
-    @property
-    def saver(self):
-        collection = tf.get_collection(tf.GraphKeys.VARIABLES,
-                                       scope=self.OUTER_SCOPE)
-        self._saver = self._saver or tf.train.Saver(collection)
-        return self._saver
-
-    @property
-    def optimal_saver(self):
-        collection = tf.get_collection(tf.GraphKeys.VARIABLES,
-                                       scope=self.OUTER_SCOPE)
-        self._optimal_saver = self._optimal_saver or tf.train.Saver(collection)
-        return self._optimal_saver
-
-    def save(self):
-        """Persist the model whenever convenient.
-
-        Persist a snapshot of the model every once in a while, as defined
-        by the `checkpoint_every parameter`. Additionally, always save
-        when loss is smaller than optimal.
-        """
-        if self.epoch_ % self.checkpoint_every == 0:
-            self.saver.save(tf.get_default_session(),
-                            os.path.join(self.checkpoints_dir, 'ckpt'),
-                            global_step=self.epoch_)
-
-        if self.loss_ < self.best_loss_:
-            self.optimal_saver.save(
-                tf.get_default_session(),
-                os.path.join(self.checkpoints_dir, 'opt', 'ckpt'))
-
-            self.best_loss_ = self.loss_
-
-    def restore(self, checkpoint='last', raise_errors=True):
-        """Restore a model persisted in disk.
-
-        :param checkpoint: str, ['last', 'optimal']
-            Which checkpoint to restore.
-        :param raise_errors: bool, default=True.
-            If true, raises an error whenever no checkpoint can be restored.
-            Otherwise, silently goes over this step and has no effect.
-        """
-        checkpoint_dir = self.checkpoints_dir
-
-        if checkpoint == 'optimal':
-            checkpoint_dir = os.path.join(self.checkpoints_dir, 'opt')
-
-        c = tf.train.get_checkpoint_state(checkpoint_dir)
-
-        if c and c.model_checkpoint_path:
-            # A checkpoint was found. Resume work.
-            model = os.path.join(checkpoint_dir, c.model_checkpoint_path)
-            logger.info('loading variables from {%s}', model)
-
-            if checkpoint == 'last':
-                self.saver.restore(tf.get_default_session(), model)
-            elif checkpoint == 'optimal':
-                self.optimal_saver.restore(tf.get_default_session(), model)
-        elif raise_errors:
-            raise ValueError('could not load variables from {%s}'
-                             % checkpoint_dir)
-
-        return self
-
-
-class Connoisseur(PersistentEstimator, BaseEstimator, ClassifierMixin):
-    """Connoisseur Base Class."""
-
-    def __init__(self, n_epochs=100, learning_rate=0.001, dropout=.5,
-                 checkpoint_every=20, checkpoints_dir='default',
-                 logs_dir='default', session_config=None):
-        PersistentEstimator.__init__(self, checkpoint_every,
-                                     checkpoints_dir)
-        self.n_epochs = n_epochs
-        self.learning_rate = learning_rate
-        self.dropout = dropout
-        self.session_config = session_config
-
-        if logs_dir == 'default':
-            logs_dir = os.path.join(settings.BASE_DIR, self.__class__.__name__,
-                                    'logs')
-        self.logs_dir = logs_dir
-
-        # Create directory or confirm it exits.
-        os.makedirs(logs_dir, exist_ok=True)
-
     def _build(self, X, y=None, keep_prob=tf.constant(1.0), reuse=None):
         raise NotImplementedError
 
-    def _build_fitted(self, X):
-        s = tf.get_default_session()
+    def _build_fitted(self, X, y=None):
         kp = tf.convert_to_tensor(1.0, name='keep_prob')
 
         try:
-            # Called under the same execution of training.
-            # Reuse everything.
-            network = self._build(X, keep_prob=kp, reuse=True)
-            s.run(tf.initialize_all_variables())
+            # Called under the same execution of training. Reuse everything.
+            network = self._build(X, y=y, keep_prob=kp, reuse=True)
         except ValueError:
             # Create everything anew.
-            network = self._build(X, keep_prob=kp)
-            s.run(tf.initialize_all_variables())
+            network = self._build(X, y=y, keep_prob=kp)
 
-            try:
-                # Look optimal model state from the disk.
-                self.restore(checkpoint='optimal')
-            except ValueError:
-                raise NotFittedError('This %s instance is not fitted yet.'
-                                     ' Call `fit` with appropriate '
-                                     'arguments before using this method.'
-                                     % type(self).__name__)
+        try:
+            # Look optimal model state from the disk.
+            self.restore(checkpoint='optimal')
+        except ValueError:
+            raise NotFittedError('This %s instance is not fitted yet.'
+                                 ' Call `fit` with appropriate '
+                                 'arguments before using this method.'
+                                 % type(self).__name__)
         return network
 
     def fit(self, X, y, **fit_params):
@@ -173,42 +97,45 @@ class Connoisseur(PersistentEstimator, BaseEstimator, ClassifierMixin):
         optimizer = (tf.train.AdamOptimizer(learning_rate=self.learning_rate)
                      .minimize(network.loss))
 
+        # Initiate summaries.
+        tf.scalar_summary('loss', network.loss)
+        tf.scalar_summary('validation-loss', valid_loss)
+        merged_summaries = tf.merge_all_summaries()
+
         with tf.Session(config=self.session_config) as s:
             s.run(tf.initialize_all_variables())
 
-            # Initiate summaries.
-            tf.scalar_summary('loss', network.loss)
-            tf.scalar_summary('validation-loss', valid_loss)
-            merged_summaries = tf.merge_all_summaries()
-            summary_writer = tf.train.SummaryWriter(self.logs_dir,
-                                                    graph=s.graph)
-            try:
-                self.restore(checkpoint='last')
-            except ValueError:
-                # We simply start our work again when no
-                # previous saving points are found.
-                logger.warning('could not restore persisted model. '
-                               'Training will start from the beginning.')
+            summary_writer = tf.train.SummaryWriter(self.logs_dir, graph=s.graph)
+
+            if self.resume_training:
+                self.restore(checkpoint='last', raise_errors=False)
 
             c = tf.train.Coordinator()
             ts = tf.train.start_queue_runners(coord=c)
 
             try:
                 while self.epoch_ < self.n_epochs and not c.should_stop():
-                    _, loss_, v_loss_, score_, v_score_, summary = s.run(
+                    _, loss_, v_loss_, score_, v_score_ = s.run(
                         [optimizer,
                          network.loss, valid_loss,
-                         network.score, valid_score,
-                         merged_summaries])
+                         network.score, valid_score])
+
+                    assert not any(np.isnan(l) for l in (loss_, v_loss_)), 'Model diverged with loss = NaN'
 
                     self.loss_ = v_loss_ if validation else loss_
                     self.save()
 
-                    # Log to Tensorboard.
-                    summary_writer.add_summary(summary, self.epoch_)
-                    # Log progress.
-                    logger.info('[%i] loss: %.2f (%.2f), validation: %.2f (%.2f)',
-                                self.epoch_, loss_, score_, v_loss_, v_score_)
+                    if self.epoch_ % self.log_every == 0:
+                        # Log to Tensorboard.
+                        summary = s.run(merged_summaries)
+                        summary_writer.add_summary(summary, self.epoch_)
+
+                        # Log progress.
+                        logger.info('[%i] loss: %.2f (%.2f), '
+                                    'validation: %.2f (%.2f)',
+                                    self.epoch_, loss_, score_, v_loss_,
+                                    v_score_)
+
                     self.epoch_ += 1
 
             except tf.errors.OutOfRangeError:
@@ -223,6 +150,7 @@ class Connoisseur(PersistentEstimator, BaseEstimator, ClassifierMixin):
         X = tf.convert_to_tensor(X, name='X')
 
         with tf.Session(config=self.session_config) as s:
+            s.run(tf.initialize_all_variables())
             network = self._build_fitted(X)
 
             c = tf.train.Coordinator()
@@ -249,7 +177,7 @@ class Connoisseur(PersistentEstimator, BaseEstimator, ClassifierMixin):
 
         with tf.Session(config=self.session_config) as s:
             s.run(tf.initialize_all_variables())
-            network = self._build_fitted(X)
+            network = self._build_fitted(X, y=y)
 
             c = tf.train.Coordinator()
             ts = tf.train.start_queue_runners(coord=c)
@@ -258,16 +186,99 @@ class Connoisseur(PersistentEstimator, BaseEstimator, ClassifierMixin):
 
             try:
                 while not c.should_stop():
-                    labels_, batch_score_ = s.run([network.estimator[1],
-                                                   network.score])
+                    y_, o_, batch_score_ = s.run([y,
+                                                  network.estimator[1],
+                                                  network.score])
                     score += batch_score_
                     cycles_ += 1
 
             except tf.errors.OutOfRangeError:
-                logger.info('all samples analyzed')
-
+                pass
             finally:
                 c.request_stop()
                 c.join(ts)
 
             return score / cycles_
+
+    @property
+    def saver(self):
+        if self._saver is None:
+            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.OUTER_SCOPE)
+            self._saver = tf.train.Saver(collection, max_to_keep=2)
+        return self._saver
+
+    @property
+    def optimal_saver(self):
+        if self._optimal_saver is None:
+            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.OUTER_SCOPE)
+            self._optimal_saver = tf.train.Saver(collection)
+        return self._optimal_saver
+
+    def save(self):
+        """Persist the model whenever convenient.
+
+        Persist a snapshot of the model every once in a while, as defined
+        by the `checkpoint_every parameter`. Additionally, always save
+        when loss is smaller than optimal.
+        """
+        s = tf.get_default_session()
+
+        if self.epoch_ % self.checkpoint_every == 0:
+            logger.info('saving model snapshot...')
+            path = os.path.join(self.checkpoints_dir, 'ckpt')
+
+            with tf.device('cpu'):
+                self.saver.save(s, path, global_step=self.epoch_)
+
+        if self.loss_ < self.best_loss_:
+            logger.info('saving opt model (loss: %.2f)...', self.loss_)
+            path = os.path.join(self.checkpoints_dir, 'opt', 'ckpt')
+
+            with tf.device('cpu'):
+                self.optimal_saver.save(s, path)
+
+            self.best_loss_ = self.loss_
+
+        return self
+
+    def restore(self, checkpoint='last', raise_errors=True):
+        """Restore a model persisted in disk.
+
+        :param checkpoint: str, ['last', 'optimal']
+            Which checkpoint to restore.
+        :param raise_errors: bool, default=True.
+            If true, raises an error whenever no checkpoint can be restored.
+            Otherwise, silently goes over this step and has no effect.
+        """
+        checkpoint_dir = self.checkpoints_dir
+
+        if checkpoint == 'optimal':
+            checkpoint_dir = os.path.join(self.checkpoints_dir, 'opt')
+
+        c = tf.train.get_checkpoint_state(checkpoint_dir)
+
+        if c and c.model_checkpoint_path:
+            # A checkpoint was found. Resume work.
+            logger.info('restoring variables from {%s}',
+                        c.model_checkpoint_path)
+
+            if checkpoint == 'last':
+                with tf.device('cpu'):
+                    self.saver.restore(tf.get_default_session(),
+                                       c.model_checkpoint_path)
+
+                try:
+                    self.epoch_ = int(c.model_checkpoint_path.split('-')[-1])
+                except (ValueError, IndexError):
+                    pass
+
+            elif checkpoint == 'optimal':
+                with tf.device('cpu'):
+                    self.optimal_saver.restore(tf.get_default_session(),
+                                               c.model_checkpoint_path)
+        elif raise_errors:
+            raise ValueError('could not load variables from {%s}'
+                             % checkpoint_dir)
+        else:
+            logger.warning('could not load variables from {%s}', checkpoint_dir)
+        return self

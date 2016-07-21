@@ -6,13 +6,11 @@ Licence: MIT License 2016 (c)
 
 """
 
-import abc
-
 import numpy as np
 import tensorflow as tf
 
 
-class Model(metaclass=abc.ABCMeta):
+class Model:
     """TensorFlow Model Base Class."""
 
     def __init__(self, X, y=None, dropout=None):

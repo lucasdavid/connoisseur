@@ -32,7 +32,7 @@ class Paintings91(base.Connoisseur):
             if y is not None:
                 nn.loss = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits(nn.y_, y))
-                nn.score = tf.reduce_mean(
-                    tf.cast(tf.equal(tf.cast(tf.argmax(y, 1), tf.int32),
-                                     nn.estimator[1]), tf.float32))
+                nn.score = tf.reduce_mean(tf.to_float(
+                    tf.equal(tf.reshape(tf.cast(tf.argmax(y, 1), tf.int32), [-1, 1]),
+                             nn.estimator[1])))
         return nn

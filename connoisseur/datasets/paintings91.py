@@ -17,6 +17,7 @@ class Paintings91(base.ImageDataSet):
         'batch_size': 50,
         'height': 300,
         'width': 300,
+        'channels': 3,
 
         'train_validation_test_split': [.8, .2],
 
@@ -26,7 +27,6 @@ class Paintings91(base.ImageDataSet):
     }
 
     def __init__(self, **parameters):
-        # Paintings91 already know its name.
         super().__init__('Paintings91', **parameters)
 
     def load(self, override=False):
