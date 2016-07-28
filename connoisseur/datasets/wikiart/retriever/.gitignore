@@ -3,7 +3,6 @@ data/
 *.pyc
 *.cache
 bin/
-__pycache__/
 
 .coverage
 coverage/
@@ -55,7 +54,6 @@ htmlcov/
 .tox/
 .coverage
 .coverage.*
-.cache
 nosetests.xml
 coverage.xml
 *,cover
@@ -77,4 +75,4 @@ target/
 #Ipython Notebook
 .ipynb_checkpoints
 
-data/
+.idea/
