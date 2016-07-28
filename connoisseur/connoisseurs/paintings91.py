@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.contrib.layers import fully_connected
 
 from . import models, base
 
@@ -14,17 +15,15 @@ class Paintings91(base.Connoisseur):
             y_ = tf.reshape(nn.y_, [-1, 2048])
 
             with tf.variable_scope('l17'):
-                W, b = models.utils.normal_layer([2048, 4096])
-
-            y_ = tf.matmul(y_, W)
-            y_ = tf.nn.bias_add(y_, b)
-            y_ = tf.nn.relu(y_)
-            y_ = tf.nn.dropout(y_, keep_prob)
+                y_ = fully_connected(y_, 4096)
+                y_ = tf.nn.dropout(y_, keep_prob)
 
             with tf.variable_scope('l18'):
-                W, b = models.utils.normal_layer([4096, 91])
+                y_ = fully_connected(y_, 4096)
+                y_ = tf.nn.dropout(y_, keep_prob)
 
-            nn.y_ = tf.nn.bias_add(tf.matmul(y_, W), b)
+            with tf.variable_scope('l19'):
+                nn.y_ = fully_connected(y_, 91, activation_fn=None)
 
             # ... and a softmax classifier.
             nn.estimator = tf.nn.top_k(tf.nn.softmax(nn.y_))

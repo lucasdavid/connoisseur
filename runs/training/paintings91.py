@@ -9,9 +9,8 @@ import json
 import logging
 import os
 
-import tensorflow as tf
-
 import connoisseur as conn
+import tensorflow as tf
 
 N_EPOCHS = 1000000
 
@@ -20,11 +19,12 @@ config = tf.ConfigProto(allow_soft_placement=True)
 connoisseur_params = dict(
     n_epochs=N_EPOCHS, learning_rate=.001, dropout=.5,
     checkpoint_every=100,
+    log_every=100,
     session_config=config)
 
 data_set_params = dict(
     n_threads=1,
-    train_validation_test_split=[.8, .2],
+    train_validation_test_split=(.9, .1),
     save_in='./data/',
     batch_size=10,
     n_epochs=N_EPOCHS)
@@ -46,15 +46,18 @@ def main():
     logger.info('Executing with the following parameters:\n%s',
                 json.dumps(dataset.parameters, indent=2))
     try:
-        with tf.device('/gpu:1'):
+        with tf.device('/cpu'):
             logger.info('fetching data set...')
-            images, labels = dataset.load().preprocess().as_batches()
+            dataset.load().preprocess()
+            training_data = dataset.as_batches()
+            validation_data = dataset.as_batches(phase='validation')
 
+        with tf.device('/gpu:1'):
             logger.info('training...')
-            model.fit(images, labels, validation=dataset.as_batches(phase='validation'))
+            model.fit(*training_data, validation=validation_data)
 
-            test_score = model.score(*dataset.as_batches('test'))
-            logger.info('score on test dataset: %.2f%%', (100 * test_score))
+            score = model.score(*validation_data)
+            logger.info('score on validation dataset: %.2f%%', (100 * score))
 
     except KeyboardInterrupt:
         logger.info('interrupted by user (%s)', t)

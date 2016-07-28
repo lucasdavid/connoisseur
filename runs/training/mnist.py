@@ -12,7 +12,7 @@ import os
 import connoisseur as conn
 import tensorflow as tf
 
-N_EPOCHS = 1000
+N_EPOCHS = 1000000
 
 config = tf.ConfigProto(allow_soft_placement=True)
 
@@ -48,10 +48,11 @@ def main():
                 json.dumps(dataset.parameters, indent=2))
 
     try:
-        with tf.device('/gpu:1'):
+        with tf.device('/cpu'):
             logger.info('fetching data set...')
             dataset.load().preprocess()
 
+        with tf.device('/gpu:1'):
             logger.info('training...')
             images, labels = dataset.as_batches('train')
             model.fit(images, labels, validation=dataset.as_batches('validation'))
