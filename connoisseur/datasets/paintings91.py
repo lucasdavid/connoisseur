@@ -26,6 +26,8 @@ class Paintings91(base.ImageDataSet):
         'n_epochs': None,
     }
 
+    NAME = 'Paintings91'
+
     def load(self, override=False):
         self.download(override=override).extract(override=override)
 
@@ -38,12 +40,11 @@ class Paintings91(base.ImageDataSet):
                                'and extracted it first?')
 
         images_folder = os.path.join(base_folder, 'Images')
-        labels_folder = os.path.join(base_folder, 'Labels', 'labels.mat')
+        labels_file = os.path.join(base_folder, 'Labels', 'labels.mat')
 
         # Data is represented at a column vector. Coverts it to a list.
-        image_names = \
-            loadmat(os.path.join(base_folder, 'Labels', 'image_names.mat'))[
-                'image_names']
+        images_file = os.path.join(base_folder, 'Labels', 'image_names.mat')
+        image_names = loadmat(images_file)['image_names']
         # Stupid format and accents require us to call
         # `replace` to fix incorrect characters.
         image_names = np.array(
@@ -56,7 +57,7 @@ class Paintings91(base.ImageDataSet):
             assert os.path.exists(image)
 
         # Be aware: labels are one-hot encoded already.
-        target = loadmat(labels_folder)['labels']
+        target = loadmat(labels_file)['labels']
 
         # Let's check if problem is ill-sampled by defining a threshold of 6
         # samples and asserting that standard deviation of the occurrence of
