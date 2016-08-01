@@ -13,10 +13,11 @@ import tensorflow as tf
 class Model:
     """TensorFlow Model Base Class."""
 
-    def __init__(self, X, y=None, dropout=None):
+    def __init__(self, X, y=None, dropout=None, batch_size=None):
         self.X = X
         self.y = y
         self.dropout = dropout
+        self.batch_size = batch_size
 
         self.y_ = None
         self.estimator = None

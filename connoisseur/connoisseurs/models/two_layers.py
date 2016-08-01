@@ -15,8 +15,8 @@ from .base import Model
 class TwoConvLayers(Model):
     """TensorFlow TwoLayers Model Descriptor."""
 
-    def __init__(self, X, y=None, dropout=None):
-        super().__init__(X=X, y=y, dropout=dropout)
+    def __init__(self, X, y=None, dropout=None, batch_size=None):
+        super().__init__(X=X, y=y, dropout=dropout, batch_size=batch_size)
 
         with tf.variable_scope('l1'):
             y_ = convolution2d(X, 32, (3, 3))

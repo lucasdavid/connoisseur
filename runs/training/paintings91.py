@@ -13,22 +13,24 @@ import connoisseur as conn
 import tensorflow as tf
 
 N_EPOCHS = 1000000
+BATCH_SIZE = 32
 
 config = tf.ConfigProto(allow_soft_placement=True)
 
 connoisseur_params = dict(
     n_epochs=N_EPOCHS,
-    learning_rate=.01,
+    learning_rate=.001,
     dropout=.5,
     checkpoint_every=100,
     log_every=100,
+    batch_size=BATCH_SIZE,
     session_config=config)
 
 data_set_params = dict(
     n_threads=1,
     train_validation_test_split=(.9, .1),
     save_in='./data/',
-    batch_size=32,
+    batch_size=BATCH_SIZE,
     n_epochs=N_EPOCHS)
 
 

@@ -23,18 +23,21 @@ class Connoisseur(BaseEstimator, ClassifierMixin):
     OUTER_SCOPE = None
 
     def __init__(self, n_epochs=100, learning_rate=0.001, dropout=.5,
-                 resume_training=True, checkpoint_every=100, checkpoints_dir='default',
-                 log_every=100, logs_dir='default', session_config=None):
+                 batch_size=50, resume_training=True, checkpoint_every=100,
+                 checkpoints_dir='default', log_every=100, logs_dir='default',
+                 session_config=None):
         self.n_epochs = n_epochs
         self.learning_rate = learning_rate
         self.dropout = dropout
+        self.batch_size = batch_size
         self.resume_training = resume_training
         self.checkpoint_every = checkpoint_every
         self.session_config = session_config
         self.log_every = log_every
 
         if checkpoints_dir == 'default':
-            checkpoints_dir = os.path.join(settings.BASE_DIR, self.OUTER_SCOPE, 'checkpoints')
+            checkpoints_dir = os.path.join(settings.BASE_DIR, self.OUTER_SCOPE,
+                                           'checkpoints')
         if logs_dir == 'default':
             logs_dir = os.path.join(settings.BASE_DIR, self.OUTER_SCOPE, 'logs')
 
@@ -105,7 +108,8 @@ class Connoisseur(BaseEstimator, ClassifierMixin):
         with tf.Session(config=self.session_config) as s:
             s.run(tf.initialize_all_variables())
 
-            summary_writer = tf.train.SummaryWriter(self.logs_dir, graph=s.graph)
+            summary_writer = tf.train.SummaryWriter(self.logs_dir,
+                                                    graph=s.graph)
 
             if self.resume_training:
                 self.restore(checkpoint='last', raise_errors=False)
@@ -120,7 +124,8 @@ class Connoisseur(BaseEstimator, ClassifierMixin):
                          network.loss, valid_loss,
                          network.score, valid_score])
 
-                    assert not any(np.isnan(l) for l in (loss_, v_loss_)), 'Model diverged with loss = NaN'
+                    assert not any(np.isnan(l) for l in (
+                        loss_, v_loss_)), 'Model diverged with loss = NaN'
 
                     self.loss_ = v_loss_ if validation else loss_
                     self.save()
@@ -203,14 +208,16 @@ class Connoisseur(BaseEstimator, ClassifierMixin):
     @property
     def saver(self):
         if self._saver is None:
-            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.OUTER_SCOPE)
+            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                           scope=self.OUTER_SCOPE)
             self._saver = tf.train.Saver(collection, max_to_keep=2)
         return self._saver
 
     @property
     def optimal_saver(self):
         if self._optimal_saver is None:
-            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.OUTER_SCOPE)
+            collection = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                           scope=self.OUTER_SCOPE)
             self._optimal_saver = tf.train.Saver(collection)
         return self._optimal_saver
 

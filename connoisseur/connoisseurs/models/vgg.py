@@ -19,8 +19,8 @@ class TruncatedVGG(base.Model):
     "Very Deep Neural Network".
     """
 
-    def __init__(self, X, y=None, dropout=None):
-        super().__init__(X=X, y=y, dropout=dropout)
+    def __init__(self, X, y=None, dropout=None, n_batch=None):
+        super().__init__(X=X, y=y, dropout=dropout, batch_size=n_batch)
 
         with tf.variable_scope('l1'):
             y_ = convolution2d(X, 64, kernel_size=(3, 3))
@@ -63,8 +63,8 @@ class VGG(base.Model):
     Very Deep Neural Network.
     """
 
-    def __init__(self, X, y=None, dropout=None):
-        super().__init__(X=X, y=y, dropout=dropout)
+    def __init__(self, X, y=None, dropout=None, batch_size=None):
+        super().__init__(X=X, y=y, dropout=dropout, batch_size=batch_size)
 
         with tf.variable_scope('l1'):
             y_ = convolution2d(X, 64, (3, 3))
