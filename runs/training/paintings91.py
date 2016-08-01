@@ -17,7 +17,9 @@ N_EPOCHS = 1000000
 config = tf.ConfigProto(allow_soft_placement=True)
 
 connoisseur_params = dict(
-    n_epochs=N_EPOCHS, learning_rate=.001, dropout=.5,
+    n_epochs=N_EPOCHS,
+    learning_rate=.01,
+    dropout=.5,
     checkpoint_every=100,
     log_every=100,
     session_config=config)
@@ -26,7 +28,7 @@ data_set_params = dict(
     n_threads=1,
     train_validation_test_split=(.9, .1),
     save_in='./data/',
-    batch_size=10,
+    batch_size=32,
     n_epochs=N_EPOCHS)
 
 

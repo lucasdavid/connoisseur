@@ -6,5 +6,6 @@ Licence: MIT License 2016 (c)
 
 """
 
-from .paintings91 import Paintings91
 from .mnist import MNIST
+from .paintings91 import Paintings91
+from .wikiart import Wikiart

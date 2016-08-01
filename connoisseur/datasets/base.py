@@ -32,10 +32,9 @@ class DataSet(metaclass=abc.ABCMeta):
     """
 
     DEFAULT_PARAMETERS = {}
+    NAME = None
 
-    def __init__(self, name, **parameters):
-        self.name = name
-
+    def __init__(self, **parameters):
         for k, v in self.DEFAULT_PARAMETERS.items():
             if k not in parameters:
                 parameters[k] = v
@@ -114,7 +113,7 @@ class DataSet(metaclass=abc.ABCMeta):
 
         for file_name in file_names:
             zipped = os.path.join(p['save_in'], file_name)
-            unzipped = os.path.join(p['save_in'], self.name)
+            unzipped = os.path.join(p['save_in'])
 
             if os.path.isdir(unzipped) and not override:
                 print('(skipped)')
@@ -201,8 +200,8 @@ class ImageDataSet(DataSet, metaclass=abc.ABCMeta):
     Base class used by data sets of images.
     """
 
-    def __init__(self, name, **parameters):
-        super().__init__(name=name, **parameters)
+    def __init__(self, **parameters):
+        super().__init__(**parameters)
 
         self.train_image_names = None
         self.validation_image_names = None

@@ -20,8 +20,7 @@ class MNIST(base.ImageDataSet):
         'source': 'http://yann.lecun.com/exdb/mnist/'
     }
 
-    def __init__(self, **parameters):
-        super().__init__('MNIST', **parameters)
+    NAME = 'mnist'
 
     def load(self, override=False):
         params = self.parameters

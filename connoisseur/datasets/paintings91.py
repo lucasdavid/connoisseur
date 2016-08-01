@@ -34,7 +34,7 @@ class Paintings91(base.ImageDataSet):
 
         params = self.parameters
 
-        base_folder = os.path.join(params['save_in'], self.name, 'Paintings91')
+        base_folder = os.path.join(params['save_in'], self.NAME, 'Paintings91')
 
         if not os.path.exists(base_folder):
             raise RuntimeError('Data set not found. Have you downloaded '
