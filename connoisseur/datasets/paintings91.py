@@ -26,9 +26,6 @@ class Paintings91(base.ImageDataSet):
         'n_epochs': None,
     }
 
-    def __init__(self, **parameters):
-        super().__init__('Paintings91', **parameters)
-
     def load(self, override=False):
         self.download(override=override).extract(override=override)
 
