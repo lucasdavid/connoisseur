@@ -1,6 +1,5 @@
 """TensorFlow AlexNET Model Descriptor.
 
-
 Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
 
@@ -15,7 +14,7 @@ class AlexNET(base.Model):
     """TensorFlow AlexNET Model Descriptor."""
 
     def __init__(self, X, y=None, dropout=None, batch_size=None):
-        super().__init__(X=X, y=y, dropout=dropout, batch_size=batch_size)
+        super().__init__(X=X, y=y)
 
         y_ = conv2d(X, 96, (11, 11), stride=4, padding='SAME', scope='conv1')
         y_ = max_pool2d(y_, 3, scope='pool1')
@@ -24,9 +23,7 @@ class AlexNET(base.Model):
         y_ = max_pool2d(y_, 3, scope='pool2')
 
         y_ = conv2d(y_, 384, (3, 3), padding='SAME', scope='conv3')
-
         y_ = conv2d(y_, 384, (3, 3), padding='SAME', scope='conv4')
-
         y_ = conv2d(y_, 256, (3, 3), padding='SAME', scope='conv5')
         y_ = max_pool2d(y_, 3, scope='pool5')
 
@@ -36,4 +33,6 @@ class AlexNET(base.Model):
         y_ = tf.nn.dropout(y_, dropout)
 
         y_ = fully_connected(y_, 4096, scope='fc7')
-        self.y_ = tf.nn.dropout(y_, dropout)
+        y_ = tf.nn.dropout(y_, dropout)
+
+        self.y_ = y_

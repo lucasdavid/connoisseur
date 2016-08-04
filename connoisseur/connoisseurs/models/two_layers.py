@@ -1,5 +1,4 @@
-"""
-TensorFlow TwoLayers Model Descriptor.
+"""TensorFlow TwoLayers Model Descriptor.
 
 Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
@@ -15,15 +14,15 @@ from .base import Model
 class TwoConvLayers(Model):
     """TensorFlow TwoLayers Model Descriptor."""
 
-    def __init__(self, X, y=None, dropout=None, batch_size=None):
-        super().__init__(X=X, y=y, dropout=dropout, batch_size=batch_size)
+    def __init__(self, X, y=None, batch_size=None):
+        super().__init__(X=X, y=y)
 
-        with tf.variable_scope('l1'):
-            y_ = convolution2d(X, 32, (3, 3))
-            y_ = max_pool2d(y_, (2, 2), stride=2)
+        y_ = convolution2d(X, 32, (3, 3), scope='conv1')
+        y_ = max_pool2d(y_, (2, 2), stride=2, scope='pool1')
 
-        with tf.variable_scope('l2'):
-            y_ = convolution2d(y_, 64, (5, 5))
-            y_ = max_pool2d(y_, (2, 2), stride=2)
+        y_ = convolution2d(y_, 64, (5, 5), scope='conv2')
+        y_ = max_pool2d(y_, (2, 2), stride=2, scope='pool2')
+
+        y_ = tf.reshape(y_, (batch_size, -1))
 
         self.y_ = y_
