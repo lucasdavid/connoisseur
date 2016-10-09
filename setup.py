@@ -6,14 +6,16 @@ except ImportError:
 setup(
     name='connoisseur',
     description='Machine Learning for art authorship recognition.',
+    license='MIT License',
     long_description=open('README.md').read(),
+    keywords=['machine-learning', 'paintings'],
     version='0.1',
     packages=['connoisseur'],
     scripts=[],
+
     author='Lucas David',
     author_email='ld492@drexel.edu',
 
-    install_requires=['numpy', 'scipy', 'tensorflow', 'scikit-learn', 'keras',
-                      'h5py', 'image'],
-    tests_require=open('requirements-dev.txt').readlines(),
+    install_requires=open('docs/requirements-install.txt').readlines(),
+    tests_require=open('docs/requirements-dev.txt').readlines(),
 )

@@ -5,43 +5,31 @@ Licence: MIT License 2016 (c)
 
 """
 import abc
+import logging
 import os
+from datetime import datetime
 
 import tensorflow as tf
-from connoisseur import Connoisseur, datasets
-from connoisseur.utils import Timer
+from connoisseur import Connoisseur, datasets, utils
 from keras.applications import VGG19
 from keras.engine import Input
 from keras.engine import Model
 from keras.layers import Dense, Flatten
 
-BASE_DIR = '/media/ldavid/hdd/research'
-LOGGING_DIR = os.path.join(BASE_DIR, 'logs', 'paintings91')
-DATA_DIR = os.path.join(BASE_DIR, 'data', 'Paintings91')
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
-MODEL_FILE = os.path.join(MODEL_DIR, 'paintings91.h5')
-
-N_CLASSES = None
-
-N_EPOCHS = 100
-BATCH_SIZE = 4
-SAMPLES_PER_EPOCH = 4096
-SEED = None
-
-IMAGE_SHAPE = (224, 224, 3)
-
 
 class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
     def build(self):
-        images = Input(batch_shape=(BATCH_SIZE,) + IMAGE_SHAPE)
+        consts = self.constants
+
+        images = Input(batch_shape=[consts.batch_size] + consts.image_shape)
         base_model = VGG19(include_top=False, weights='imagenet',
                            input_tensor=images)
 
-        n_classes = 91 if N_CLASSES is None else len(N_CLASSES)
+        n_classes = 91 if consts.classes is None else len(consts.classes)
 
         s = Flatten()(base_model.output)
-        s = Dense(1024, activation='relu', name='fc1')(s)
-        s = Dense(1024, activation='relu', name='fc2')(s)
+        s = Dense(2048, activation='relu', name='fc1')(s)
+        s = Dense(2048, activation='relu', name='fc2')(s)
         s = Dense(n_classes, activation='softmax', name='predictions')(s)
 
         model = Model(input=base_model.input, output=s)
@@ -54,28 +42,38 @@ class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
         return model
 
     def data(self, phase='training'):
+        consts = self.constants
+
         with tf.device('/cpu'):
-            dataset = datasets.Paintings91(DATA_DIR)
+            dataset = datasets.Paintings91(consts.data_dir)
             data_generator = dataset.as_keras_generator()
 
             return data_generator.flow_from_directory(
-                os.path.join(DATA_DIR, 'Images'),
-                target_size=IMAGE_SHAPE[:2],
-                classes=N_CLASSES,
-                batch_size=BATCH_SIZE,
-                seed=SEED)
+                os.path.join(consts.data_dir, 'Images'),
+                target_size=consts.image_shape[:2],
+                classes=consts.classes,
+                batch_size=consts.batch_size,
+                seed=consts.seed)
 
 
 def main():
-    c = Paintings91()
+    consts = utils.Constants('./training-constants.json')
+
+    tf.logging.set_verbosity(tf.logging.INFO)
+    log_filename = os.path.join(consts.logging_dir,
+                                'training-' + str(datetime.now()) + '.log')
+    logging.basicConfig(level=logging.INFO, filename=log_filename)
+
+    c = Paintings91(constants=consts)
 
     try:
-        t = Timer()
+        t = utils.Timer()
 
-        with tf.device('/gpu:0'):
+        with tf.device(consts.device):
             data = c.data(phase='training')
             model = c.build()
-            history = model.fit_generator(data, SAMPLES_PER_EPOCH, N_EPOCHS)
+            history = model.fit_generator(data, consts.n_samples_per_epoch,
+                                          consts.n_iterations)
             print(history)
 
         tf.logging.info('done (%s)' % t)

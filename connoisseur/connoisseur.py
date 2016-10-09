@@ -10,6 +10,9 @@ import abc
 class Connoisseur(metaclass=abc.ABCMeta):
     """Connoisseur Base Class."""
 
+    def __init__(self, constants=None):
+        self.constants = constants
+
     def build(self):
         raise NotImplementedError
 

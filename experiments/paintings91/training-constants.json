@@ -1,0 +1,14 @@
+{
+  "batch_size": 32,
+  "n_iterations": 100000,
+  "n_samples_per_epoch": 4266,
+
+  "image_shape": [224, 224, 3],
+  "classes": null,
+
+  "device": "/gpu:0",
+  "seed": null,
+
+  "data_dir": "/media/ldavid/hdd/research/data/Paintings91",
+  "logging_dir": "/media/ldavid/hdd/research/paintings91/logs"
+}

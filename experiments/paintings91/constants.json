@@ -1,0 +1,11 @@
+{
+  "seed": null,
+  "classes": null,
+  "batch_size": 18,
+  "n_iterations": 237,
+  "image_shape": [224, 224, 3],
+  "device": "/gpu:0",
+
+  "data_dir": "/media/ldavid/hdd/research/data/Paintings91",
+  "logging_dir": "/media/ldavid/hdd/research/paintings91/logs"
+}

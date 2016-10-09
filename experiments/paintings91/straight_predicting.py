@@ -1,4 +1,8 @@
-"""Paintings91 Connoisseur Training.
+"""Paintings91 Connoisseur Straight Predicting.
+
+Uses VGG to transform paintings in Paintings91 dataset into their
+low-dimensional representations and, finally, exploits LinearSVM to classify
+these paintings.
 
 Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
@@ -14,75 +18,85 @@ import tensorflow as tf
 from connoisseur import Connoisseur, datasets, utils
 from keras.applications import VGG19
 from keras.engine import Input
-from sklearn.model_selection import train_test_split
-from sklearn.svm import LinearSVC
-
-SEED = None
-N_CLASSES = None
-BATCH_SIZE = 18
-N_ITERATIONS = 237
-IMAGE_SHAPE = (224, 224, 3)
-BASE_NETWORK = VGG19
-
-BASE_DIR = '/media/ldavid/hdd/research'
-LOGGING_FILE = os.path.join(BASE_DIR, 'logs', 'paintings91',
-                            str(datetime.now()) + '.log')
-MODEL_FILE = os.path.join(BASE_DIR, 'models', 'paintings91.h5')
-
-DATA_DIR = '/media/ldavid/hdd/research/data/Paintings91'
-
-logging.basicConfig(filename=LOGGING_FILE, level=logging.DEBUG)
-logger = logging.getLogger('tensorflow')
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.svm import SVC
 
 
 class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
     def build(self):
-        images = Input(batch_shape=(BATCH_SIZE,) + IMAGE_SHAPE)
-        return BASE_NETWORK(weights='imagenet',
-                            input_tensor=images,
-                            include_top=False)
+        consts = self.constants
+        images = Input(batch_shape=[consts.batch_size] + consts.image_shape)
+        return VGG19(weights='imagenet', include_top=False,
+                     input_tensor=images)
 
     def data(self, phase='training'):
+        consts = self.constants
+
         with tf.device('/cpu'):
-            dataset = datasets.Paintings91(DATA_DIR).check()
+            dataset = datasets.Paintings91(consts.data_dir).check()
             data_generator = dataset.as_keras_generator()
 
             return data_generator.flow_from_directory(
-                os.path.join(DATA_DIR, 'Images'),
-                target_size=IMAGE_SHAPE[:2],
-                classes=N_CLASSES,
-                batch_size=BATCH_SIZE,
-                seed=SEED)
+                os.path.join(consts.data_dir, 'Images'),
+                target_size=consts.image_shape[:2],
+                classes=consts.classes,
+                batch_size=consts.batch_size,
+                seed=consts.seed)
 
 
-def main():
-    c = Paintings91()
+def main(constants_file='./constants.json'):
+    consts = utils.Constants(constants_file).load()
+
+    tf.logging.set_verbosity(tf.logging.INFO)
+    logging.basicConfig(level=logging.INFO,
+                        filename=os.path.join(consts.logging_dir,
+                                              str(datetime.now()) + '.log'))
+
+    c = Paintings91(constants=consts)
 
     try:
         t = utils.Timer()
         data = c.data()
         X, y = [], []
 
-        with tf.device('/gpu:0'):
+        tf.logging.info('entering feature extraction phase')
+
+        with tf.device(consts.device):
+            # Transform images into their low-dimensional representations.
             model = c.build()
 
-            for i in range(N_ITERATIONS):
+            for i in range(consts.n_iterations):
                 _X, _y = next(data)
-                X += [model.predict_on_batch(_X).reshape((BATCH_SIZE, -1))]
+                X += [
+                    model.predict_on_batch(_X).reshape((consts.batch_size, -1))]
                 y += [np.argmax(_y, axis=1)]
 
+        # Separate data between training and testing.
         X, y = np.concatenate(X), np.concatenate(y)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2)
-        clf = LinearSVC()
-        clf.fit(X_train, y_train)
+        tf.logging.info('feature extraction completed -- dataset shape: %s',
+                        X.shape)
+        tf.logging.info('entering SVM classifier training phase')
 
-        tf.logging.info('training score: %.2f%%', clf.score(X_train, y_train))
-        tf.logging.info('Test score: %.2f%%', clf.score(X_test, y_test))
-        tf.logging.info('done (%s)' % t)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.20,
+                                                            random_state=consts.seed)
+        params = [
+            {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
+            {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001],
+             'kernel': ['rbf']},
+        ]
+
+        grid = GridSearchCV(SVC(), params, cv=None, n_jobs=-1)
+        grid.fit(X_train, y_train)
+
+        tf.logging.info('training complete')
+
+        tf.logging.info('best training score: %.2f%%', grid.best_score_)
+        tf.logging.info('test score: %.2f%%', grid.score(X_test, y_test))
+        tf.logging.info('experiment completed (%s)' % t)
 
     except KeyboardInterrupt:
-        tf.logging.info('interrupted by the user')
+        tf.logging.warning('interrupted by the user')
 
 
 if __name__ == '__main__':
