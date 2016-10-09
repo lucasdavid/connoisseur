@@ -1,0 +1,1333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="3e2a18a0-6e70-4695-b2fe-e1ca4f1fcc86" name="Default" comment="# This is a combination of 4 commits.&#10;# The first commit's message is:&#10;use keras layers&#10;&#10;# The 2nd commit message will be skipped:&#10;&#10;#&#9;Add wikiart program sketch&#10;&#10;# The 3rd commit message will be skipped:&#10;&#10;#&#9;Remove cache files&#10;&#10;# The 4th commit message will be skipped:&#10;&#10;#&#9;Initial commit&#10;">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/connoisseur.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/__main__.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/setup.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/__init__.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/base.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/console.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/converter.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/fetcher.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/settings.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/experiments/paintings91/straight_predicting.py" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/experiments/paintings91/training.py" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/__init__.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/base.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/mnist.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/models/__init__.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/models/alexnet.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/models/base.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/models/two_layers.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/models/vgg.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/connoisseurs/paintings91.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/datasets/base.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/datasets/mnist.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/settings.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/utils/__init__.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/utils/image.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/connoisseur/utils/transformations.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/docs/related-papers.md" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/docs/research-notes.md" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/runs/predicting/mnist.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/runs/predicting/paintings91.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/runs/training/loading_and_printing.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/runs/training/mnist.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/runs/training/paintings91.py" afterPath="" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/.gitignore" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/LICENSE" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/LICENSE" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/README.md" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/connoisseur/utils/timer.py" afterPath="$PROJECT_DIR$/connoisseur/utils.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/connoisseur/__init__.py" afterPath="$PROJECT_DIR$/connoisseur/__init__.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/connoisseur/datasets/__init__.py" afterPath="$PROJECT_DIR$/connoisseur/datasets/__init__.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/connoisseur/datasets/paintings91.py" afterPath="$PROJECT_DIR$/connoisseur/datasets/paintings91.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/connoisseur/datasets/wikiart/__init__.py" afterPath="$PROJECT_DIR$/connoisseur/datasets/wikiart/__init__.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/setup.py" afterPath="$PROJECT_DIR$/setup.py" />
+    </list>
+    <ignored path="connoisseur.iws" />
+    <ignored path=".idea/workspace.xml" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CreatePatchCommitExecutor">
+    <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
+  <component name="FavoritesManager">
+    <favorites_list name="connoisseur" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/connoisseur/datasets/wikiart/__init__.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="825">
+              <caret line="80" column="0" selection-start-line="80" selection-start-column="0" selection-end-line="80" selection-end-column="0" />
+              <folding>
+                <element signature="e#0#10#0" expanded="true" />
+                <element signature="e#142#438#1" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="connoisseur.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/connoisseur/connoisseur.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="189">
+              <caret line="9" column="6" selection-start-line="9" selection-start-column="6" selection-end-line="9" selection-end-column="6" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/connoisseur/__init__.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="147">
+              <caret line="7" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="7" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="utils.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/connoisseur/utils.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="441">
+              <caret line="21" column="0" selection-start-line="21" selection-start-column="0" selection-end-line="21" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="paintings91" />
+      </map>
+    </option>
+    <push-targets>
+      <push-target-info repo="$PROJECT_DIR$" source="paintings91" target-remote="origin" target-branch="paintings91" />
+    </push-targets>
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/connoisseur/settings.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils/parser.py" />
+        <option value="$PROJECT_DIR$/training/painting91.py" />
+        <option value="$PROJECT_DIR$/connoisseur/interpreter.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils/image.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils/__init__.py" />
+        <option value="$PROJECT_DIR$/training/paintings91.py" />
+        <option value="$PROJECT_DIR$/predicting/paintings91.py" />
+        <option value="$PROJECT_DIR$/connoisseur/base.py" />
+        <option value="$PROJECT_DIR$/runs/predicting/mnist.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/utils.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/wikiart.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/mnist.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/__init__.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/base.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/alexnet.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/vgg.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/fetcher.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/settings.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/models/two_layers.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/mnist.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/wikiart.py" />
+        <option value="$PROJECT_DIR$/connoisseur/models/two_layers.py" />
+        <option value="$PROJECT_DIR$/runs/training/mnist.py" />
+        <option value="$PROJECT_DIR$/runs/training/wikiart.py" />
+        <option value="$PROJECT_DIR$/runs/predicting/paintings91.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/__init__.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/base.py" />
+        <option value="$PROJECT_DIR$/keras/paintings91.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils/timer.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils/transformations.py" />
+        <option value="$PROJECT_DIR$/connoisseur/models/alexnet.py" />
+        <option value="$PROJECT_DIR$/connoisseur/models/__init__.py" />
+        <option value="$PROJECT_DIR$/connoisseur/trainer.py" />
+        <option value="$PROJECT_DIR$/connoisseur/models/vgg.py" />
+        <option value="$PROJECT_DIR$/runs/training/toy.py" />
+        <option value="$PROJECT_DIR$/runs/training/paintings91.py" />
+        <option value="$PROJECT_DIR$/experiments/paintings91/constants.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/base.py" />
+        <option value="$PROJECT_DIR$/experiments/paintings91/training.py" />
+        <option value="$PROJECT_DIR$/experiments/paintings91/straight_predicting.py" />
+        <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseurs/paintings91.py" />
+        <option value="$PROJECT_DIR$/setup.py" />
+        <option value="$PROJECT_DIR$/connoisseur/connoisseur.py" />
+        <option value="$PROJECT_DIR$/connoisseur/__init__.py" />
+        <option value="$PROJECT_DIR$/connoisseur/utils.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/__init__.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/paintings91.py" />
+        <option value="$PROJECT_DIR$/connoisseur/datasets/wikiart/__init__.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="65" />
+    <option name="y" value="24" />
+    <option name="width" value="1855" />
+    <option name="height" value="1056" />
+  </component>
+  <component name="ProjectInspectionProfilesVisibleTreeState">
+    <entry key="Project Default">
+      <profile-state>
+        <expanded-state>
+          <State>
+            <id />
+          </State>
+          <State>
+            <id>General</id>
+          </State>
+          <State>
+            <id>Python</id>
+          </State>
+        </expanded-state>
+        <selected-state>
+          <State>
+            <id>Buildout</id>
+          </State>
+        </selected-state>
+      </profile-state>
+    </entry>
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="false">
+    <OptionsSetting value="true" id="Add" />
+    <OptionsSetting value="true" id="Remove" />
+    <OptionsSetting value="true" id="Checkout" />
+    <OptionsSetting value="false" id="Update" />
+    <OptionsSetting value="true" id="Status" />
+    <OptionsSetting value="true" id="Edit" />
+    <ConfirmationsSetting value="2" id="Add" />
+    <ConfirmationsSetting value="0" id="Remove" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="ProjectPane" proportions="" version="1">
+      <flattenPackages />
+      <showMembers />
+      <showModules />
+      <showLibraryContents />
+      <hideEmptyPackages />
+      <abbreviatePackageNames />
+      <autoscrollToSource />
+      <autoscrollFromSource />
+      <sortByType />
+      <manualOrder />
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scratches" />
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="datasets" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="connoisseur" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="datasets" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="wikiart" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="settings.editor.selected.configurable" value="reference.settingsdialog.IDE.editor.colors.Debugger" />
+    <property name="settings.editor.splitter.proportion" value="0.2" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="SearchEverywhereHistoryKey" value="docs/&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/docs&#10;paintings&#9;null&#9;null&#10;models&#9;FILE&#9;file:///media/ldavid/hdd/linux/envs/tf/lib/python3.5/site-packages/keras/models.py&#10;alexnet&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/models/alexnet.py&#10;paintings91&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/paintings91.py&#10;dataset&#9;null&#9;null&#10;training/&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/runs/training&#10;wikiart&#9;null&#9;null&#10;wikiart.py&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/runs/training/wikiart.py&#10;mnist&#9;null&#9;null&#10;mnis&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/runs/training/mnist.py&#10;pain&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/runs/training/paintings91.py&#10;connoisseurs&#9;null&#9;null&#10;DataSet&#9;null&#9;null&#10;paintings9&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/datasets/paintings91.py&#10;WIKIART&#9;null&#9;null&#10;base.py&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/base.py&#10;two&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/two_layers.py&#10;vgg&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/vgg.py&#10;alex&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/alexnet.py&#10;VGG&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/vgg.py&#10;Model&#9;null&#9;null&#10;model.py&#9;FILE&#9;file:///media/ldavid/hdd/linux/programs/pycharm-community-2016.2/helpers/python-skeletons/django/forms/models.py&#10;Twp&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/two_layers.py&#10;_build&#9;null&#9;null&#10;datasets/&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/datasets&#10;MNIST&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/datasets/mnist.py&#10;connoisse&#9;null&#9;null&#10;mnist.py&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/mnist.py&#10;.gitig&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/.gitignore&#10;base&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/base.py&#10;predicting/paintin&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/runs/predicting/paintings91.py&#10;Two&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/two_layers.py&#10;MNI&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/datasets/mnist.py&#10;Connoi&#9;null&#9;null&#10;connoi&#9;null&#9;null&#10;conno&#9;null&#9;null&#10;connois&#9;null&#9;null&#10;vg&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/models/vgg.py&#10;model&#9;null&#9;null&#10;paintin&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/paintings91.py&#10;paint&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/paintings91.py&#10;base.p&#9;FILE&#9;file:///media/ldavid/hdd/repositories/connoisseur/connoisseur/connoisseurs/base.py&#10;trainer&#9;null&#9;null&#10;utils&#9;null&#9;null&#10;conn&#9;null&#9;null" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/experiments/paintings91" />
+      <recent name="$PROJECT_DIR$/connoisseur" />
+      <recent name="$PROJECT_DIR$/runs" />
+      <recent name="$PROJECT_DIR$/connoisseur/connoisseurs" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/connoisseur/connoisseurs" />
+      <recent name="$PROJECT_DIR$/connoisseur/connoisseurs/models" />
+      <recent name="$PROJECT_DIR$/runs/training" />
+      <recent name="$PROJECT_DIR$/runs/predicting" />
+      <recent name="$PROJECT_DIR$/connoisseur/datasets" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.straight_predicting">
+    <configuration default="false" name="paintings91" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/runs/training" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/runs/training/paintings91.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="toy" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/runs/training" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/runs/training/toy.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="training" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/experiments/paintings91" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/experiments/paintings91/training.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="straight_predicting" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/experiments/paintings91" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/experiments/paintings91/straight_predicting.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="BashConfigurationType" factoryName="Bash">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="INTERPRETER_PATH" value="/bin/bash" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <module name="" />
+      <envs />
+      <method />
+    </configuration>
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Attests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Doctests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Nosetests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Unittests">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PUREUNITTEST" value="true" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <method />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="py.test">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="connoisseur" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="testToRun" value="" />
+      <option name="keywords" value="" />
+      <option name="params" value="" />
+      <option name="USE_PARAM" value="false" />
+      <option name="USE_KEYWORD" value="false" />
+      <method />
+    </configuration>
+    <list size="4">
+      <item index="0" class="java.lang.String" itemvalue="Python.paintings91" />
+      <item index="1" class="java.lang.String" itemvalue="Python.toy" />
+      <item index="2" class="java.lang.String" itemvalue="Python.training" />
+      <item index="3" class="java.lang.String" itemvalue="Python.straight_predicting" />
+    </list>
+    <recent_temporary>
+      <list size="4">
+        <item index="0" class="java.lang.String" itemvalue="Python.straight_predicting" />
+        <item index="1" class="java.lang.String" itemvalue="Python.training" />
+        <item index="2" class="java.lang.String" itemvalue="Python.paintings91" />
+        <item index="3" class="java.lang.String" itemvalue="Python.toy" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="ShelveChangesManager" show_recycled="false">
+    <option name="remove_strategy" value="false" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="3e2a18a0-6e70-4695-b2fe-e1ca4f1fcc86" name="Default" comment="" />
+      <created>1468277971016</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1468277971016</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Update SimpleVGG">
+      <created>1468281143687</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1468281143687</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Refactoring modules">
+      <created>1468545707837</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1468545707837</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Update .gitignore">
+      <created>1468545834402</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1468545834402</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Remove Interpreter reference">
+      <created>1468548936964</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1468548936964</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Some minor fixes">
+      <created>1468549364196</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1468549364196</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Rename painting91 training">
+      <created>1468549427467</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1468549427467</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Fix paintings91">
+      <created>1468552933796</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1468552933796</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Update paintings91">
+      <created>1468553557094</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1468553557094</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Update paintings91">
+      <created>1468614120348</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1468614120349</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Add session_config to Connoisseur, update paintings91">
+      <created>1468807023951</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1468807023951</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Update paintings91">
+      <created>1468905069618</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1468905069618</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Update paintings91">
+      <created>1468905536665</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1468905536665</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Update paintings91">
+      <created>1468905709398</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1468905709398</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Update paintings91">
+      <created>1468905890272</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1468905890272</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Update paintings91">
+      <created>1468960055458</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1468960055458</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Add MNIST">
+      <created>1469081331680</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1469081331680</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Update MNIST">
+      <created>1469114386765</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1469114386765</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Update MNIST">
+      <created>1469119754711</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1469119754711</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Update paintings91">
+      <created>1469119864903</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1469119864903</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Refactor Connoisseur">
+      <created>1469290869079</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1469290869079</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Fix Saver glitch">
+      <created>1469549478285</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1469549478285</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Remove models.utils, use tf.contrib.layers instead.">
+      <created>1469736213922</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1469736213922</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Update Connoisseur init params&#10;&#10;  Update paintings91 training params">
+      <created>1470069563594</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1470069563594</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Update datasets/paintings91">
+      <created>1470069774299</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1470069774299</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Update datasets/paintings91">
+      <created>1470070021759</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1470070021759</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Add AlexNET architecture">
+      <created>1470089863684</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1470089863684</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Remove batch_size and n_classes params from Connoisseur">
+      <created>1470358910983</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1470358910983</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Add Wikiart dataset">
+      <created>1470614124880</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1470614124880</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Refactor Connoisseur and models">
+      <created>1470625512772</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1470625512772</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Refactor Connoisseur and paintings91">
+      <created>1471831362212</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1471831362212</updated>
+    </task>
+    <task id="LOCAL-00031" summary="update Paintings91 dataset">
+      <created>1475966157363</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1475966157364</updated>
+    </task>
+    <task id="LOCAL-00032" summary="update Paintings91 dataset">
+      <created>1475966347465</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1475966347465</updated>
+    </task>
+    <task id="LOCAL-00033" summary="update Paintings91 dataset">
+      <created>1475968925722</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1475968925722</updated>
+    </task>
+    <task id="LOCAL-00034" summary="update Paintings91 dataset">
+      <created>1475968990401</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1475968990401</updated>
+    </task>
+    <task id="LOCAL-00035" summary="update Paintings91 dataset">
+      <created>1475969520140</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1475969520140</updated>
+    </task>
+    <task id="LOCAL-00036" summary="update Paintings91 dataset">
+      <created>1475969685630</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1475969685630</updated>
+    </task>
+    <task id="LOCAL-00037" summary="update Paintings91 dataset">
+      <created>1475970620362</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1475970620362</updated>
+    </task>
+    <task id="LOCAL-00038" summary="update Paintings91 dataset">
+      <created>1475986199421</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1475986199421</updated>
+    </task>
+    <task id="LOCAL-00039" summary="update Paintings91 dataset">
+      <created>1475986443207</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1475986443207</updated>
+    </task>
+    <task id="LOCAL-00040" summary="update logging">
+      <created>1476022331223</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1476022331223</updated>
+    </task>
+    <task id="LOCAL-00041" summary="update logging">
+      <created>1476022933179</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1476022933179</updated>
+    </task>
+    <task id="LOCAL-00042" summary="update logging">
+      <created>1476023682059</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1476023682059</updated>
+    </task>
+    <option name="localTasksCounter" value="43" />
+    <servers />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="65" y="24" width="1855" height="1056" extended-state="6" />
+    <editor active="true" />
+    <layout>
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1541779" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32925585" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32857144" sideWeight="0.5018868" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32843652" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30377167" sideWeight="0.49811321" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.40876657" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32619774" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+    </layout>
+    <layout-to-restore>
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32857144" sideWeight="0.5018868" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32960325" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32655138" sideWeight="0.49811321" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="true" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.1671159" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32756868" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.41151834" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+    </layout-to-restore>
+  </component>
+  <component name="Vcs.Log.UiProperties">
+    <option name="RECENTLY_FILTERED_USER_GROUPS">
+      <collection />
+    </option>
+    <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
+      <collection />
+    </option>
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="OFFER_MOVE_TO_ANOTHER_CHANGELIST_ON_PARTIAL_COMMIT" value="false" />
+    <MESSAGE value="Update SimpleVGG" />
+    <MESSAGE value="Refactoring modules" />
+    <MESSAGE value="Update .gitignore" />
+    <MESSAGE value="Remove Interpreter reference" />
+    <MESSAGE value="Some minor fixes" />
+    <MESSAGE value="Rename painting91 training" />
+    <MESSAGE value="Fix paintings91" />
+    <MESSAGE value="Add session_config to Connoisseur, update paintings91" />
+    <MESSAGE value="Add MNIST" />
+    <MESSAGE value="Update MNIST" />
+    <MESSAGE value="Update paintings91" />
+    <MESSAGE value="Refactor Connoisseur" />
+    <MESSAGE value="Fix Saver glitch" />
+    <MESSAGE value="Remove models.utils, use tf.contrib.layers instead." />
+    <MESSAGE value="Update Connoisseur init params&#10;&#10;  Update paintings91 training params" />
+    <MESSAGE value="Update datasets/paintings91" />
+    <MESSAGE value="Add AlexNET architecture" />
+    <MESSAGE value="Remove batch_size and n_classes params from Connoisseur" />
+    <MESSAGE value="Add Wikiart dataset" />
+    <MESSAGE value="Refactor Connoisseur and models" />
+    <MESSAGE value="Refactor Connoisseur and paintings91" />
+    <MESSAGE value="update Paintings91 dataset" />
+    <MESSAGE value="update logging" />
+    <option name="LAST_COMMIT_MESSAGE" value="update logging" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <option name="time" value="81" />
+    </breakpoint-manager>
+    <watches-manager />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/numpy/lib/arraysetops.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="359">
+          <caret line="106" column="14" selection-start-line="106" selection-start-column="14" selection-end-line="106" selection-end-column="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/os.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="443">
+          <caret line="221" column="28" selection-start-line="221" selection-start-column="21" selection-end-line="221" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2016.2/system/python_stubs/-960739609/posix.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="338">
+          <caret line="846" column="4" selection-start-line="846" selection-start-column="4" selection-end-line="846" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/models/vgg.py" />
+    <entry file="file://$PROJECT_DIR$/connoisseur/models/__init__.py" />
+    <entry file="file://$USER_HOME$/.PyCharm2016.2/system/python_stubs/-960739609/numpy/random/mtrand.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="317">
+          <caret line="2251" column="9" selection-start-line="2251" selection-start-column="9" selection-end-line="2251" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/experiments/training/loading_and_printing.py" />
+    <entry file="file://$PROJECT_DIR$/experiments/training/mnist.py" />
+    <entry file="file://$PROJECT_DIR$/experiments/training/wikiart.py" />
+    <entry file="file://$PROJECT_DIR$/experiments/predicting/mnist.py" />
+    <entry file="file://$PROJECT_DIR$/experiments/paintings91/testing.py" />
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/shutil.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="88">
+          <caret line="535" column="0" selection-start-line="535" selection-start-column="0" selection-end-line="535" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/experiments/paintings91/constants.py" />
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/applications/inception_v3.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="548">
+          <caret line="107" column="38" selection-start-line="107" selection-start-column="38" selection-end-line="107" selection-end-column="38" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/engine/topology.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="183">
+          <caret line="1837" column="0" selection-start-line="1837" selection-start-column="0" selection-end-line="1837" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/tensorflow/python/client/session.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="183">
+          <caret line="977" column="0" selection-start-line="977" selection-start-column="0" selection-end-line="977" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/genericpath.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="762">
+          <caret line="142" column="0" selection-start-line="142" selection-start-column="0" selection-end-line="142" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/models.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="217">
+          <caret line="365" column="0" selection-start-line="365" selection-start-column="0" selection-end-line="365" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/layers/core.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="359">
+          <caret line="395" column="31" selection-start-line="395" selection-start-column="31" selection-end-line="395" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/build/lib/wikiart/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="405">
+          <caret line="54" column="6" selection-start-line="54" selection-start-column="6" selection-end-line="54" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/wikiart/retriever/wikiart/console.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="21">
+          <caret line="34" column="8" selection-start-line="34" selection-start-column="8" selection-end-line="34" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/numpy/lib/function_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="317">
+          <caret line="1263" column="12" selection-start-line="1263" selection-start-column="12" selection-end-line="1263" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/wrappers/scikit_learn.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="797">
+          <caret line="295" column="0" selection-start-line="295" selection-start-column="0" selection-end-line="295" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/applications/vgg19.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="307">
+          <caret line="28" column="21" selection-start-line="28" selection-start-column="10" selection-end-line="28" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/engine/training.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="454">
+          <caret line="1606" column="8" selection-start-line="1606" selection-start-column="8" selection-end-line="1606" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2016.2/system/python_stubs/-960739609/numpy/core/multiarray.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="307">
+          <caret line="544" column="16" selection-start-line="544" selection-start-column="16" selection-end-line="544" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/numpy/core/numeric.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="307">
+          <caret line="396" column="26" selection-start-line="396" selection-start-column="26" selection-end-line="396" selection-end-column="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/sklearn/linear_model/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="524">
+          <caret line="321" column="0" selection-start-line="321" selection-start-column="0" selection-end-line="321" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="503">
+          <caret line="42" column="0" selection-start-line="42" selection-start-column="0" selection-end-line="42" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/preprocessing/image.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="475">
+          <caret line="286" column="28" selection-start-line="286" selection-start-column="28" selection-end-line="286" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/sklearn/model_selection/_split.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="672">
+          <caret line="1631" column="40" selection-start-line="1631" selection-start-column="8" selection-end-line="1631" selection-end-column="40" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/sklearn/svm/classes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="370">
+          <caret line="153" column="17" selection-start-line="153" selection-start-column="17" selection-end-line="153" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/tensorflow/contrib/learn/python/learn/estimators/_sklearn.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="797">
+          <caret line="212" column="0" selection-start-line="212" selection-start-column="0" selection-end-line="212" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/keras/applications/resnet50.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="359">
+          <caret line="111" column="12" selection-start-line="111" selection-start-column="12" selection-end-line="111" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/experiments/paintings91/training.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="64" column="23" selection-start-line="64" selection-start-column="23" selection-end-line="64" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/lib/python3.5/logging/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="359">
+          <caret line="794" column="27" selection-start-line="794" selection-start-column="27" selection-end-line="794" selection-end-column="27" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../linux/envs/tf/lib/python3.5/site-packages/tensorflow/python/platform/tf_logging.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="531">
+          <caret line="196" column="18" selection-start-line="196" selection-start-column="18" selection-end-line="196" selection-end-column="18" />
+          <folding>
+            <element signature="e#815#853#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/lib/python3.5/logging/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="909">
+          <caret line="1723" column="18" selection-start-line="1723" selection-start-column="18" selection-end-line="1723" selection-end-column="18" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/experiments/paintings91/straight_predicting.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="615">
+          <caret line="80" column="47" selection-start-line="80" selection-start-column="47" selection-end-line="80" selection-end-column="47" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="84">
+          <caret line="4" column="3" selection-start-line="4" selection-start-column="0" selection-end-line="4" selection-end-column="3" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider editor-type-id="MarkdownFxPreviewEditor">
+        <state />
+      </provider>
+      <provider selected="true" editor-type-id="split-provider[text-editor;MarkdownPreviewEditor]">
+        <state split_layout="FIRST">
+          <first_editor relative-caret-position="63">
+            <caret line="3" column="0" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+            <folding />
+          </first_editor>
+          <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/docs/related-papers.md">
+      <provider editor-type-id="MarkdownFxPreviewEditor">
+        <state />
+      </provider>
+      <provider selected="true" editor-type-id="split-provider[text-editor;MarkdownPreviewEditor]">
+        <state split_layout="FIRST">
+          <first_editor relative-caret-position="126">
+            <caret line="6" column="12" selection-start-line="6" selection-start-column="12" selection-end-line="6" selection-end-column="12" />
+            <folding />
+          </first_editor>
+          <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/setup.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="336">
+          <caret line="16" column="24" selection-start-line="16" selection-start-column="24" selection-end-line="16" selection-end-column="24" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/setup.cfg">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="21">
+          <caret line="1" column="0" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/connoisseurs/paintings91.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="588">
+          <caret line="31" column="0" selection-start-line="31" selection-start-column="0" selection-end-line="31" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/connoisseur.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="189">
+          <caret line="9" column="6" selection-start-line="9" selection-start-column="6" selection-end-line="9" selection-end-column="6" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="147">
+          <caret line="7" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="7" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/utils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="441">
+          <caret line="21" column="0" selection-start-line="21" selection-start-column="0" selection-end-line="21" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="168">
+          <caret line="8" column="0" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/paintings91.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/connoisseur/datasets/wikiart/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="825">
+          <caret line="80" column="0" selection-start-line="80" selection-start-column="0" selection-end-line="80" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+            <element signature="e#142#438#1" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ScopeChooserConfigurable.UI">
+        <settings>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
+  </component>
+</project>

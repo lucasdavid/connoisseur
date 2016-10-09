@@ -13,7 +13,6 @@ setup(
     author='Lucas David',
     author_email='ld492@drexel.edu',
 
-    install_requires=['numpy', 'scipy', 'tensorflow', 'scikit-learn', 'keras',
-                      'h5py', 'image'],
+    install_requires=['numpy', 'scipy', 'tensorflow', 'scikit-learn'],
     tests_require=open('requirements-dev.txt').readlines(),
 )
