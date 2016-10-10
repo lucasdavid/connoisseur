@@ -28,6 +28,25 @@ class Paintings91(DataSet):
 
         return X, y
 
+    def extract(self, override=False):
+        super().extract(override=override)
+
+        dataset_dir = os.path.join(self.directory,
+                                   os.path.splitext(self.COMPACTED_FILE)[0])
+        unzipped = os.path.join(dataset_dir, 'Paintings91')
+
+        if os.path.exists(unzipped):
+            # this unzipping will end up being paintings91/Paintings91.
+            # Move all files to an upper tree level.
+            for p in os.listdir(unzipped):
+                os.rename(os.path.join(unzipped, p),
+                          os.path.join(self.directory, p))
+
+            # Remove leaf folder, indicating this operation was already done.
+            os.rmdir(unzipped)
+
+        return self
+
     def check(self):
         if not os.path.exists(self.directory):
             raise RuntimeError('Data set not found. Have you downloaded '
@@ -51,6 +70,7 @@ class Paintings91(DataSet):
                     shutil.move(os.path.join(images_folder, painting),
                                 artist_folder)
                 except shutil.Error:
+                    # File was already copied.
                     pass
                 X_real.append(os.path.join(artist_folder, painting))
 

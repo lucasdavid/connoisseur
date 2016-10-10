@@ -57,7 +57,7 @@ class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
 
 
 def main():
-    consts = utils.Constants('./training-constants.json')
+    consts = utils.ExperimentSet('./training-constants.json')
 
     tf.logging.set_verbosity(tf.logging.INFO)
     log_filename = os.path.join(consts.logging_dir,

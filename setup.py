@@ -16,6 +16,6 @@ setup(
     author='Lucas David',
     author_email='ld492@drexel.edu',
 
-    install_requires=open('docs/requirements-install.txt').readlines(),
+    install_requires=open('docs/requirements-base.txt').readlines(),
     tests_require=open('docs/requirements-dev.txt').readlines(),
 )

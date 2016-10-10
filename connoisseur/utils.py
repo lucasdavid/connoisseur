@@ -5,12 +5,26 @@ Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
 
 """
+import abc
+import argparse
 import json
+import os
 import time
+from datetime import datetime
+
+import tensorflow as tf
 
 
 class Timer:
-    """Pretty time counter."""
+    """Pretty Time Counter.
+
+    Usage:
+
+    >>> dt = Timer()
+    >>> # Do some processing...
+    >>> print('time elapsed: ', dt)
+    time elapsed: 00:00:05
+    """
 
     def __init__(self):
         self.start = time.time()
@@ -32,38 +46,176 @@ class Timer:
 
 
 class Constants:
-    """Loads info from a .json file.
+    """Container for constants of an experiment, as well as an automatic
+    loader for these.
 
-    Useful for when executing from multiple different environments.
+    Parameters:
+        data   -- the dict containing info regarding an execution.
+        labels -- the labels that should be looked at in the data.
 
     """
 
-    def __init__(self, filename='./constants.json', raise_on_not_found=False):
-        self.filename = filename
-        self.raise_on_not_found = raise_on_not_found
+    DEFAULT_LABELS = {
+        'code_name', 'n_epochs', 'n_samples_per_epoch', 'data_dir',
+        'logging_dir', 'batch_size', 'image_shape', 'classes', 'device',
+        'seed'
+    }
 
-        self._data = self.logging_dir = self.data_dir = self.batch_size = \
-            self.image_shape = self.classes = self.seed = self.n_iterations = \
-            self.n_samples_per_epoch = self.device = None
+    def __init__(self, data, labels=DEFAULT_LABELS):
+        self._data = data
+        self._labels = set(labels)
 
-    def load(self):
+    def __getattr__(self, item):
+        if item not in self._labels or item not in self._data:
+            raise AttributeError('%s not an attribute of constants: %s'
+                                 % (item, self._data.keys()))
+
+        return self._data[item]
+
+
+class Experiment(metaclass=abc.ABCMeta):
+    """Base Class for Experiments.
+
+    Notes:
+        the `run` method should be overridden for the experiment to be
+        actually performed.
+
+    Usage:
+
+    >>> class ToyExperiment(Experiment):
+    ...     def run(self):
+    ...         print('Hello World!')
+    ...
+    >>> with ToyExperiment() as t:
+    ...     t.run()
+    Hello World
+    >>> print(t.started_at)
+    2016-10-11 14:40:22.454985
+    >>> print(t.ended_at)
+    2016-10-11 14:40:22.455061
+
+    """
+
+    def __init__(self, consts=None):
+        self.consts = consts
+        self.started_at = self.ended_at = None
+
+    def run(self):
+        raise NotImplementedError
+
+    def __enter__(self):
+        self.started_at = datetime.now()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.ended_at = datetime.now()
+
+
+class ExperimentSet:
+    """Container for experiments.
+
+    Useful when executing multiple experiments or executing from multiple
+    different environments.
+
+    Usage:
+
+    >>> class ToyExperiment(Experiment):
+    ...     def run(self):
+    ...         print('Hello World!')
+    ...
+    >>> experiments = ExperimentSet(ToyExperiment)
+    >>> experiments.load_from_json('toy-experiments.json')
+    >>> # Run all experiments!
+    >>> experiments.run()
+    >>> # Find out more about when these experiments started and ended.
+    >>> for e in experiments:
+    ...     print('experiment %s started at %s and ended at %s'
+    ...           % (e.consts.code_name, e.started_at, e.ended_at))
+    ...
+    experiment julia started at 2016-10-11 14:52:12.216573
+    and ended at 2016-10-11 14:52:14.688444
+
+    """
+
+    def __init__(self, experiment_cls, data=None):
+        self.experiment_cls = experiment_cls
+        self._data = None
+        self._experiments = None
+        self.current_experiment_ = -1
+
+        if data: self.load_from_object(data)
+
+    def load_from_json(self, filename='./constants.json',
+                       raise_on_not_found=False):
+        data = {}
+
         try:
-            with open(self.filename) as f:
+            with open(filename) as f:
                 data = json.load(f)
         except IOError:
-            if self.raise_on_not_found: raise
-            data = {}
+            if raise_on_not_found:
+                raise
 
-        self._data = data
+        return self.load_from_object(data)
 
-        self.n_iterations = data.get('n_iterations', 100)
-        self.n_samples_per_epoch = data.get('n_samples_per_epoch', 1024)
-        self.data_dir = data.get('data_dir', '.')
-        self.logging_dir = data.get('logging_dir', '.')
-        self.batch_size = data.get('batch_size', 256)
-        self.image_shape = data.get('image_shape', (224, 224, 3))
-        self.classes = data.get('classes', None)
-        self.device = data.get('device', '/gpu:0')
-        self.seed = data.get('seed', None)
+    def load_from_object(self, data):
+        self._data = data = data.copy()
+
+        if isinstance(data, dict):
+            base_params = (data['base_parameters']
+                           if 'base_parameters' in data
+                           else data)
+
+            experiments_params_lst = (data['executions']
+                                      if 'executions' in data
+                                      else [{'code_name': 'julia'}])
+        else:
+            base_params = []
+            experiments_params_lst = data
+
+        self._experiments = []
+
+        for experiment_params in experiments_params_lst:
+            params = base_params.copy()
+            params.update(experiment_params)
+
+            self._experiments.append(self.experiment_cls(Constants(params)))
 
         return self
+
+    def __iter__(self):
+        self.current_experiment_ = -1
+        return self
+
+    def __next__(self):
+        self.current_experiment_ += 1
+
+        if self.current_experiment_ >= len(self._experiments):
+            self.current_experiment_ = -1
+            raise StopIteration
+
+        return self._experiments[self.current_experiment_]
+
+    def __len__(self):
+        return len(self._experiments)
+
+    def run(self):
+        try:
+            tf.logging.info('%i experiments in set' % len(self))
+
+            for i, e in enumerate(self):
+                with e:
+                    tf.logging.info('experiment #%i: %s (%s)',
+                                    i, e.consts.code_name, e.started_at)
+                    e.run()
+                tf.logging.info('experiment completed (%s)' % e.ended_at)
+            tf.logging.info('experimentation set has finished')
+        except KeyboardInterrupt:
+            tf.logging.warning('interrupted by the user')
+
+
+arg_parser = argparse.ArgumentParser(description='Straight Predicting '
+                                                 'on Paintings91')
+arg_parser.add_argument('--constants', type=str, default='./constants.json',
+                        help='JSON file containing definitions for the '
+                             'experiment.')

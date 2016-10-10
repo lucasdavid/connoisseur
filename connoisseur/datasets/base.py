@@ -36,6 +36,7 @@ class DataSet(metaclass=abc.ABCMeta):
 
             tf.logging.info('copy corrupted. Re-downloading dataset.')
 
+        tf.logging.info('downloading %s' % self.SOURCE)
         file_name, _ = request.urlretrieve(self.SOURCE, file_name)
         stat = os.stat(file_name)
         tf.logging.info('%s downloaded (%i bytes).', self.COMPACTED_FILE,
@@ -48,16 +49,19 @@ class DataSet(metaclass=abc.ABCMeta):
 
     def extract(self, override=False):
         zipped = os.path.join(self.directory, self.COMPACTED_FILE)
-        unzipped = self.directory
+        unzipped = os.path.join(self.directory,
+                                os.path.splitext(self.COMPACTED_FILE)[0])
 
-        if os.path.isdir(unzipped) and not override:
+        if os.path.exists(unzipped) and not override:
             tf.logging.info('%s extraction skipped.', self.COMPACTED_FILE)
         else:
+            tf.logging.info('extracting %s' % zipped)
             extractor = self._get_specific_extractor(zipped)
             extractor.extractall(unzipped)
             extractor.close()
 
-            tf.logging.info('paintings91 extracted.')
+            tf.logging.info('dataset extracted.')
+        return self
 
     @staticmethod
     def _get_specific_extractor(zipped):
