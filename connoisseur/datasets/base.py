@@ -1,5 +1,4 @@
-"""
-Connoisseur Data Sets Base.
+"""Connoisseur DataSet Base Class.
 
 Author: Lucas David -- <ld492@drexel.edu>
 Licence: MIT License 2016 (c)
@@ -13,10 +12,12 @@ import zipfile
 from urllib import request
 
 import tensorflow as tf
+from keras.preprocessing.image import ImageDataGenerator
 
 
 class DataSet(metaclass=abc.ABCMeta):
-    """Data Set base class."""
+    """DataSet Base Class."""
+
     SOURCE = None
     COMPACTED_FILE = None
     EXPECTED_SIZE = None
@@ -49,15 +50,13 @@ class DataSet(metaclass=abc.ABCMeta):
 
     def extract(self, override=False):
         zipped = os.path.join(self.directory, self.COMPACTED_FILE)
-        unzipped = os.path.join(self.directory,
-                                os.path.splitext(self.COMPACTED_FILE)[0])
 
-        if os.path.exists(unzipped) and not override:
+        if len(os.listdir(self.directory)) > 1 and not override:
             tf.logging.info('%s extraction skipped.', self.COMPACTED_FILE)
         else:
             tf.logging.info('extracting %s' % zipped)
             extractor = self._get_specific_extractor(zipped)
-            extractor.extractall(unzipped)
+            extractor.extractall(self.directory)
             extractor.close()
 
             tf.logging.info('dataset extracted.')
@@ -75,6 +74,17 @@ class DataSet(metaclass=abc.ABCMeta):
             raise RuntimeError('Cannot extract %s. Unknown format.'
                                % zipped)
 
+    @abc.abstractmethod
     def check(self):
-        """Check dataset files."""
-        raise NotImplementedError
+        """Check if everything is in order with the dataset files.
+
+        This method should also be responsible for converting the dataset into
+        Keras' format (dataset_folder/class_label/samples.format).
+        """
+
+    def as_keras_generator(self):
+        return ImageDataGenerator(
+            width_shift_range=.2,
+            height_shift_range=.2,
+            rescale=1. / 255,
+            fill_mode='wrap')

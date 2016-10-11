@@ -18,7 +18,7 @@ from keras.layers import Dense, Flatten
 
 
 class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
-    def build(self):
+    def build_model(self):
         consts = self.constants
 
         images = Input(batch_shape=[consts.batch_size] + consts.image_shape)
@@ -71,7 +71,7 @@ def main():
 
         with tf.device(consts.device):
             data = c.data(phase='training')
-            model = c.build()
+            model = c.build_model()
             history = model.fit_generator(data, consts.n_samples_per_epoch,
                                           consts.n_iterations)
             print(history)

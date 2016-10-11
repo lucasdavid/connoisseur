@@ -24,7 +24,7 @@ from sklearn.svm import SVC
 
 
 class Paintings91(Connoisseur, metaclass=abc.ABCMeta):
-    def build(self):
+    def build_model(self):
         consts = self.constants
         images = Input(batch_shape=[consts.batch_size] + consts.image_shape)
         return VGG19(weights='imagenet', include_top=False,
@@ -52,6 +52,8 @@ class StraightPredictionExperiment(Experiment):
     def run(self):
         consts = self.consts
 
+        os.makedirs(consts.logging_dir, exist_ok=True)
+
         tf.logging.set_verbosity(tf.logging.INFO)
         logging.basicConfig(level=logging.INFO,
                             filename=os.path.join(consts.logging_dir,
@@ -65,7 +67,7 @@ class StraightPredictionExperiment(Experiment):
 
         with tf.device(consts.device):
             # Transform images into their low-dimensional representations.
-            model = c.build()
+            model = c.build_model()
 
             for i in range(consts.n_epochs):
                 _X, _y = next(data)
@@ -83,13 +85,11 @@ class StraightPredictionExperiment(Experiment):
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=.20, random_state=consts.seed)
-        params = [
-            {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
-            # {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001],
-            # 'kernel': ['rbf']},
-        ]
 
-        grid = GridSearchCV(SVC(), params, cv=None, n_jobs=consts.n_jobs)
+        grid = GridSearchCV(SVC(),
+                            consts.grid_search_params,
+                            n_jobs=consts.n_jobs,
+                            cv=None)
         grid.fit(X_train, y_train)
 
         tf.logging.info('training complete')

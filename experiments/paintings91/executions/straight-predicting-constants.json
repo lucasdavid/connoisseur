@@ -7,8 +7,8 @@
     "n_jobs": 8,
     "image_shape": [224, 224, 3],
     "device": "/gpu:0",
-    "data_dir": "/home/ldavid/datasets/Paintings91",
-    "logging_dir": "/home/ldavid/logs",
+    "data_dir": "/datasets/ldavid/Paintings91",
+    "logging_dir": "/work/ldavid/paintings91/logs",
     "grid_search_params": [
       {
         "C": [1, 10, 100, 1000],

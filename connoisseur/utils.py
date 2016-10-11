@@ -7,10 +7,11 @@ Licence: MIT License 2016 (c)
 """
 import abc
 import argparse
+import gc
 import json
-import os
 import time
 from datetime import datetime
+import multiprocessing
 
 import tensorflow as tf
 
@@ -51,26 +52,21 @@ class Constants:
 
     Parameters:
         data   -- the dict containing info regarding an execution.
-        labels -- the labels that should be looked at in the data.
 
     """
 
-    DEFAULT_LABELS = {
-        'code_name', 'n_epochs', 'n_samples_per_epoch', 'data_dir',
-        'logging_dir', 'batch_size', 'image_shape', 'classes', 'device',
-        'seed'
-    }
-
-    def __init__(self, data, labels=DEFAULT_LABELS):
+    def __init__(self, data):
         self._data = data
-        self._labels = set(labels)
 
     def __getattr__(self, item):
-        if item not in self._labels or item not in self._data:
+        if item not in self._data:
             raise AttributeError('%s not an attribute of constants: %s'
-                                 % (item, self._data.keys()))
-
+                                 % (item, list(self._data.keys())))
         return self._data[item]
+
+    @classmethod
+    def from_json(cls):
+        pass
 
 
 class Experiment(metaclass=abc.ABCMeta):
@@ -140,7 +136,7 @@ class ExperimentSet:
     def __init__(self, experiment_cls, data=None):
         self.experiment_cls = experiment_cls
         self._data = None
-        self._experiments = None
+        self._experiment_constants = None
         self.current_experiment_ = -1
 
         if data: self.load_from_object(data)
@@ -173,13 +169,13 @@ class ExperimentSet:
             base_params = []
             experiments_params_lst = data
 
-        self._experiments = []
+        self._experiment_constants = []
 
         for experiment_params in experiments_params_lst:
             params = base_params.copy()
             params.update(experiment_params)
 
-            self._experiments.append(self.experiment_cls(Constants(params)))
+            self._experiment_constants.append(Constants(params))
 
         return self
 
@@ -190,14 +186,15 @@ class ExperimentSet:
     def __next__(self):
         self.current_experiment_ += 1
 
-        if self.current_experiment_ >= len(self._experiments):
+        if self.current_experiment_ >= len(self._experiment_constants):
             self.current_experiment_ = -1
             raise StopIteration
 
-        return self._experiments[self.current_experiment_]
+        consts = self._experiment_constants[self.current_experiment_]
+        return self.experiment_cls(consts)
 
     def __len__(self):
-        return len(self._experiments)
+        return len(self._experiment_constants)
 
     def run(self):
         try:
@@ -209,13 +206,18 @@ class ExperimentSet:
                                     i, e.consts.code_name, e.started_at)
                     e.run()
                 tf.logging.info('experiment completed (%s)' % e.ended_at)
+
+                del e
+                gc.collect()
+
             tf.logging.info('experimentation set has finished')
         except KeyboardInterrupt:
             tf.logging.warning('interrupted by the user')
 
 
-arg_parser = argparse.ArgumentParser(description='Straight Predicting '
-                                                 'on Paintings91')
+arg_parser = argparse.ArgumentParser(
+    description='Experiments on Art Connoisseurship')
+
 arg_parser.add_argument('--constants', type=str, default='./constants.json',
                         help='JSON file containing definitions for the '
                              'experiment.')
