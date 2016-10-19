@@ -1,0 +1,54 @@
+{
+  "base_parameters": {
+    "seed": 0,
+    "classes": null,
+    "batch_size": 32,
+    "image_shape": [224, 224, 3],
+    "train_n_patches": 40,
+    "test_n_patches": 40,
+    "device": "/gpu:0",
+    "n_jobs": 4,
+    "data_dir": "/datasets/ldavid/paintings91",
+    "base_model": "VGG19",
+    "dense_arch": "regular",
+    "model_file": null,
+    "grid_searching": false,
+    "grid_search_params": {
+      "C": [0.1, 1, 10, 100]
+    }
+  },
+  "executions": [
+    {
+      "code_name": "VGG19-convs",
+      "base_model": "VGG19"
+    },
+    {
+      "code_name": "VGG16-convs",
+      "base_model": "VGG16"
+    },
+    {
+      "code_name": "ResNet50-convs",
+      "base_model": "ResNet50"
+    },
+    {
+      "code_name": "InceptionV3-convs",
+      "base_model": "InceptionV3"
+    },
+    {
+      "code_name": "InceptionV3-original-299",
+      "base_model": "InceptionV3",
+      "dense_arch": "original",
+      "image_shape": [299, 299, 3]
+    },
+    {
+      "code_name": "Xception-convs",
+      "base_model": "Xception"
+    },
+    {
+      "code_name": "Xception-original-299",
+      "base_model": "Xception",
+      "dense_arch": "original",
+      "image_shape": [299, 299, 3]
+    }
+  ]
+}

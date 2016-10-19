@@ -1,3 +1,4 @@
+# coding: utf-8
 """Paintings91 Dataset.
 
 Author: Lucas David -- <ld492@drexel.edu>
@@ -9,7 +10,6 @@ import os
 import shutil
 
 import numpy as np
-from keras.preprocessing.image import ImageDataGenerator
 from scipy.io import loadmat
 
 from .base import DataSet
@@ -19,12 +19,13 @@ class Paintings91(DataSet):
     """Painting91 Data set."""
 
     SOURCE = 'http://cat.cvc.uab.es/~joost/data/Paintings91.zip'
-    COMPACTED_FILE = 'paintings91.zip'
     EXPECTED_SIZE = 681584272
+    DATA_SUB_DIR = 'Paintings91/Images'
 
     def _load_images_and_labels(self):
-        images_file = os.path.join(self.directory, 'Labels', 'image_names.mat')
-        labels_file = os.path.join(self.directory, 'Labels', 'labels.mat')
+        base_dir = self.base_dir
+        images_file = os.path.join(base_dir, 'Labels', 'image_names.mat')
+        labels_file = os.path.join(base_dir, 'Labels', 'labels.mat')
 
         # Data is represented at a column vector. Coverts it to a list.
         X = loadmat(images_file)['image_names']
@@ -36,13 +37,12 @@ class Paintings91(DataSet):
         return X, y
 
     def check(self):
-        assert os.path.exists(self.directory), ('Data set not found. Have'
-                                                ' you downloaded and'
-                                                ' extracted it first?')
-
+        data_path = self.full_data_path
+        assert os.path.exists(data_path), 'Data set not found. Have you downloaded and extracted it first?'
         X, y = self._load_images_and_labels()
 
-        images_folder = os.path.join(self.directory, 'Paintings91', 'Images')
+        images_folder = os.path.join(data_path,
+                                     'Paintings91', 'Images')
         X_real = []
 
         for i in range(91):
@@ -65,17 +65,5 @@ class Paintings91(DataSet):
         X = np.array(X_real)
 
         for painting in X:
-            assert os.path.exists(painting), \
-                'a painting is missing: %s' % painting
-
+            assert os.path.exists(painting), 'a painting is missing: %s' % painting
         return self
-
-    def as_keras_generator(self):
-        return ImageDataGenerator(
-            # featurewise_center=True,
-            # featurewise_std_normalization=True,
-            zca_whitening=False,
-            width_shift_range=.2,
-            height_shift_range=.2,
-            rescale=1. / 255,
-            fill_mode='wrap')

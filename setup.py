@@ -1,7 +1,4 @@
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name='connoisseur',
@@ -10,7 +7,7 @@ setup(
     long_description=open('README.md').read(),
     keywords=['machine-learning', 'paintings'],
     version='0.1',
-    packages=['connoisseur'],
+    packages=find_packages(),
     scripts=[],
 
     author='Lucas David',
