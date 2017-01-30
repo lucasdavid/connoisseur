@@ -16,7 +16,7 @@ from PIL import ImageEnhance
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from ..utils.image import img_to_array, ImageDataGenerator, load_img
+from ..utils.image import img_to_array, load_img
 
 
 class PaintingEnhancer(object):
@@ -279,10 +279,6 @@ class DataSet(object):
 
         patches_path = os.path.join(data_path, 'extracted_patches')
 
-        if os.path.exists(patches_path):
-            print('patches extraction to disk skipped.')
-            return self
-
         os.makedirs(patches_path, exist_ok=True)
 
         phases = ('train', 'test')
@@ -290,6 +286,10 @@ class DataSet(object):
             phases += 'valid',
 
         for phase in phases:
+            if os.path.exists(os.path.join(patches_path, phase)):
+                print('%s patches extraction to disk skipped.' % phase)
+                continue
+
             print('extracting %s patches to disk...' % phase)
 
             for label in labels:
@@ -301,14 +301,18 @@ class DataSet(object):
                     full_name = os.path.join(class_path, name)
                     img = load_img(full_name)
 
-                    for dx in range(sizes[1], img.width, sizes[1]):
-                        for dy in range(sizes[0], img.height, sizes[0]):
+                    n_patches = 0
+
+                    for dx in range(sizes[1], img.width + 1, sizes[1]):
+                        for dy in range(sizes[0], img.height + 1, sizes[0]):
                             e = np.array([dx, dy])
                             s = e - (sizes[1], sizes[0])
 
                             img.crop((s[0], s[1], e[0], e[1])).save(
                                 os.path.join(patches_class_path,
                                              '%s-%i-%i.jpg' % (os.path.splitext(name)[0], dx, dy)))
+                            n_patches += 1
 
+                    print('%s was divided into %i patches' % (name, n_patches))
             print('patches extraction completed.')
         return self

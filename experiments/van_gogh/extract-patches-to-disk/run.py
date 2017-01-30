@@ -31,5 +31,6 @@ def run(dataset_seed, classes, image_shape, data_dir, n_jobs):
     print('loading Van-Gogh data set...')
     datasets.VanGogh(
         base_dir=data_dir, image_shape=image_shape,
-        random_state=dataset_seed
+        random_state=dataset_seed,
+        valid_split=.3,
     ).download().extract().check().extract_patches_to_disk()
