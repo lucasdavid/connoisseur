@@ -76,7 +76,7 @@ def run(dataset_seed, image_shape, data_dir, n_color_histogram_bins,
     for phase in ('train', 'test'):
         os.makedirs('./histograms/%s/' % phase, exist_ok=True)
 
-        X, y = vangogh.load(phase).get(phase)
+        X, y = vangogh.load_patches_from_full_images(phase).get(phase)
         vangogh.unload(phase)
         print('%s data shape and size: %s, %f MB' % (phase, X.shape, X.nbytes / 1024 ** 2))
 

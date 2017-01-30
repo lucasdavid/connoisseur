@@ -77,7 +77,7 @@ def run(_run, dataset_seed, svm_seed,
         random_state=dataset_seed
     ).download().extract().check()
 
-    X, y = vangogh.load('train').train_data
+    X, y = vangogh.load_patches_from_full_images('train').train_data
     vangogh.unload('train')
     preprocess_input(X)
     # Leave arrays flatten, we don't use patches for training.
@@ -85,7 +85,7 @@ def run(_run, dataset_seed, svm_seed,
     y = np.repeat(y, train_n_patches)
     print('train data: %s, %f MB' % (X.shape, X.nbytes / 1024 / 1024))
 
-    X_test, y_test = vangogh.load('test').test_data
+    X_test, y_test = vangogh.load_patches_from_full_images('test').test_data
     vangogh.unload('test')
     preprocess_input(X_test)
     X_test = (f_model.predict(X_test.reshape((-1,) + X_test.shape[2:]), batch_size=batch_size)

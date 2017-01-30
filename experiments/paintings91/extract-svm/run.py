@@ -44,7 +44,7 @@ class TransformAndPredictExperiment(Experiment):
         c = self.consts
 
         tf.logging.info('loading Paintings91 data set...')
-        paintings91 = datasets.Paintings91(c).download().extract().check().load()
+        paintings91 = datasets.Paintings91(c).download().extract().check().load_patches_from_full_images()
 
         if c.base_model in ('InceptionV3', 'Xception'):
             # These ones have a different pre-process function.

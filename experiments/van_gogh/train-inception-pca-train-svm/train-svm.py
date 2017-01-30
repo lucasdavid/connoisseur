@@ -14,20 +14,23 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from keras import callbacks, optimizers, backend as K
+from keras import backend as K
 from keras.applications import InceptionV3
 from keras.applications.inception_v3 import preprocess_input
 from keras.engine import Input, Model
 from keras.layers import Dense, Flatten, AveragePooling2D
 from sacred import Experiment
 from sklearn import metrics
+from sklearn.decomposition import PCA
+from sklearn.externals import joblib
 from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
-from connoisseur import datasets, utils
+from connoisseur import datasets
 from connoisseur.fusion import SkLearnFusion
 
-ex = Experiment('train-inception-pca-train-svm')
+ex = Experiment('test-inception-pca-train-svm')
 
 
 @ex.config
@@ -43,7 +46,7 @@ def config():
     valid_n_patches = 40
     valid_augmentations = []
     dataset_valid_seed = 98
-    valid_split = .2
+    valid_split = .3
     test_shuffle = True
     test_n_patches = 80
     dataset_test_seed = 53
@@ -52,13 +55,14 @@ def config():
     data_dir = "/datasets/ldavid/van_gogh"
 
     inception_optimal_params = {'lr': 0.0001, }
-    ckpt_file = './ckpt/inceptionV3.hdf5'
-    train_samples_per_epoch = 1000
+    ckpt_file = './ckpt/inception{epoch:02d}-{val_loss:.2f}.hdf5'
+    optimal_ckpt_file = './ckpt/opt.hdf5'
     nb_epoch = 100
-    nb_val_samples = 670
+    train_samples_per_epoch = 26048
+    nb_val_samples = 8136
     nb_worker = 8
     early_stop_patience = 10
-    tensorboard_file = './logs/base-training'
+    tensorboard_file = './logs/long-training'
     nb_test_samples = 670
 
     svm_seed = 2
@@ -67,11 +71,12 @@ def config():
                   'svc__kernel': ['rbf', 'linear'],
                   'svc__class_weight': ['balanced', None]}
     svc_optimal_params = {'class_weight': 'balanced'}
+    svm_ckpt_file = './ckpt/optimal-svm.pkl'
     n_jobs = 8
 
 
 def load_and_embed(model, dataset, phase, batch_size):
-    X, y = dataset.load(phase).get(phase)
+    X, y = dataset.load_patches_from_full_images(phase).get(phase)
     dataset.unload(phase)
     preprocess_input(X)
     X = (model.predict(X.reshape((-1,) + X.shape[2:]), batch_size=batch_size)
@@ -83,19 +88,19 @@ def load_and_embed(model, dataset, phase, batch_size):
 @ex.automain
 def run(_run, dataset_seed,
         image_shape, batch_size, data_dir,
-        train_shuffle, train_n_patches, train_augmentations, dataset_train_seed,
-        test_shuffle, test_n_patches, test_augmentations, dataset_valid_seed,
-        val_shuffle, valid_n_patches, valid_augmentations, valid_split, dataset_test_seed,
+        train_shuffle, train_n_patches, train_augmentations,
+        test_shuffle, test_n_patches, test_augmentations,
+        valid_n_patches, valid_augmentations, valid_split,
 
-        device, inception_optimal_params, ckpt_file,
+        device, inception_optimal_params, ckpt_file, optimal_ckpt_file,
         train_samples_per_epoch, nb_epoch,
         nb_val_samples, nb_worker,
         early_stop_patience, tensorboard_file,
 
         nb_test_samples,
 
-        svm_seed, grid_searching, param_grid, svc_optimal_params, n_jobs):
-    os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
+        svm_ckpt_file, svm_seed, grid_searching, param_grid, svc_optimal_params, n_jobs):
+    os.makedirs(os.path.dirname(svm_ckpt_file), exist_ok=True)
     tf_config = tf.ConfigProto(allow_soft_placement=True)
     tf_config.gpu_options.allow_growth = True
     s = tf.Session(config=tf_config)
@@ -113,27 +118,6 @@ def run(_run, dataset_seed,
         random_state=dataset_seed
     ).download().extract().check()
 
-    # These parameters produce the same results of `preprocess_input`.
-    g = utils.image.ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
-    g.mean = 1
-    train_data = g.flow_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'train'),
-        target_size=image_shape[:2],
-        augmentations=train_augmentations, batch_size=batch_size,
-        shuffle=train_shuffle, seed=dataset_train_seed)
-
-    val_data = g.flow_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'valid'),
-        target_size=image_shape[:2],
-        augmentations=valid_augmentations, batch_size=batch_size,
-        shuffle=val_shuffle, seed=dataset_valid_seed)
-
-    test_data = g.flow_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'test'),
-        target_size=image_shape[:2],
-        augmentations=test_augmentations, batch_size=batch_size,
-        shuffle=test_shuffle, seed=dataset_test_seed)
-
     print('building model...')
     with tf.device(device):
         images = Input(batch_shape=[None] + image_shape)
@@ -146,61 +130,56 @@ def run(_run, dataset_seed,
         model = Model(input=base_model.input, output=x)
         extract_model = Model(input=model.input, output=model.get_layer('flatten').output)
 
-        opt = optimizers.Adam(**inception_optimal_params)
-        model.compile(optimizer=opt, metrics=['accuracy'], loss='categorical_crossentropy')
-
-    print('training InceptionV3...')
-    try:
-        model.fit_generator(
-            generator=train_data, samples_per_epoch=train_samples_per_epoch, nb_epoch=nb_epoch,
-            validation_data=val_data, nb_val_samples=nb_val_samples,
-            nb_worker=nb_worker, verbose=1,
-            callbacks=[
-                callbacks.EarlyStopping(patience=early_stop_patience),
-                callbacks.TensorBoard(tensorboard_file, write_graph=False),
-                callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
-            ])
-        print('training completed.')
-    except KeyboardInterrupt:
-        print('training interrupted by user.')
-
     # Restore best parameters.
-    print('loading weights from: %s', ckpt_file)
-    model.load_weights(ckpt_file)
+    print('loading weights from: %s', optimal_ckpt_file)
+    model.load_weights(optimal_ckpt_file)
 
-    scores = model.evaluate_generator(test_data, nb_test_samples, nb_worker=nb_worker)
-    print('soft-max classifier score on test data: %s', dict(zip(model.metrics_names, scores)))
-
-    X, y = load_and_embed(extract_model, vangogh, 'train', train_n_patches)
-    X_valid, y_valid = load_and_embed(extract_model, vangogh, 'valid', valid_n_patches)
+    X, y = load_and_embed(extract_model, vangogh, 'train', batch_size)
+    X_valid, y_valid = load_and_embed(extract_model, vangogh, 'valid', batch_size)
     X, y = (X.reshape((-1,) + X.shape[2:]), np.repeat(y, train_n_patches))
     X_valid, y_valid = (X_valid.reshape((-1,) + X_valid.shape[2:]), np.repeat(y_valid, valid_n_patches))
     X, y = np.concatenate((X, X_valid)), np.concatenate((y, y_valid))
     del X_valid, y_valid
 
-    X_test, y_test = load_and_embed(extract_model, vangogh, 'test', test_n_patches)
+    X_test, y_test = load_and_embed(extract_model, vangogh, 'test', batch_size)
     del base_model, model, extract_model, vangogh
     K.clear_session()
 
     if grid_searching:
-        grid = GridSearchCV(
-            estimator=SVC(class_weight='balanced', random_state=svm_seed),
-            param_grid=param_grid,
-            n_jobs=n_jobs
-        )
+        print('grid searching...')
+        flow = Pipeline([
+            ('pca', PCA(n_components=.99)),
+            ('svc', SVC(class_weight='balanced', random_state=svm_seed))
+        ])
+        grid = GridSearchCV(estimator=flow, param_grid=param_grid, n_jobs=n_jobs, verbose=1)
         grid.fit(X, y)
-
-        print('best parameters: %s', grid.best_params_)
-        print('validation score for parameters: %f', grid.best_score_)
-
-        clf = grid.best_estimator_
+        print('best params: %s' % grid.best_params_)
+        print('best score on validation data: %.2f' % grid.best_score_)
+        model = grid.best_estimator_
     else:
-        clf = SVC(**svc_optimal_params, random_state=svm_seed)
-        clf.fit(X, y)
+        print('training...')
+        # These are the best parameters I've found so far.
+        model = Pipeline([
+            ('pca', PCA(n_components=.99)),
+            ('svc', SVC(class_weight='balanced', random_state=svm_seed))
+        ])
+        model.fit(X, y)
+
+    joblib.dump(model, svm_ckpt_file)
+
+    pca = model.named_steps['pca']
+    print('dimensionality reduction: R^%i->R^%i (%.2f variance kept)'
+          % (X.shape[-1], pca.n_components_, np.sum(pca.explained_variance_ratio_)))
+    accuracy_score = model.score(X, y)
+    print('score on training data: %.2f' % accuracy_score)
+    _run.info['accuracy'] = {
+        'train': accuracy_score,
+        'test': -1
+    }
     del X, y
 
     for strategy in ('farthest', 'sum', 'most_frequent'):
-        f = SkLearnFusion(clf, strategy=strategy)
+        f = SkLearnFusion(model, strategy=strategy)
         p_test = f.predict(X_test)
         accuracy_score = metrics.accuracy_score(y_test, p_test)
         print('score using', strategy, 'strategy: %.2f' % accuracy_score, '\n',

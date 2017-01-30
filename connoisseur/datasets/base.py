@@ -192,7 +192,7 @@ class DataSet(object):
         print('checked.')
         return self
 
-    def load(self, *phases):
+    def load_patches_from_full_images(self, *phases):
         print('loading %s images' % ','.join(phases))
         phases = phases or ('train', 'valid', 'test')
 
@@ -203,8 +203,9 @@ class DataSet(object):
         n_samples_per_label = np.array([len(os.listdir(os.path.join(data_path, 'train', label))) for label in labels])
         rates = n_samples_per_label / n_samples_per_label.sum()
 
-        print('labels\'s rates: %s' % dict(zip(labels, np.round(rates, 2))))
-        print('min tolerated label rate: %.2f' % self.min_label_rate)
+        if 'train' in phases:
+            print('labels\'s rates: %s' % dict(zip(labels, np.round(rates, 2))))
+            print('min tolerated label rate: %.2f' % self.min_label_rate)
 
         labels = list(map(lambda i: labels[i],
                           filter(lambda i: rates[i] >= self.min_label_rate,

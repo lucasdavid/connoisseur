@@ -44,7 +44,7 @@ class TrainingExperiment(Experiment):
             from keras.applications.imagenet_utils import preprocess_input
 
         tf.logging.info('loading Van-Gogh data set...')
-        van_gogh = datasets.VanGogh(c).download().extract().check().load()
+        van_gogh = datasets.VanGogh(c).download().extract().check().load_patches_from_full_images()
 
         # Loading data...
         X, y = van_gogh.train_data

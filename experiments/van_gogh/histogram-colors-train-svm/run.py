@@ -33,7 +33,7 @@ from sklearn.svm import SVC, LinearSVC
 from connoisseur import datasets
 from connoisseur.fusion import SkLearnFusion
 
-ex = Experiment('histogram-colors-extract-cnn-train-svm')
+ex = Experiment('inception-pca-histogram-pca-svm')
 
 
 @ex.config
@@ -43,11 +43,12 @@ def config():
     classes = None
     batch_size = 32
     image_shape = [299, 299, 3]
-    device = "/gpu:0"
+    device = "/gpu:1"
     n_jobs = 8
 
     histogram_type = 'flattened'
-    n_color_histogram_bins = 32
+    n_color_histogram_bins = 128
+    histogram_variability = .9
 
     load_mode = 'exact'
     train_n_patches = 40
@@ -89,9 +90,9 @@ def compute_multidimensional_histogram(x, n_color_histogram_bins):
 
 
 @ex.automain
-def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, train_n_patches,
+def run(_run, dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, train_n_patches,
         train_augmentations, test_n_patches, test_augmentations, device, grid_searching, param_grid, n_jobs,
-        histogram_type, n_color_histogram_bins,
+        histogram_type, n_color_histogram_bins, histogram_variability,
         C):
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allow_growth = True
@@ -117,21 +118,26 @@ def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, tr
         fc_model = Model(input=base_model.input, output=x)
 
     print('embedding data...')
-    X, y = vangogh.load('train').get('train')
+    X, y = vangogh.load_patches_from_full_images('train').get('train')
     vangogh.unload('train')
     Z = fc_model.predict(preprocess_input(X).reshape((-1,) + X.shape[2:])).reshape(X.shape[:2] + (-1,))
-    X_test, y_test = vangogh.load('test').get('test')
+    X_test, y_test = vangogh.load_patches_from_full_images('test').get('test')
     vangogh.unload('test')
     Z_test = fc_model.predict(preprocess_input(X_test).reshape((-1,) + X_test.shape[2:])).reshape(
         X_test.shape[:2] + (-1,))
     del fc_model, base_model
     K.clear_session()
 
-    print('negative samples:', (y == 0).sum())
-    print('positive samples:', (y == 1).sum())
-
+    inception_pca = PCA(n_components=.99)
+    n_samples, n_patches, n_features = Z.shape
+    Z = inception_pca.fit_transform(Z.reshape(-1, n_features)).reshape(n_samples, n_patches, -1)
+    n_samples, n_patches, n_features = Z_test.shape
+    Z_test = inception_pca.transform(Z_test.reshape(-1, n_features)).reshape(n_samples, n_patches, -1)
+    print('dimensionality reduction on inception signal: R^%i->R^%i (%.2f variance kept)'
+          % (n_features, inception_pca.n_components_, np.sum(inception_pca.explained_variance_ratio_)))
     print('train embedding shape and size: %s, %f MB' % (Z.shape, Z.nbytes / 1024 ** 2))
     print('test embedding shape and size: %s, %f MB' % (Z_test.shape, Z_test.nbytes / 1024 ** 2))
+    del inception_pca
 
     if histogram_type == 'flattened':
         print('computing flattened color histograms for train paintings...')
@@ -147,7 +153,7 @@ def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, tr
     print('train histogram shape and size: %s, %f MB' % (X.shape, X.nbytes / 1024 ** 2))
     print('test histogram shape and size: %s, %f MB' % (X_test.shape, X_test.nbytes / 1024 ** 2))
 
-    histogram_pca = PCA(n_components=.99)
+    histogram_pca = PCA(n_components=histogram_variability)
     n_samples, n_patches, n_features = X.shape
     X = histogram_pca.fit_transform(X.reshape(-1, n_features)).reshape(n_samples, n_patches, -1)
     n_samples, n_patches, n_features = X_test.shape
@@ -156,6 +162,7 @@ def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, tr
           % (n_features, histogram_pca.n_components_, np.sum(histogram_pca.explained_variance_ratio_)))
     print('train histogram shape and size: %s, %f MB' % (X.shape, X.nbytes / 1024 ** 2))
     print('test histogram shape and size: %s, %f MB' % (X_test.shape, X_test.nbytes / 1024 ** 2))
+    del histogram_pca
 
     # Concatenate CNN features with color features.
     X, X_test = np.concatenate((Z, X), axis=2), np.concatenate((Z_test, X_test), axis=2)
@@ -167,11 +174,8 @@ def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, tr
 
     if grid_searching:
         print('grid searching...')
-        flow = Pipeline([
-            ('pca', PCA(n_components=.999)),
-            ('svc', LinearSVC(dual=X.shape[0] <= X.shape[1]))
-        ])
-        grid = GridSearchCV(estimator=flow, param_grid=param_grid, n_jobs=n_jobs, verbose=1)
+        model = SVC(class_weight='balanced', random_state=svm_seed)
+        grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=n_jobs, verbose=1)
         grid.fit(X, y)
         print('best params: %s' % grid.best_params_)
         print('best score on validation data: %.2f' % grid.best_score_)
@@ -179,26 +183,25 @@ def run(dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mode, tr
     else:
         print('training...')
         # These are the best parameters I've found so far.
-        model = Pipeline([
-            ('pca', PCA(n_components=.999)),
-            ('svc', LinearSVC(C=C, dual=X.shape[0] <= X.shape[1], class_weight='balanced'))
-        ])
+        model = SVC(C=C, class_weight='balanced', random_state=svm_seed)
         model.fit(X, y)
 
-    pca = model.named_steps['pca']
-    print('dimensionality reduction: R^%i->R^%i (%.2f variance kept)'
-          % (X.shape[-1], pca.n_components_, np.sum(pca.explained_variance_ratio_)))
-    print('training classification report:')
-    p = model.predict(X)
-    print(metrics.classification_report(y, p))
-    print('train score: %.2f' % metrics.accuracy_score(y, p), '\n',
-          metrics.classification_report(y, p), '\nConfusion matrix:\n',
-          metrics.confusion_matrix(y, p))
-    del X, y, p
+    accuracy_score = model.score(X, y)
+    print('score on training data: %.2f' % accuracy_score)
+    _run.info['accuracy'] = {
+        'train': accuracy_score,
+        'test': -1
+    }
+    del X, y
 
+    print('testing...')
     for strategy in ('farthest', 'sum', 'most_frequent'):
         f = SkLearnFusion(model, strategy=strategy)
         p_test = f.predict(X_test)
-        print('score using', strategy, 'strategy: %.2f' % metrics.accuracy_score(y_test, p_test), '\n',
+        accuracy_score = metrics.accuracy_score(y_test, p_test)
+        print('score using', strategy, 'strategy: %.2f' % accuracy_score, '\n',
               metrics.classification_report(y_test, p_test), '\nConfusion matrix:\n',
               metrics.confusion_matrix(y_test, p_test))
+
+        if accuracy_score > _run.info['accuracy']['test']:
+            _run.info['accuracy']['test'] = accuracy_score
