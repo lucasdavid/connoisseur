@@ -2,18 +2,20 @@
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 '''
+
 from __future__ import absolute_import
 from __future__ import print_function
 
-import numpy as np
-import re
-from scipy import linalg
-import scipy.ndimage as ndi
-from six.moves import range
+import itertools
 import os
+import re
 import threading
 
+import numpy as np
+import scipy.ndimage as ndi
 from keras import backend as K
+from scipy import linalg
+from six.moves import range
 
 
 def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
@@ -87,7 +89,7 @@ def random_channel_shift(x, intensity, channel_index=0):
     channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
                       for x_channel in x]
     x = np.stack(channel_images, axis=0)
-    x = np.rollaxis(x, 0, channel_index+1)
+    x = np.rollaxis(x, 0, channel_index + 1)
     return x
 
 
@@ -105,9 +107,10 @@ def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', c
     final_affine_matrix = transform_matrix[:2, :2]
     final_offset = transform_matrix[:2, 2]
     channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
-                      final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
+                                                         final_offset, order=0, mode=fill_mode, cval=cval) for x_channel
+                      in x]
     x = np.stack(channel_images, axis=0)
-    x = np.rollaxis(x, 0, channel_index+1)
+    x = np.rollaxis(x, 0, channel_index + 1)
     return x
 
 
@@ -243,6 +246,7 @@ class ImageDataGenerator(object):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
     '''
+
     def __init__(self,
                  featurewise_center=False,
                  samplewise_center=False,
@@ -307,6 +311,22 @@ class ImageDataGenerator(object):
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None, save_prefix='', save_format='jpeg'):
         return DirectoryIterator(
+            directory, self,
+            target_size=target_size, extraction_method=extraction_method,
+            augmentations=augmentations,
+            color_mode=color_mode,
+            classes=classes, class_mode=class_mode,
+            dim_ordering=self.dim_ordering,
+            batch_size=batch_size, shuffle=shuffle, seed=seed,
+            save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format)
+
+    def flow_pairs_from_directory(self, directory,
+                                  target_size=(256, 256), extraction_method='resize',
+                                  augmentations=(), color_mode='rgb',
+                                  classes=None, class_mode='categorical',
+                                  batch_size=32, shuffle=True, seed=None,
+                                  save_to_dir=None, save_prefix='', save_format='jpeg'):
+        return PairsDirectoryIterator(
             directory, self,
             target_size=target_size, extraction_method=extraction_method,
             augmentations=augmentations,
@@ -444,7 +464,6 @@ class ImageDataGenerator(object):
 
 
 class Iterator(object):
-
     def __init__(self, N, batch_size, shuffle, seed):
         self.N = N
         self.batch_size = batch_size
@@ -489,7 +508,6 @@ class Iterator(object):
 
 
 class NumpyArrayIterator(Iterator):
-
     def __init__(self, X, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  dim_ordering='default',
@@ -538,7 +556,6 @@ class NumpyArrayIterator(Iterator):
 
 
 class DirectoryIterator(Iterator):
-
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), extraction_method='resize',
                  augmentations=(), color_mode='rgb', dim_ordering='default',
@@ -656,3 +673,14 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
         return batch_x, batch_y
+
+
+class PairsDirectoryIterator(DirectoryIterator):
+    def next(self):
+        batch_x, batch_y = super().next()
+
+        if self.class_mode == 'categorical':
+            batch_y = np.argmax(batch_y, axis=-1)
+
+        c = np.random.randint(0, batch_x.shape[0], size=(2, batch_x.shape[0]))
+        return list(batch_x[c]), np.logical_and(*batch_y[c]).astype(np.float)

@@ -12,26 +12,25 @@ Licence: MIT License 2016 (c)
 
 """
 
-import itertools
 import os
 
-import numpy as np
 import tensorflow as tf
-from keras import callbacks, layers, backend as K
-from keras.applications.inception_v3 import InceptionV3
+from keras import callbacks, optimizers, backend as K
 from keras.engine import Input, Model
+from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout, Lambda
+from keras.models import Sequential
 from sacred import Experiment
 
 from connoisseur import datasets
 from connoisseur.utils.image import ImageDataGenerator
 
-ex = Experiment('train-inception-siamese-contrastive-loss')
+ex = Experiment('siamese-contrastive-loss')
 
 
 @ex.config
 def config():
     dataset_seed = 4
-    batch_size = 64
+    batch_size = 30
     image_shape = [299, 299, 3]
     train_shuffle = True
     train_n_patches = 40
@@ -49,23 +48,14 @@ def config():
     device = "/gpu:0"
     data_dir = "/datasets/ldavid/van_gogh"
 
-    inception_optimal_params = {'lr': 0.0001, }
+    opt_params = {'lr': 0.0001, 'momentum': .9, 'decay': 1e-6, 'nesterov': True}
     ckpt_file = './ckpt/weights.{epoch:d}-{val_loss:.2f}.hdf5'
     train_samples_per_epoch = 1000
     nb_epoch = 100
     nb_val_samples = 670
-    nb_worker = 8
+    nb_worker = 4
     early_stop_patience = 10
-    tensorboard_file = './logs/base-training'
-    nb_test_samples = 670
-
-    svm_seed = 2
-    grid_searching = False
-    param_grid = {'svc__C': [0.1, 1, 10, 100],
-                  'svc__kernel': ['rbf', 'linear'],
-                  'svc__class_weight': ['balanced', None]}
-    svc_optimal_params = {'class_weight': 'balanced'}
-    n_jobs = 8
+    tensorboard_file = './logs/siamese-contrastive-loss-1'
 
 
 def euclidean_distance(vects):
@@ -86,33 +76,46 @@ def contrastive_loss(y_true, y_pred):
     return K.mean(y_true * K.square(y_pred) + (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
 
 
-def combined_pairs_flow(flow):
-    while True:
-        X, y = next(flow)
-        y_enc = np.argmax(y, axis=-1)
-
-        combinations = np.array(list(itertools.combinations(range(X.shape[0]), 2)))
-        y_combined = np.logical_and(*y_enc[combinations].T)
-        yield X[combinations].transpose(1, 0, 2, 3, 4), y_combined
+def compute_accuracy(predictions, labels):
+    """Compute classification accuracy with a fixed threshold on distances.
+    """
+    return labels[predictions.ravel() < 0.5].mean()
 
 
-def build_model(image_shape, device):
+def build_model(x_shape, opt_params, device):
     with tf.device(device):
-        base_model = InceptionV3(weights=None, input_shape=image_shape,
-                                 include_top=False)
-        x = base_model.output
-        x = layers.AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
-        x = layers.Flatten(name='flatten')(x)
-        base_model = Model(input=base_model.input, output=x)
+        base_network = Sequential([
+            Conv2D(64, 3, 3, activation='relu', name='block1_conv1', input_shape=x_shape),
+            Conv2D(64, 3, 3, activation='relu', name='block1_conv2'),
+            MaxPooling2D((4, 4), strides=(2, 2), name='block1_pool'),
 
-        img_a = Input(batch_shape=[None] + image_shape)
-        img_b = Input(batch_shape=[None] + image_shape)
-        leg_a = base_model(img_a)
-        leg_b = base_model(img_b)
+            Conv2D(128, 3, 3, activation='relu', name='block2_conv1'),
+            Conv2D(128, 3, 3, activation='relu', name='block2_conv2'),
+            MaxPooling2D((4, 4), strides=(2, 2), name='block2_pool'),
 
-        x = layers.Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([leg_a, leg_b])
+            Conv2D(256, 3, 3, activation='relu', name='block3_conv1'),
+            Conv2D(256, 3, 3, activation='relu', name='block3_conv2'),
+            Conv2D(256, 3, 3, activation='relu', name='block3_conv3'),
+            MaxPooling2D((4, 4), strides=(2, 2), name='block3_pool'),
+
+            Flatten(name='flatten'),
+
+            Dense(1024, activation='relu'),
+            Dropout(0.5),
+            Dense(1024, activation='relu'),
+            Dropout(0.5),
+            Dense(1024, activation='relu'),
+        ])
+
+        img_a = Input(shape=x_shape)
+        img_b = Input(shape=x_shape)
+        leg_a = base_network(img_a)
+        leg_b = base_network(img_b)
+
+        x = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([leg_a, leg_b])
         model = Model(input=[img_a, img_b], output=x)
-        model.compile(optimizer='adam', loss=contrastive_loss, metrics=['accuracy'])
+        opt = optimizers.SGD(**opt_params)
+        model.compile(optimizer=opt, loss=contrastive_loss)
 
     return model
 
@@ -124,21 +127,16 @@ def run(_run, dataset_seed,
         test_shuffle, test_n_patches, test_augmentations, dataset_valid_seed,
         valid_shuffle, valid_n_patches, valid_augmentations, valid_split, dataset_test_seed,
 
-        device, inception_optimal_params, ckpt_file,
+        device, opt_params, ckpt_file,
         train_samples_per_epoch, nb_epoch,
         nb_val_samples, nb_worker,
-        early_stop_patience, tensorboard_file,
-
-        nb_test_samples,
-
-        svm_seed, grid_searching, param_grid, svc_optimal_params, n_jobs):
+        early_stop_patience, tensorboard_file):
     os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
-    config = tf.ConfigProto(allow_soft_placement=True)
-    config.gpu_options.allow_growth = True
-    s = tf.Session(config=config)
-    K.set_session(s)
 
-    model = build_model(image_shape=image_shape, device=device)
+    sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+    K.set_session(sess)
+
+    model = build_model(x_shape=image_shape, opt_params=opt_params, device=device)
 
     vangogh = datasets.VanGogh(
         base_dir=data_dir, image_shape=image_shape,
@@ -152,37 +150,47 @@ def run(_run, dataset_seed,
         random_state=dataset_seed
     ).download().extract().check().extract_patches_to_disk()
 
-    g = ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
-    g.mean = 1
-    train_data = combined_pairs_flow(g.flow_from_directory(
+    g = ImageDataGenerator(rescale=1. / 255.)
+    train_data = g.flow_pairs_from_directory(
         os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'train'),
-        target_size=image_shape[:2],
+        target_size=image_shape[:2], class_mode='sparse',
         augmentations=train_augmentations, batch_size=batch_size,
-        shuffle=train_shuffle, seed=dataset_train_seed))
+        shuffle=train_shuffle, seed=dataset_train_seed)
 
-    valid_data = combined_pairs_flow(g.flow_from_directory(
+    valid_data = g.flow_pairs_from_directory(
         os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'valid'),
-        target_size=image_shape[:2],
+        target_size=image_shape[:2], class_mode='sparse',
         augmentations=valid_augmentations, batch_size=batch_size,
-        shuffle=valid_shuffle, seed=dataset_valid_seed))
+        shuffle=valid_shuffle, seed=dataset_valid_seed)
 
-    test_data = combined_pairs_flow(g.flow_from_directory(
+    test_data = g.flow_pairs_from_directory(
         os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'test'),
-        target_size=image_shape[:2],
+        target_size=image_shape[:2], class_mode='sparse',
         augmentations=test_augmentations, batch_size=batch_size,
-        shuffle=test_shuffle, seed=dataset_test_seed))
+        shuffle=test_shuffle, seed=dataset_test_seed)
 
     print('training siamese inception...')
+
     try:
-        model.fit_generator(
-            generator=train_data, samples_per_epoch=train_samples_per_epoch, nb_epoch=nb_epoch,
-            validation_data=valid_data, nb_val_samples=nb_val_samples,
-            nb_worker=nb_worker, verbose=1,
-            callbacks=[
-                callbacks.EarlyStopping(patience=early_stop_patience),
-                callbacks.TensorBoard(tensorboard_file, write_graph=False),
-                callbacks.ModelCheckpoint(ckpt_file, verbose=1),
-            ])
-        print('training completed.')
+        with tf.device('/cpu:0'):
+            model.fit_generator(
+                generator=train_data, samples_per_epoch=train_samples_per_epoch, nb_epoch=nb_epoch,
+                validation_data=valid_data, nb_val_samples=nb_val_samples,
+                nb_worker=nb_worker, verbose=1,
+                callbacks=[
+                    callbacks.EarlyStopping(patience=early_stop_patience),
+                    callbacks.TensorBoard(tensorboard_file, write_graph=False),
+                    callbacks.ModelCheckpoint(ckpt_file, verbose=1, save_best_only=True),
+                ])
+            print('training completed.')
     except KeyboardInterrupt:
         print('training interrupted by user.')
+
+    print('testing...')
+    test_accuracy = 0
+    n_batches = test_data.N // test_data.batch_size
+    for batch in range(n_batches):
+        X, y = next(test_data)
+        p = model.predict_on_batch(X)
+        test_accuracy += compute_accuracy(p, y)
+    print('accuracy:', test_accuracy / n_batches)

@@ -2,7 +2,15 @@ FROM tensorflow/tensorflow:nightly-gpu-py3
 
 MAINTAINER Lucas David <lucasolivdavid@gmail.com>
 
-RUN pip install -r ../docs/requirements-base.txt --upgrade --no-cache-dir
+RUN pip install --upgrade --no-cache-dir numpy \
+                                         scipy \
+                                         scikit-learn \
+                                         h5py \
+                                         keras \
+                                         image \
+                                         sacred \
+                                         opencv-python \
+                                         tensorflow-gpu
 
 WORKDIR "/"
 
