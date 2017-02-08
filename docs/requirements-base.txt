@@ -1,9 +1,10 @@
 numpy
 scipy
 scikit-learn
+h5py
 keras
 h5py
 image
 sacred
 opencv-python
-tensorflow-gpu
+tensorflow
