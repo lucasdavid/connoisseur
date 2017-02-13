@@ -14,17 +14,19 @@ Licence: MIT License 2016 (c)
 
 import os
 
+import numpy as np
 import tensorflow as tf
+from keras import applications
 from keras import callbacks, optimizers, backend as K
 from keras.engine import Input, Model
-from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout, Lambda
-from keras.models import Sequential
+from keras.layers import Dense, Flatten, Dropout, Lambda
 from sacred import Experiment
+from sklearn.metrics import classification_report
 
 from connoisseur import datasets
-from connoisseur.utils.image import ImageDataGenerator
+from connoisseur.utils.image import ImageDataGenerator, PairsDirectoryIterator
 
-ex = Experiment('siamese-contrastive-loss')
+ex = Experiment('frozen-base-23340-samples-2')
 
 
 @ex.config
@@ -40,7 +42,7 @@ def config():
     valid_n_patches = 40
     valid_augmentations = []
     dataset_valid_seed = 98
-    valid_split = .2
+    valid_split = .1
     test_shuffle = True
     test_n_patches = 80
     dataset_test_seed = 53
@@ -48,14 +50,14 @@ def config():
     device = "/gpu:0"
     data_dir = "/datasets/ldavid/van_gogh"
 
-    opt_params = {'lr': 0.0001, 'momentum': .9, 'decay': 1e-6, 'nesterov': True}
-    ckpt_file = './ckpt/weights.{epoch:d}-{val_loss:.2f}.hdf5'
-    train_samples_per_epoch = 1000
+    opt_params = {'lr': .001, 'decay': 1e-6}
+    ckpt_file = './ckpt/opt-weights.hdf5'
     nb_epoch = 100
-    nb_val_samples = 670
+    train_samples_per_epoch = 7780
+    nb_val_samples = 2700
     nb_worker = 4
     early_stop_patience = 10
-    tensorboard_file = './logs/siamese-contrastive-loss-1'
+    tensorboard_file = './logs/frozen-base-23340-samples-2'
 
 
 def euclidean_distance(vects):
@@ -76,36 +78,19 @@ def contrastive_loss(y_true, y_pred):
     return K.mean(y_true * K.square(y_pred) + (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
 
 
-def compute_accuracy(predictions, labels):
-    """Compute classification accuracy with a fixed threshold on distances.
-    """
-    return labels[predictions.ravel() < 0.5].mean()
-
-
 def build_model(x_shape, opt_params, device):
     with tf.device(device):
-        base_network = Sequential([
-            Conv2D(64, 3, 3, activation='relu', name='block1_conv1', input_shape=x_shape),
-            Conv2D(64, 3, 3, activation='relu', name='block1_conv2'),
-            MaxPooling2D((4, 4), strides=(2, 2), name='block1_pool'),
+        base_network = applications.InceptionV3(include_top=False, input_shape=x_shape)
+        base_network.trainable = False
 
-            Conv2D(128, 3, 3, activation='relu', name='block2_conv1'),
-            Conv2D(128, 3, 3, activation='relu', name='block2_conv2'),
-            MaxPooling2D((4, 4), strides=(2, 2), name='block2_pool'),
+        x = Flatten(name='flatten')(base_network.output)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        x = Dense(1024, activation='relu')(x)
 
-            Conv2D(256, 3, 3, activation='relu', name='block3_conv1'),
-            Conv2D(256, 3, 3, activation='relu', name='block3_conv2'),
-            Conv2D(256, 3, 3, activation='relu', name='block3_conv3'),
-            MaxPooling2D((4, 4), strides=(2, 2), name='block3_pool'),
-
-            Flatten(name='flatten'),
-
-            Dense(1024, activation='relu'),
-            Dropout(0.5),
-            Dense(1024, activation='relu'),
-            Dropout(0.5),
-            Dense(1024, activation='relu'),
-        ])
+        base_network = Model(input=base_network.input, output=x)
 
         img_a = Input(shape=x_shape)
         img_b = Input(shape=x_shape)
@@ -114,7 +99,7 @@ def build_model(x_shape, opt_params, device):
 
         x = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([leg_a, leg_b])
         model = Model(input=[img_a, img_b], output=x)
-        opt = optimizers.SGD(**opt_params)
+        opt = optimizers.RMSprop(**opt_params)
         model.compile(optimizer=opt, loss=contrastive_loss)
 
     return model
@@ -150,24 +135,26 @@ def run(_run, dataset_seed,
         random_state=dataset_seed
     ).download().extract().check().extract_patches_to_disk()
 
-    g = ImageDataGenerator(rescale=1. / 255.)
-    train_data = g.flow_pairs_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'train'),
-        target_size=image_shape[:2], class_mode='sparse',
+    g = ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
+    g.mean = 1
+
+    train_data = PairsDirectoryIterator(
+        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'train'), g,
+        target_size=image_shape[:2], class_mode='sparse', balanced_classes=True,
         augmentations=train_augmentations, batch_size=batch_size,
         shuffle=train_shuffle, seed=dataset_train_seed)
 
-    valid_data = g.flow_pairs_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'valid'),
-        target_size=image_shape[:2], class_mode='sparse',
+    valid_data = PairsDirectoryIterator(
+        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'valid'), g,
+        target_size=image_shape[:2], class_mode='sparse', balanced_classes=True,
         augmentations=valid_augmentations, batch_size=batch_size,
         shuffle=valid_shuffle, seed=dataset_valid_seed)
 
-    test_data = g.flow_pairs_from_directory(
-        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'test'),
-        target_size=image_shape[:2], class_mode='sparse',
-        augmentations=test_augmentations, batch_size=batch_size,
-        shuffle=test_shuffle, seed=dataset_test_seed)
+    test_data = PairsDirectoryIterator(
+        os.path.join(data_dir, 'vgdb_2016', 'extracted_patches', 'test'), g,
+        target_size=image_shape[:2], class_mode='sparse', balanced_classes=True,
+        augmentations=test_augmentations,
+        batch_size=batch_size, shuffle=test_shuffle, seed=dataset_test_seed)
 
     print('training siamese inception...')
 
@@ -187,10 +174,16 @@ def run(_run, dataset_seed,
         print('training interrupted by user.')
 
     print('testing...')
-    test_accuracy = 0
     n_batches = test_data.N // test_data.batch_size
+    predictions, labels = [], []
     for batch in range(n_batches):
         X, y = next(test_data)
         p = model.predict_on_batch(X)
-        test_accuracy += compute_accuracy(p, y)
-    print('accuracy:', test_accuracy / n_batches)
+        predictions.append(p)
+        labels.append(y)
+
+    y, p = map(np.concatenate, (y, p))
+    p = (p.ravel() > .5).astype(np.float)
+
+    print(classification_report(y, p))
+    print('accuracy:', (p == y).mean())

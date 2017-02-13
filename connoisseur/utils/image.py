@@ -6,7 +6,6 @@ new preprocessing methods, etc...
 from __future__ import absolute_import
 from __future__ import print_function
 
-import itertools
 import os
 import re
 import threading
@@ -320,22 +319,6 @@ class ImageDataGenerator(object):
             batch_size=batch_size, shuffle=shuffle, seed=seed,
             save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format)
 
-    def flow_pairs_from_directory(self, directory,
-                                  target_size=(256, 256), extraction_method='resize',
-                                  augmentations=(), color_mode='rgb',
-                                  classes=None, class_mode='categorical',
-                                  batch_size=32, shuffle=True, seed=None,
-                                  save_to_dir=None, save_prefix='', save_format='jpeg'):
-        return PairsDirectoryIterator(
-            directory, self,
-            target_size=target_size, extraction_method=extraction_method,
-            augmentations=augmentations,
-            color_mode=color_mode,
-            classes=classes, class_mode=class_mode,
-            dim_ordering=self.dim_ordering,
-            batch_size=batch_size, shuffle=shuffle, seed=seed,
-            save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format)
-
     def standardize(self, x):
         if self.rescale:
             x *= self.rescale
@@ -559,7 +542,7 @@ class DirectoryIterator(Iterator):
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), extraction_method='resize',
                  augmentations=(), color_mode='rgb', dim_ordering='default',
-                 classes=None, class_mode='categorical',
+                 classes=None, class_mode='categorical', balanced_classes=False,
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
         if dim_ordering == 'default':
@@ -590,6 +573,7 @@ class DirectoryIterator(Iterator):
                              '; expected one of "categorical", '
                              '"binary", "sparse", or None.')
         self.class_mode = class_mode
+        self.balanced_classes = balanced_classes
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
@@ -682,5 +666,19 @@ class PairsDirectoryIterator(DirectoryIterator):
         if self.class_mode == 'categorical':
             batch_y = np.argmax(batch_y, axis=-1)
 
-        c = np.random.randint(0, batch_x.shape[0], size=(2, batch_x.shape[0]))
+        if self.balanced_classes:
+            y0, = np.where(batch_y == 0)
+            y1, = np.where(batch_y == 1)
+
+            c0 = np.vstack((np.random.choice(y1, size=batch_x.shape[0]),
+                            np.random.choice(y0, size=batch_x.shape[0]))).T
+            c1 = np.random.choice(y1, size=(2, batch_x.shape[0])).T
+            c = np.vstack((c0, c1))
+            np.random.shuffle(c)
+            c = c[:batch_y.shape[0]].T
+
+        else:
+            # Random pairs combination.
+            c = np.random.randint(0, batch_x.shape[0], size=(2, batch_x.shape[0]))
+
         return list(batch_x[c]), np.logical_and(*batch_y[c]).astype(np.float)

@@ -313,7 +313,5 @@ class DataSet(object):
                                 os.path.join(patches_class_path,
                                              '%s-%i-%i.jpg' % (os.path.splitext(name)[0], dx, dy)))
                             n_patches += 1
-
-                    print('%s was divided into %i patches' % (name, n_patches))
             print('patches extraction completed.')
         return self
