@@ -20,50 +20,46 @@ class Paintings91(DataSet):
 
     SOURCE = 'http://cat.cvc.uab.es/~joost/data/Paintings91.zip'
     EXPECTED_SIZE = 681584272
-    DATA_SUB_DIR = 'Paintings91/Images'
+    EXTRACTED_FOLDER = 'Paintings91'
 
-    def _load_images_and_labels(self):
-        base_dir = self.base_dir
+    def split_train_test(self):
+        base_dir = self.full_data_path
+
+        if os.path.exists(os.path.join(base_dir, 'train')):
+            print('train-test splitting skipped.')
+            return self
+
         images_file = os.path.join(base_dir, 'Labels', 'image_names.mat')
         labels_file = os.path.join(base_dir, 'Labels', 'labels.mat')
+        train_file = os.path.join(base_dir, 'Labels', 'trainset.mat')
+        test_file = os.path.join(base_dir, 'Labels', 'testset.mat')
 
-        # Data is represented at a column vector. Coverts it to a list.
-        X = loadmat(images_file)['image_names']
-        # This stupid format and accents require us to call `replace` to fix
-        # incorrect characters.
-        X = np.array(list(map(lambda name: name[0][0].replace('Ã', 'É'), X)))
-        y = np.argmax(loadmat(labels_file)['labels'], axis=1)
+        data = {}
+        loadmat(train_file, mdict=data)
+        loadmat(test_file, mdict=data)
+        loadmat(images_file, mdict=data)
+        loadmat(labels_file, mdict=data)
 
-        return X, y
+        # This stupid format and accents require us to call `replace`
+        # to fix incorrect characters.
+        data['image_names'] = np.array(
+            list(map(lambda name: name[0][0].replace('Ã', 'É'),
+                     data['image_names'])))
+        X = data['image_names']
+        y = data['labels']
+        # Find absolute path.
+        X = np.array([os.path.join(base_dir, 'Images', x) for x in X], copy=False)
+        y = np.argmax(y, axis=1)
 
-    def check(self):
-        data_path = self.full_data_path
-        assert os.path.exists(data_path), 'Data set not found. Have you downloaded and extracted it first?'
-        X, y = self._load_images_and_labels()
+        train_indices, = np.where(data['trainset'].ravel())
+        test_indices, = np.where(data['testset'].ravel())
 
-        images_folder = os.path.join(data_path,
-                                     'Paintings91', 'Images')
-        X_real = []
+        for phase, X, y in (('train', X[train_indices], y[train_indices]),
+                            ('test', X[test_indices], y[test_indices])):
+            for image, label in zip(X, y):
+                painter_dir = os.path.join(base_dir, phase, str(label))
+                os.makedirs(painter_dir, exist_ok=True)
+                shutil.move(image, painter_dir)
 
-        for i in range(91):
-            # Translates dataset to directory format expected by Keras.
-            paintings = X[y == i].tolist()
-            artist = '_'.join(paintings[0].split('_')[:-1])
-            artist_folder = os.path.join(images_folder, artist)
-
-            os.makedirs(artist_folder, exist_ok=True)
-
-            for painting in paintings:
-                try:
-                    shutil.move(os.path.join(images_folder, painting),
-                                artist_folder)
-                except shutil.Error:
-                    # File was already copied.
-                    pass
-                X_real.append(os.path.join(artist_folder, painting))
-
-        X = np.array(X_real)
-
-        for painting in X:
-            assert os.path.exists(painting), 'a painting is missing: %s' % painting
+        print('train-test splitting completed.')
         return self

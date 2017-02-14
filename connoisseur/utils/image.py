@@ -662,6 +662,7 @@ class DirectoryIterator(Iterator):
 class PairsDirectoryIterator(DirectoryIterator):
     def next(self):
         batch_x, batch_y = super().next()
+        batch_size = batch_x.shape[0]
 
         if self.class_mode == 'categorical':
             batch_y = np.argmax(batch_y, axis=-1)
@@ -670,15 +671,15 @@ class PairsDirectoryIterator(DirectoryIterator):
             y0, = np.where(batch_y == 0)
             y1, = np.where(batch_y == 1)
 
-            c0 = np.vstack((np.random.choice(y1, size=batch_x.shape[0]),
-                            np.random.choice(y0, size=batch_x.shape[0]))).T
-            c1 = np.random.choice(y1, size=(2, batch_x.shape[0])).T
+            c0 = np.vstack((np.random.choice(y1, size=batch_size),
+                            np.random.choice(y0, size=batch_size))).T
+            c1 = np.random.choice(y1, size=(2, batch_size)).T
             c = np.vstack((c0, c1))
             np.random.shuffle(c)
-            c = c[:batch_y.shape[0]].T
+            c = c[:batch_size].T
 
         else:
             # Random pairs combination.
-            c = np.random.randint(0, batch_x.shape[0], size=(2, batch_x.shape[0]))
+            c = np.random.randint(0, batch_size, size=(2, batch_size))
 
         return list(batch_x[c]), np.logical_and(*batch_y[c]).astype(np.float)

@@ -13,7 +13,7 @@ import numpy as np
 import tensorflow as tf
 from artificial.utils.experiments import ExperimentSet, Experiment, arg_parser
 from connoisseur import datasets
-from connoisseur.fusion import KerasFusion
+from connoisseur.fusion import SoftMaxFusion
 from keras import applications
 from keras import callbacks, optimizers, backend as K
 from keras.engine import Input, Model
@@ -44,7 +44,7 @@ class TrainingExperiment(Experiment):
             from keras.applications.imagenet_utils import preprocess_input
 
         tf.logging.info('loading Van-Gogh data set...')
-        van_gogh = datasets.VanGogh(c).download().extract().check().load_patches_from_full_images()
+        van_gogh = datasets.VanGogh(c).download().extract().split_train_valid().load_patches_from_full_images()
 
         # Loading data...
         X, y = van_gogh.train_data
@@ -116,7 +116,7 @@ class TrainingExperiment(Experiment):
 
         for strategy in ('farthest', 'sum', 'most_frequent'):
             tf.logging.info('score on testing data, using strategy `%s`: %.2f', strategy,
-                            KerasFusion(model, strategy=strategy).score(X_test, y_test))
+                            SoftMaxFusion(model, strategy=strategy).score(X_test, y_test))
 
     def teardown(self):
         K.clear_session()
@@ -134,4 +134,4 @@ if __name__ == '__main__':
 
     (ExperimentSet(experiment_cls=TrainingExperiment)
      .load_from_json(args.constants)
-     .run())
+     .run_all())

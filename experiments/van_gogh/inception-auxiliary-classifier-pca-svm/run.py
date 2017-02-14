@@ -82,7 +82,7 @@ def run(_run, dataset_seed, svm_seed,
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().check()
+    ).download().extract().split_train_valid()
 
     X, y = vangogh.load_patches_from_full_images('train').train_data
     vangogh.unload('train')

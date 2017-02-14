@@ -116,7 +116,7 @@ def run(_run, dataset_seed,
         valid_augmentations=valid_augmentations,
         valid_split=valid_split,
         random_state=dataset_seed
-    ).download().extract().check()
+    ).download().extract().split_train_valid()
 
     print('building model...')
     with tf.device(device):

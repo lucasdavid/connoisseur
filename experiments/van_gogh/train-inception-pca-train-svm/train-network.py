@@ -70,7 +70,7 @@ def run(dataset_seed, image_shape, batch_size, data_dir,
         image_shape=image_shape,
         valid_split=valid_split,
         random_state=dataset_seed
-    ).download().extract().check().extract_patches_to_disk()
+    ).download().extract().split_train_valid().extract_patches_to_disk()
 
     # These parameters produce the same results of `preprocess_input`.
     g = utils.image.ImageDataGenerator(rescale=2. / 255., featurewise_center=True)

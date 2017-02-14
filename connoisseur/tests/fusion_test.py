@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 import numpy as np
-from connoisseur.fusion import KerasFusion, SkLearnFusion
+from connoisseur.fusion import SoftMaxFusion, SkLearnFusion
 from keras.layers import Dense
 from keras.models import Sequential
 from nose_parameterized.parameterized import parameterized
@@ -21,13 +21,13 @@ class KerasFusionTest(TestCase):
     ])
     def test_sanity(self, strategy):
         estimator = MagicMock()
-        KerasFusion(estimator=estimator, strategy=strategy)
+        SoftMaxFusion(estimator=estimator, strategy=strategy)
 
     def test_unknown_strategy_raises(self):
         estimator = MagicMock()
 
         with self.assertRaises(ValueError):
-            KerasFusion(estimator=estimator, strategy='illegal-strategy')
+            SoftMaxFusion(estimator=estimator, strategy='illegal-strategy')
 
     @parameterized.expand([
         ('sum',),
@@ -41,7 +41,7 @@ class KerasFusionTest(TestCase):
             Dense(N_CLASSES, activation='softmax', input_shape=[14])
         ])
 
-        f = KerasFusion(model, strategy=strategy)
+        f = SoftMaxFusion(model, strategy=strategy)
         p = f.predict(X)
         self.assertEqual(N_SAMPLES, p.shape[0])
         self.assertTrue(np.all(p < N_CLASSES))

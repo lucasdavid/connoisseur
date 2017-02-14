@@ -34,7 +34,7 @@ class VisualizingExtractedPatchesExperiment(Experiment):
         c = self.consts
 
         tf.logging.debug('checking van-Gogh data set...')
-        datasets.VanGogh(c).download().extract().check()
+        datasets.VanGogh(c).download().extract().split_train_valid()
 
         g = ImageDataGenerator()
 
@@ -93,4 +93,4 @@ if __name__ == '__main__':
 
     (ExperimentSet(experiment_cls=VisualizingExtractedPatchesExperiment)
      .load_from_json(args.constants)
-     .run())
+     .run_all())

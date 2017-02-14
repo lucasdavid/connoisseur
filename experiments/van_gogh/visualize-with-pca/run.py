@@ -43,7 +43,7 @@ class VisualizingWithPCAExperiment(Experiment):
 
     def run(self):
         c = self.consts
-        van_gogh = datasets.VanGogh(c).download().extract().check().as_keras_generator()
+        van_gogh = datasets.VanGogh(c).download().extract().split_train_valid().as_keras_generator()
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -110,4 +110,4 @@ if __name__ == '__main__':
 
     (ExperimentSet(experiment_cls=VisualizingWithPCAExperiment)
      .load_from_json(args.constants)
-     .run())
+     .run_all())

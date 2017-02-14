@@ -67,7 +67,7 @@ class SkLearnFusion(Fusion):
                              multi_class=len(self.estimator.classes_) > 2)
 
 
-class KerasFusion(Fusion):
+class SoftMaxFusion(Fusion):
     def predict(self, X):
         """Predict the class for each sample in X.
 
@@ -81,3 +81,8 @@ class KerasFusion(Fusion):
 
         probabilities, labels = self._reduce_rank(probabilities, labels)
         return self.strategy(labels, probabilities, multi_class=True)
+
+
+class ContrastiveFusion(Fusion):
+    def predict(self, X):
+        pass

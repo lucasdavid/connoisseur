@@ -81,7 +81,7 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
         test_n_patches=test_n_patches,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().check().extract_patches_to_disk()
+    ).download().extract().split_train_valid().extract_patches_to_disk()
 
     g = ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
     g.mean = 1

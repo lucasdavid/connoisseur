@@ -71,7 +71,7 @@ def run(dataset_seed, image_shape, data_dir, n_color_histogram_bins,
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().check()
+    ).download().extract().split_train_valid()
 
     for phase in ('train', 'test'):
         os.makedirs('./histograms/%s/' % phase, exist_ok=True)

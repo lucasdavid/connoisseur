@@ -107,7 +107,7 @@ def run(_run, dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mo
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().check()
+    ).download().extract().split_train_valid()
 
     with tf.device(device):
         images = Input(batch_shape=[None] + image_shape)
