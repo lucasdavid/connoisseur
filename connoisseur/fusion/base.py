@@ -28,10 +28,9 @@ class Fusion(ClassifierMixin, BaseEstimator, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self, estimator, strategy='sum', batch_size=32):
+    def __init__(self, estimator, strategy='sum'):
         self.estimator = estimator
         self.strategy = strategies.get(strategy)
-        self.batch_size = batch_size
 
     def fit(self, X, y, **fit_params):
         return self.estimator.fit(X, y, **fit_params)
@@ -85,28 +84,27 @@ class SoftMaxFusion(Fusion):
 
 
 class ContrastiveFusion(Fusion):
-    def __init__(self, estimator, threshold=.5, strategy='sum',
-                 batch_size=32):
-        super().__init__(estimator=estimator, strategy=strategy,
-                         batch_size=batch_size)
+    def __init__(self, estimator, strategy='sum'):
+        super().__init__(estimator=estimator, strategy=strategy)
         assert self.strategy in (strategies.contrastive_avg,
                                  strategies.most_frequent), \
             ('ContrastiveFusion only accept contrastive_avg and '
              'most_frequent strategies')
-        self.threshold = threshold
 
-    def distance_to_label(self, p):
-        return (p.ravel() < self.threshold).astype(np.int)
+    def distance_to_label(self, p, threshold=.5):
+        return (p.ravel() < threshold).astype(np.int)
 
-    def predict(self, X):
-        probabilities = np.array([self.estimator.predict(x) for x in X],
-                                 copy=False)
+    def predict(self, X, threshold=.5, batch_size=32):
+        probabilities = np.array(
+            [self.estimator.predict(x, batch_size=batch_size)
+             for x in X],
+            copy=False)
         labels = np.array([self.distance_to_label(x) for x in probabilities],
                           copy=False)
         probabilities, labels = self._reduce_rank(probabilities, labels)
 
         if self.strategy is strategies.contrastive_avg:
             probabilities = self.strategy(labels, probabilities)
-            return self.distance_to_label(probabilities)
+            return self.distance_to_label(probabilities, threshold=threshold)
 
         return self.strategy(labels, probabilities, multi_class=False)

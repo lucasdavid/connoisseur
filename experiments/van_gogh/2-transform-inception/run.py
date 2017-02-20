@@ -47,8 +47,8 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir,
 
     with tf.device(device):
         images = Input(batch_shape=[None] + image_shape)
-        base_model = InceptionV3(weights='imagenet', input_tensor=images,
-                                 include_top=False)
+        base_model = InceptionV3(input_tensor=images,
+                                 include_top=False, weights=None)
         x = base_model.output
         x = layers.AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
         x = layers.Flatten(name='flatten')(x)

@@ -6,9 +6,13 @@ from sklearn import metrics
 from connoisseur import fusion
 
 
-def combine_pairs_for_training_gen(X, y, names, batch_size):
-    samples0, = np.where(y == 0)
-    samples1, = np.where(y == 1)
+def combine_pairs_for_training_gen(X, y, names, batch_size=32,
+                                   anchor_painter_label=1):
+    indices = [np.where(y == i)[0] for i in np.unique(y)]
+    samples1 = indices[anchor_painter_label]
+    indices.pop(anchor_painter_label)
+    samples0 = np.concatenate(indices)
+    np.random.shuffle(samples0)
 
     while True:
         c0 = np.hstack((
@@ -19,8 +23,8 @@ def combine_pairs_for_training_gen(X, y, names, batch_size):
 
         X_pairs = X[c.T]
 
-        y_pairs = np.concatenate((np.zeros(math.floor(batch_size / 2)),
-                                  np.ones(math.ceil(batch_size / 2))))
+        y_pairs = np.concatenate((np.zeros(c0.shape[0]),
+                                  np.ones(c1.shape[1])))
 
         yield list(X_pairs), y_pairs
 
@@ -43,10 +47,11 @@ def combine_pairs_for_evaluation(X_base, y_base, names_base,
         _names.append(names[s][0])
     X_eval, y_eval, names_eval = map(np.array, (_X, _y, _names))
 
-    X_pairs = [[x_eval_patches[
-                    np.random.choice(x_eval_patches.shape[0], patches_used)],
-                X_base[np.random.choice(X_base.shape[0], patches_used)]]
-               for x_eval_patches in X_eval]
+    X_pairs = [
+        [x_eval_patches[np.random.choice(x_eval_patches.shape[0],
+                                         patches_used)],
+         X_base[np.random.choice(X_base.shape[0], patches_used)]]
+        for x_eval_patches in X_eval]
     y_pairs = (y_eval == anchor_painter_label).astype(np.int)
     return X_pairs, y_pairs, names_eval
 
@@ -54,14 +59,17 @@ def combine_pairs_for_evaluation(X_base, y_base, names_base,
 def evaluate(model, data, batch_size):
     print('evaluating model with patch fusion strategies')
 
-    X, y, names = combine_pairs_for_evaluation(*data['train'], *data['test'],
+    X_train, y_train, names_train = data['train']
+    X_test, y_test, names_test = data['test']
+    X, y, names = combine_pairs_for_evaluation(X_train, y_train, names_train,
+                                               X_test, y_test, names_test,
                                                anchor_painter_label=1,
                                                patches_used=40)
     scores = {'test': -1}
     for threshold in (.2, .3, .5):
         for strategy in ('contrastive_avg', 'most_frequent'):
-            p = fusion.ContrastiveFusion(model, strategy=strategy,
-                                         threshold=threshold).predict(X)
+            f = fusion.ContrastiveFusion(model, strategy=strategy)
+            p = f.predict(X, batch_size=batch_size, threshold=threshold)
             accuracy_score = metrics.accuracy_score(y, p)
             print('score using', strategy,
                   'strategy, threshold %.1f: %.2f%%'

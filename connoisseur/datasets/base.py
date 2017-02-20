@@ -6,7 +6,6 @@ Licence: MIT License 2016 (c)
 """
 
 import itertools
-import math
 import os
 import shutil
 import tarfile
@@ -132,11 +131,12 @@ class DataSet(object):
         print('downloading', self.SOURCE)
         file_name, _ = request.urlretrieve(self.SOURCE, file_name)
         stat = os.stat(file_name)
-        print('%s downloaded (%i bytes).' % (self.COMPACTED_FILE, stat.st_size))
+        print('%s downloaded (%i bytes).'
+              % (self.COMPACTED_FILE, stat.st_size))
 
         if self.EXPECTED_SIZE and stat.st_size != self.EXPECTED_SIZE:
-            raise RuntimeError('File does not have expected size: (%i/%i)' % (
-                stat.st_size, self.EXPECTED_SIZE))
+            raise RuntimeError('File does not have expected size: (%i/%i)'
+                               % (stat.st_size, self.EXPECTED_SIZE))
         return self
 
     def extract(self, override=False):
@@ -166,7 +166,8 @@ class DataSet(object):
 
     def check(self):
         assert os.path.exists(
-            self.full_data_path), 'Data set not found. Have you downloaded and extracted it first?'
+            self.full_data_path), ('Data set not found. Have you downloaded '
+                                   'and extracted it first?')
         return self
 
     def split_train_valid(self, valid_size):
@@ -217,7 +218,8 @@ class DataSet(object):
         rates = n_samples_per_label / n_samples_per_label.sum()
 
         if 'train' in phases:
-            print('labels\'s rates: %s' % dict(zip(labels, np.round(rates, 2))))
+            print('labels\'s rates: %s' % dict(zip(labels,
+                                                   np.round(rates, 2))))
             print('min tolerated label rate: %.2f' % self.min_label_rate)
 
         labels = list(map(lambda i: labels[i],
@@ -265,16 +267,16 @@ class DataSet(object):
 
             print('%s patches extraction to memory completed.' % phase)
 
-            X = np.array(X, dtype=np.float)
+            X = np.array(X, copy=False)
 
             if phase == 'train':
                 self.label_encoder_ = LabelEncoder().fit(y)
 
             if self.label_encoder_ is None:
                 raise ValueError(
-                    'you need to load train data first in order to initialize '
-                    'the label encoder that will be used to transform the %s data.'
-                    % phase)
+                    'you need to load train data first in order to '
+                    'initialize the label encoder that will be used'
+                    ' to transform the %s data.' % phase)
             y = self.label_encoder_.transform(y)
 
             results.append((X, y))
@@ -295,16 +297,20 @@ class DataSet(object):
             enhancer = getattr(self, '%s_enhancer' % phase)
 
             for label in labels:
-                label_patch_path = os.path.join(data_path, 'extracted_patches', phase, label)
-                samples_names = os.listdir(os.path.join(data_path, phase, label))
+                label_sample_path = os.path.join(data_path, phase, label)
+                label_patch_path = os.path.join(data_path,
+                                                'extracted_patches',
+                                                phase, label)
+                samples_names = [os.path.splitext(p)[0]
+                                 for p in os.listdir(label_sample_path)]
                 patches_names = os.listdir(label_patch_path)
 
                 X, y = [], []
                 for sample in samples_names:
                     sample_patches_names = list(filter(lambda x: sample in x,
                                                        patches_names))
-                    if (n_patches is not None
-                        and len(sample_patches_names) < n_patches):
+                    if (n_patches is not None and
+                            len(sample_patches_names) < n_patches):
                         sample_patches_names = r.choice(sample_patches_names,
                                                         n_patches)
                     else:
@@ -314,13 +320,14 @@ class DataSet(object):
 
                     _patches = []
                     for sample_patch_name in sample_patches_names:
-                        _patches.append(enhancer.process(load_img(
-                            os.path.join(label_patch_path,
-                                         sample_patch_name))))
+                        _patches.append(
+                            img_to_array(enhancer.process(load_img(
+                                os.path.join(label_patch_path,
+                                             sample_patch_name)))))
 
                     X.append(np.array(_patches, copy=False))
                     y.append(y)
-                y = np.array(y, copy=False)
+                X, y = np.array(X, copy=False), np.array(y, copy=False)
                 results.append((X, y))
         return results
 

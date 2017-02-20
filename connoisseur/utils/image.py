@@ -9,6 +9,7 @@ from __future__ import print_function
 import os
 import re
 import threading
+import math
 
 import numpy as np
 import scipy.ndimage as ndi
@@ -660,6 +661,10 @@ class DirectoryIterator(Iterator):
 
 
 class PairsDirectoryIterator(DirectoryIterator):
+    def __init__(self, *args, anchor_label=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.anchor_label = anchor_label
+
     def next(self):
         batch_x, batch_y = super().next()
         batch_size = batch_x.shape[0]
@@ -668,18 +673,20 @@ class PairsDirectoryIterator(DirectoryIterator):
             batch_y = np.argmax(batch_y, axis=-1)
 
         if self.balanced_classes:
-            y0, = np.where(batch_y == 0)
-            y1, = np.where(batch_y == 1)
+            samples0, = np.where(batch_y != self.anchor_label)
+            samples1, = np.where(batch_y == self.anchor_label)
 
-            c0 = np.vstack((np.random.choice(y1, size=batch_size),
-                            np.random.choice(y0, size=batch_size))).T
-            c1 = np.random.choice(y1, size=(2, batch_size)).T
-            c = np.vstack((c0, c1))
-            np.random.shuffle(c)
-            c = c[:batch_size].T
-
+            c0 = np.hstack((
+                np.random.choice(samples1, size=(math.floor(batch_size / 2), 1)),
+                np.random.choice(samples0, size=(math.floor(batch_size / 2), 1))))
+            c1 = np.random.choice(samples1, size=(math.ceil(batch_size / 2), 2))
+            c = np.vstack((c0, c1)).T
         else:
             # Random pairs combination.
             c = np.random.randint(0, batch_size, size=(2, batch_size))
 
-        return list(batch_x[c]), np.logical_and(*batch_y[c]).astype(np.float)
+        pairs_x = batch_x[c]
+        pairs_y = batch_y[c]
+        pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
+
+        return list(pairs_x), pairs_y
