@@ -13,6 +13,10 @@ def sum(labels, distances, multi_class=True):
     return (distances.sum(axis=-1) > 0).astype(np.int)
 
 
+def contrastive_avg(labels, distances):
+    return distances.mean(axis=-1)
+
+
 def farthest(labels, distances, multi_class=True):
     if multi_class:
         return np.argmax(distances.max(axis=-2), axis=-1)

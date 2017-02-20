@@ -3,7 +3,7 @@ from keras.utils.generic_utils import get_from_module
 from sklearn.base import BaseEstimator
 
 from . import strategies
-from .base import SoftMaxFusion, SkLearnFusion
+from .base import SoftMaxFusion, SkLearnFusion, ContrastiveFusion
 
 
 def get(fusion_system_or_model):
@@ -20,4 +20,5 @@ def get(fusion_system_or_model):
     return get_from_module(fusion_system_or_model, globals(), 'fusion system')
 
 
-__all__ = ['SoftMaxFusion', 'SkLearnFusion', 'strategies']
+__all__ = ['SoftMaxFusion', 'SkLearnFusion', 'ContrastiveFusion',
+           'strategies']

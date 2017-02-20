@@ -48,4 +48,5 @@ def run(batch_size, data_dir, device, ckpt_file):
 
     model = build_model(x_shape=(2048,), device=device)
     model.load_weights(ckpt_file)
-    evaluate(model=model, data=data, batch_size=batch_size)
+    scores = evaluate(model=model, data=data, batch_size=batch_size)
+    print('max test score: %.2f%%' % (100 * scores['test']))

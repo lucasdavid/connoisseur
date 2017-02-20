@@ -1,13 +1,9 @@
 import math
 
 import numpy as np
-from sklearn.metrics import classification_report
+from sklearn import metrics
 
 from connoisseur import fusion
-
-
-def distance_to_label(p, threshold=.5):
-    return (p.ravel() < threshold).astype(np.float)
 
 
 def combine_pairs_for_training_gen(X, y, names, batch_size):
@@ -29,64 +25,50 @@ def combine_pairs_for_training_gen(X, y, names, batch_size):
         yield list(X_pairs), y_pairs
 
 
-def combine_pairs_for_evaluation(data, batch_size):
-    for phase in ('train', 'test'):
-        # Aggregate patches by their respective paintings.
-        X, y, names = [], [], []
-        X_all, y_all, names_all = data[phase]
-        # Remove patches indices, leaving just the painting name.
-        names_all = np.array(['-'.join(n.split('-')[:-1]) for n in names_all],
-                             copy=False)
-        for name in set(names_all):
-            s = names_all == name
-            X.append(X_all[s])
-            y.append(y_all[s][0])
-            names.append(names_all[s][0])
-        X, y, names = map(np.array, (X, y, names))
+def combine_pairs_for_evaluation(X_base, y_base, names_base,
+                                 X_eval, y_eval, names_eval,
+                                 anchor_painter_label=1, patches_used=40):
+    # Filter some artist paintings (0:nvg, 1:vg).
+    s = y_base == anchor_painter_label
+    X_base, y_base = X_base[s], y_base[s]
 
-        data[phase] = X, y, names
+    # Aggregate test patches by their respective paintings.
+    _X, _y, _names = [], [], []
+    # Remove patches indices, leaving just the painting name.
+    names = np.array(['-'.join(n.split('-')[:-1]) for n in names_eval])
+    for name in set(names):
+        s = names == name
+        _X.append(X_eval[s])
+        _y.append(y_eval[s][0])
+        _names.append(names[s][0])
+    X_eval, y_eval, names_eval = map(np.array, (_X, _y, _names))
 
-    X, y, names = data['train']
-    X_test, y_test, names_test = data['test']
-
-    # Aggregate train samples by their respective painter.
-    _X = []
-    for label in np.unique(y):
-        s = y == label
-        _X.append((X[s], y[s], names[s]))
-    X = np.array(_X)
-
-    Z = []
-    for i in range(X_test.shape[0]):
-        for j in range(X_test[i].shape[0]):
-            pass
-
-    for x, label, name in zip(X_test, y_test, names_test):
-        for x_train, label_train, name_train in zip(X, y, names):
-            pass
-
-
-    yield 1
+    X_pairs = [[x_eval_patches[
+                    np.random.choice(x_eval_patches.shape[0], patches_used)],
+                X_base[np.random.choice(X_base.shape[0], patches_used)]]
+               for x_eval_patches in X_eval]
+    y_pairs = (y_eval == anchor_painter_label).astype(np.int)
+    return X_pairs, y_pairs, names_eval
 
 
 def evaluate(model, data, batch_size):
     print('evaluating model with patch fusion strategies')
 
-    pairs_flow = combine_pairs_for_evaluation(data, batch_size=batch_size)
+    X, y, names = combine_pairs_for_evaluation(*data['train'], *data['test'],
+                                               anchor_painter_label=1,
+                                               patches_used=40)
+    scores = {'test': -1}
+    for threshold in (.2, .3, .5):
+        for strategy in ('contrastive_avg', 'most_frequent'):
+            p = fusion.ContrastiveFusion(model, strategy=strategy,
+                                         threshold=threshold).predict(X)
+            accuracy_score = metrics.accuracy_score(y, p)
+            print('score using', strategy,
+                  'strategy, threshold %.1f: %.2f%%'
+                  % (threshold, 100 * accuracy_score),
+                  '\nConfusion matrix:\n', metrics.confusion_matrix(y, p),
+                  '\nWrong predictions: %s' % names[y != p])
 
-    y, p = [], []
-    for batch_i in range(20000):
-        X, _y = next(pairs_flow)
-
-        # fusion.SkLearnFusion()
-
-        _p = distance_to_label(model.predict_on_batch(X))
-        y.append(_y)
-        p.append(_p)
-
-    y, p = np.concatenate(y), np.concatenate(p)
-    print('\n# %s' % phase)
-    print(classification_report(y, p))
-    print('accuracy:', (p == y).mean())
-
-    del X, y, p
+            if accuracy_score > scores['test']:
+                scores['test'] = accuracy_score
+    return scores
