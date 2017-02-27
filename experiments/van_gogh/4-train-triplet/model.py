@@ -28,9 +28,11 @@ def build_model(x_shape, dropout_prob=.5):
     img_a = Input(shape=x_shape)
     img_b = Input(shape=x_shape)
     img_c = Input(shape=x_shape)
-    x = Lambda(lambda _x: K.concatenate(
-        (K.expand_dims(_x[0]), K.expand_dims(_x[1]), K.expand_dims(_x[1]))
-    ))([b_net(img_a), b_net(img_b), b_net(img_c)])
+    x = Lambda(lambda _x: K.concatenate((
+        K.expand_dims(_x[0]),
+        K.expand_dims(_x[1]),
+        K.expand_dims(_x[2])
+    )))([b_net(img_a), b_net(img_b), b_net(img_c)])
 
     t_net = Model(input=[img_a, img_b, img_c], output=x)
 

@@ -21,16 +21,14 @@ def triplets_gen(X, y, names, embedding_net,
         positive_indices = np.where(y_window == anchor_label)
         negative_indices = np.where(y_window != anchor_label)
 
-        positives = X[positive_indices]
-        negatives = X[negative_indices]
-        f_positives = embedding_net.predict(positives, batch_size=batch_size)
-        f_negatives = embedding_net.predict(negatives, batch_size=batch_size)
+        positives = X_window[positive_indices]
+        negatives = X_window[negative_indices]
 
         # Select only hard-negatives triplets (p.4)
         hard_negatives = np.array(
-            [[a, p, negatives[np.argmin(np.sum((f_negatives - f_a) ** 2, axis=-1))]]
-             for (p, f_p) in zip(positives, f_positives)
-             for a, f_a in zip(positives, f_positives)], copy=False)
+            [[a, p, negatives[np.random.randint(negatives.shape[0])]]
+             for p in positives
+             for a in positives], copy=False)
 
         batch_offset = 0
         while batch_offset < hard_negatives.shape[0]:

@@ -50,7 +50,6 @@ def run(batch_size, data_dir,
     tf_config.gpu_options.allow_growth = True
     sess = tf.Session(config=tf_config)
     K.set_session(sess)
-    graph = tf.get_default_graph()
 
     with tf.device(device):
         embedding_net, training_net = build_model(x_shape=(2048,),
@@ -90,23 +89,22 @@ def run(batch_size, data_dir,
     print('train-valid split:', data['train'][0].shape[0],
           data['valid'][0].shape[0])
 
-    with graph.as_default():
-        train_data = triplets_gen(*data['train'], embedding_net=embedding_net, batch_size=batch_size)
-        valid_data = triplets_gen(*data['valid'], embedding_net=embedding_net, batch_size=batch_size)
+    train_data = triplets_gen(*data['train'], embedding_net=embedding_net, batch_size=batch_size)
+    valid_data = triplets_gen(*data['valid'], embedding_net=embedding_net, batch_size=batch_size)
 
-        print('training network...')
-        try:
-            training_net.fit_generator(
-                train_data, samples_per_epoch=train_samples_per_epoch,
-                nb_epoch=nb_epoch,
-                validation_data=valid_data, nb_val_samples=nb_val_samples,
-                nb_worker=nb_worker,
-                callbacks=[
-                    callbacks.ReduceLROnPlateau(
-                        patience=reduce_lr_on_plateau_patience),
-                    callbacks.TensorBoard(tensorboard_file, write_graph=False),
-                    callbacks.ModelCheckpoint(ckpt_file, verbose=1,
-                                              save_best_only=True),
-                ])
-        except KeyboardInterrupt:
-            print('training interrupted by user.')
+    print('training network...')
+    try:
+        training_net.fit_generator(
+            train_data, samples_per_epoch=train_samples_per_epoch,
+            nb_epoch=nb_epoch,
+            validation_data=valid_data, nb_val_samples=nb_val_samples,
+            nb_worker=nb_worker,
+            callbacks=[
+                callbacks.ReduceLROnPlateau(
+                    patience=reduce_lr_on_plateau_patience),
+                callbacks.TensorBoard(tensorboard_file, write_graph=False),
+                callbacks.ModelCheckpoint(ckpt_file, verbose=1,
+                                          save_best_only=True),
+            ])
+    except KeyboardInterrupt:
+        print('training interrupted by user.')
