@@ -8,7 +8,7 @@ RUN pip install --upgrade --no-cache-dir numpy \
                                          h5py \
                                          keras \
                                          image \
-                                         sacred \
+                                         sacred==0.7b2 \
                                          opencv-python \
                                          tensorflow-gpu
 

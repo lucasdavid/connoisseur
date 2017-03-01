@@ -61,8 +61,7 @@ def combine_pairs_for_evaluation(X_base, y_base, names_base,
         _names.append(names[s][0])
     X_eval, y_eval, names_eval = map(np.array, (_X, _y, _names))
 
-    X_pairs = [[x_eval_patches[
-                    np.random.choice(x_eval_patches.shape[0], patches_used)],
+    X_pairs = [[x_eval_patches[np.random.choice(x_eval_patches.shape[0], patches_used)],
                 X_base[np.random.choice(X_base.shape[0], patches_used)]]
                for x_eval_patches in X_eval]
     y_pairs = (y_eval == anchor_painter_label).astype(np.int)

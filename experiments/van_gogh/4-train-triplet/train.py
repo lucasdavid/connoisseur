@@ -96,15 +96,12 @@ def run(batch_size, data_dir,
     try:
         training_net.fit_generator(
             train_data, samples_per_epoch=train_samples_per_epoch,
-            nb_epoch=nb_epoch,
             validation_data=valid_data, nb_val_samples=nb_val_samples,
-            nb_worker=nb_worker,
+            nb_epoch=nb_epoch, nb_worker=nb_worker,
             callbacks=[
-                callbacks.ReduceLROnPlateau(
-                    patience=reduce_lr_on_plateau_patience),
+                callbacks.ReduceLROnPlateau(patience=reduce_lr_on_plateau_patience),
                 callbacks.TensorBoard(tensorboard_file, write_graph=False),
-                callbacks.ModelCheckpoint(ckpt_file, verbose=1,
-                                          save_best_only=True),
+                callbacks.ModelCheckpoint(ckpt_file, verbose=1, save_best_only=True),
             ])
     except KeyboardInterrupt:
         print('training interrupted by user.')

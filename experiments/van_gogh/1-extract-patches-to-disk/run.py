@@ -23,7 +23,7 @@ def config():
     dataset_seed = 4
     classes = None
     image_shape = [299, 299, 3]
-    n_jobs = 6
+    n_jobs = 8
     data_dir = "/datasets/ldavid/van_gogh"
     valid_split = .1
 

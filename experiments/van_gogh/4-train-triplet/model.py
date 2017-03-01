@@ -1,7 +1,6 @@
 from keras import backend as K
 from keras.engine import Input, Model
-from keras.engine import InputLayer
-from keras.layers import Dense, Dropout, Lambda
+from keras.layers import Dense, Lambda, Dropout
 from keras.models import Sequential
 
 
@@ -17,8 +16,7 @@ def triplet_loss(y_true, y_pred):
 
 def build_model(x_shape, dropout_prob=.5):
     b_net = Sequential([
-        InputLayer(x_shape),
-        Dense(2048, activation='relu', name='fc1'),
+        Dense(2048, activation='relu', name='fc1', input_shape=x_shape),
         Dropout(dropout_prob),
         Dense(2048, activation='relu', name='fc2'),
         Dropout(dropout_prob),

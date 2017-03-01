@@ -42,7 +42,7 @@ def config():
     train_samples_per_epoch = 24000
     nb_val_samples = 2048
     nb_worker = 1
-    early_stop_patience = 80
+    early_stop_patience = 150
     reduce_lr_on_plateau_patience = 10
     tensorboard_file = './logs/loss:contrastive,fc:3,samples:2048-dropout:.5'
 
@@ -101,7 +101,7 @@ def run(batch_size, data_dir,
             validation_data=valid_data, nb_val_samples=nb_val_samples, nb_worker=nb_worker,
             callbacks=[
                 callbacks.ReduceLROnPlateau(patience=reduce_lr_on_plateau_patience),
-                # callbacks.EarlyStopping(patience=early_stop_patience),
+                callbacks.EarlyStopping(patience=early_stop_patience),
                 callbacks.TensorBoard(tensorboard_file, write_graph=False),
                 callbacks.ModelCheckpoint(ckpt_file, verbose=1, save_best_only=True),
             ])

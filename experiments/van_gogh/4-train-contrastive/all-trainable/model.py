@@ -25,16 +25,9 @@ def build_model(x_shape, device='/gpu:0', opt_params={}, compile_opt=False,
                 dropout_prob=.5, convolutions=False, freeze_base=False):
     with tf.device(device):
         if convolutions:
-            base_network = InceptionV3(include_top=False, input_shape=x_shape)
+            base_network = InceptionV3(input_shape=x_shape)
             if freeze_base: base_network.trainable = False
-            x = base_network.output
-            x = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
-            x = Flatten()(x)
-            x = Dense(2048, activation='relu', name='fc1')(x)
-            x = Dropout(dropout_prob)(x)
-            x = Dense(2048, activation='relu', name='fc2')(x)
-            x = Dropout(dropout_prob)(x)
-            x = Dense(2048, activation='relu', name='fc3')(x)
+            x = base_network.get_layer('flatten').output
             base_network = Model(input=base_network.input, output=x)
         else:
             base_network = Sequential([
