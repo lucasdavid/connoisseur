@@ -74,7 +74,7 @@ def run(image_shape, batch_size, data_dir, dataset_seed,
                .download()
                .extract()
                .split_train_test()
-               .extract_patches_to_disk())
+               .save_patches_to_disk())
 
     g = ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
     g.mean = 1

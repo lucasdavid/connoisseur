@@ -36,4 +36,4 @@ def run(dataset_seed, classes, image_shape, data_dir, valid_split, n_jobs):
      .download()
      .extract()
      .split_train_valid(valid_split)
-     .extract_patches_to_disk())
+     .save_patches_to_disk())

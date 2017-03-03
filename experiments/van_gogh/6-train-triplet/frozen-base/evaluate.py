@@ -1,3 +1,14 @@
+"""6 Evaluate Triplet.
+
+Evaluate the 3-Dense network trained to recognize triplets of features
+extracted from the InceptionV3 base in `.../2-transform-inception/run.py`
+script.
+
+Author: Lucas David -- <ld492@drexel.edu>
+License: MIT (c) 2016
+
+"""
+
 import numpy as np
 import tensorflow as tf
 

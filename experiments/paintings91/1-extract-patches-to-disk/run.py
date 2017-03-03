@@ -17,4 +17,4 @@ def run(data_dir, image_shape):
      .download()
      .extract()
      .split_train_test()
-     .extract_patches_to_disk())
+     .save_patches_to_disk())

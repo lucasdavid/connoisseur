@@ -91,14 +91,9 @@ class ContrastiveFusion(Fusion):
             ('ContrastiveFusion only accept contrastive_avg and '
              'most_frequent strategies')
 
-    def distance_to_label(self, p, threshold=.5):
-        return (p.ravel() < threshold).astype(np.int)
-
     def predict(self, X, threshold=.5, batch_size=32):
-        probabilities = np.array(
-            [self.estimator.predict(x, batch_size=batch_size)
-             for x in X],
-            copy=False)
+        probabilities = np.array([self.estimator.predict(
+            x, batch_size=batch_size) for x in X], copy=False)
         labels = np.array([self.distance_to_label(x) for x in probabilities],
                           copy=False)
         probabilities, labels = self._reduce_rank(probabilities, labels)
@@ -108,3 +103,6 @@ class ContrastiveFusion(Fusion):
             return self.distance_to_label(probabilities, threshold=threshold)
 
         return self.strategy(labels, probabilities, multi_class=False)
+
+    def distance_to_label(self, p, threshold=.5):
+        return (p.ravel() < threshold).astype(np.int)

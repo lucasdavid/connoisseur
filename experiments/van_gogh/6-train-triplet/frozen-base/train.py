@@ -1,4 +1,7 @@
-"""Dense Network Example.
+"""6 Train Triplet.
+
+Train 3-Dense network to recognize triplets of features extracted from the
+InceptionV3 base in `.../2-transform-inception/run.py` script.
 
 Author: Lucas David -- <ld492@drexel.edu>
 License: MIT (c) 2016

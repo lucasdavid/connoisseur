@@ -10,7 +10,7 @@ import os
 import shutil
 import tarfile
 import zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from urllib import request
 
 import numpy as np
@@ -19,6 +19,50 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
 from ..utils.image import img_to_array, load_img, PaintingEnhancer
+
+
+def _load_patches_coroutine(args):
+    name, patch_size, n_patches, augmentations, random_state = args
+    random_state = check_random_state(random_state)
+    img = load_img(name)
+    patches = []
+    enhancer = PaintingEnhancer(augmentations)
+    for _ in range(n_patches):
+        start = (random_state.rand(2) *
+                 (img.width - patch_size[0],
+                  img.height - patch_size[1])).astype('int')
+        end = start + patch_size
+        patch = img.crop((start[0], start[1], end[0], end[1]))
+
+        patch = enhancer.process(patch)
+        patches.append(img_to_array(patch))
+
+    return patches
+
+
+def _save_image_patches_coroutine(args):
+    name, patches_path, patch_size = args
+    image = load_img(name)
+    border = np.array(patch_size) - image.size
+    painting_name = os.path.splitext(os.path.basename(name))[0]
+
+    if np.any(border > 0):
+        # The image is smaller than the patch size in any dimension.
+        # Pad it to make sure we can extract at least one patch.
+        border = np.ceil(border.clip(0, border.max()) / 2).astype(np.int)
+        image = ImageOps.expand(image, border=tuple(border))
+
+    n_patches = 0
+    for d_width in range(patch_size[0], image.width + 1, patch_size[0]):
+        for d_height in range(patch_size[1], image.height + 1,
+                              patch_size[1]):
+            e = np.array([d_width, d_height])
+            s = e - (patch_size[0], patch_size[1])
+
+            fn = '%s-%i.jpg' % (painting_name, n_patches)
+            (image.crop((s[0], s[1], e[0], e[1]))
+             .save(os.path.join(patches_path, fn)))
+            n_patches += 1
 
 
 class DataSet:
@@ -188,7 +232,9 @@ class DataSet:
 
         results = []
         data_path = self.full_data_path
-        image_shape = self.image_shape
+        # Keras (height, width) -> PIL Image (width, height)
+        patch_size = self.image_shape
+        patch_size = [patch_size[1], patch_size[0]]
         labels = self.classes or os.listdir(os.path.join(data_path, 'train'))
 
         n_samples_per_label = np.array(
@@ -207,15 +253,11 @@ class DataSet:
         min_n_samples = n_samples_per_label.min()
 
         for phase in phases:
-            X, y = [], []
-
             n_patches = getattr(self, '%s_n_patches' % phase)
-            enhancer = getattr(self, '%s_enhancer' % phase)
+            augmentations = getattr(self, '%s_augmentations' % phase)
 
-            if not n_patches:
-                continue
+            X, y, names = [], [], []
 
-            print('extracting %i %s patches...' % (n_patches, phase))
             for label in labels:
                 class_path = os.path.join(data_path, phase, label)
 
@@ -225,28 +267,16 @@ class DataSet:
                     self.random_state.shuffle(samples)
                     samples = samples[:min_n_samples]
 
-                for name in samples:
-                    full_name = os.path.join(class_path, name)
-                    img = load_img(full_name)
+                with ProcessPoolExecutor(max_workers=self.n_jobs) as executor:
+                    patches_per_sample = list(executor.map(
+                        _load_patches_coroutine,
+                        [(os.path.join(class_path, n), patch_size, n_patches,
+                          augmentations, r)
+                         for r, n in enumerate(samples)]))
 
-                    patches = []
-
-                    for _ in range(n_patches):
-                        start = (self.random_state.rand(2) *
-                                 (img.width - image_shape[1],
-                                  img.height - image_shape[0])).astype('int')
-                        end = start + (image_shape[1], image_shape[0])
-                        patch = img.crop((start[0], start[1], end[0], end[1]))
-
-                        patch = enhancer.process(patch)
-                        patches.append(img_to_array(patch))
-
-                    X.append(patches)
-                    y.append(label)
-
-            print('%s patches extraction to memory completed.' % phase)
-
-            X = np.array(X, copy=False)
+                X += patches_per_sample
+                y += len(samples) * [label]
+                names += samples
 
             if phase == 'train':
                 self.label_encoder_ = LabelEncoder().fit(y)
@@ -257,8 +287,8 @@ class DataSet:
                     'initialize the label encoder that will be used'
                     ' to transform the %s data.' % phase)
             y = self.label_encoder_.transform(y)
-
-            results.append((X, y))
+            results.append([np.array(X, copy=False), y,
+                            np.array(names, copy=False)])
         print('loading completed.')
         return results
 
@@ -289,7 +319,7 @@ class DataSet:
                     sample_patches_names = list(filter(lambda x: sample in x,
                                                        patches_names))
                     if (n_patches is not None and
-                            len(sample_patches_names) < n_patches):
+                                len(sample_patches_names) < n_patches):
                         sample_patches_names = r.choice(sample_patches_names,
                                                         n_patches)
                     else:
@@ -310,11 +340,14 @@ class DataSet:
                 results.append((X, y))
         return results
 
-    def extract_patches_to_disk(self):
-        print('extracting patches to disk...')
+    def save_patches_to_disk(self):
+        print('saving patches to disk...')
 
         data_path = self.full_data_path
         labels = self.classes or os.listdir(os.path.join(data_path, 'train'))
+        patch_size = self.image_shape
+        # Keras (height, width) -> PIL Image (width, height)
+        patch_size = [patch_size[1], patch_size[0]]
 
         patches_path = os.path.join(data_path, 'extracted_patches')
 
@@ -338,37 +371,11 @@ class DataSet:
 
                 samples = os.listdir(class_path)
                 with ThreadPoolExecutor(max_workers=self.n_jobs) as executor:
-                    list(executor.map(self._extract_image_patches,
+                    list(executor.map(_save_image_patches_coroutine,
                                       [(os.path.join(class_path, n),
-                                        patches_label_path)
+                                        patches_label_path,
+                                        patch_size)
                                        for n in samples]))
 
         print('patches extraction completed.')
         return self
-
-    def _extract_image_patches(self, args):
-        name, patches_path = args
-        image = load_img(name)
-        patch_size = self.image_shape
-        # Keras (height, width) -> PIL Image (width, height)
-        patch_size = [patch_size[1], patch_size[0]]
-        border = np.array(patch_size) - image.size
-        painting_name = os.path.splitext(os.path.basename(name))[0]
-
-        if np.any(border > 0):
-            # The image is smaller than the patch size in any dimension.
-            # Pad it to make sure we can extract at least one patch.
-            border = np.ceil(border.clip(0, border.max()) / 2).astype(np.int)
-            image = ImageOps.expand(image, border=tuple(border))
-
-        n_patches = 0
-        for d_width in range(patch_size[0], image.width + 1, patch_size[0]):
-            for d_height in range(patch_size[1], image.height + 1,
-                                  patch_size[1]):
-                e = np.array([d_width, d_height])
-                s = e - (patch_size[0], patch_size[1])
-
-                fn = '%s-%i.jpg' % (painting_name, n_patches)
-                (image.crop((s[0], s[1], e[0], e[1]))
-                 .save(os.path.join(patches_path, fn)))
-                n_patches += 1

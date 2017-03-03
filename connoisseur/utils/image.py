@@ -163,17 +163,18 @@ def img_to_array(img, dim_ordering='default'):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None, extraction_method='resize',
-             augmentations=()):
-    '''Load an image into PIL format.
+def load_img(path, grayscale=False, target_size=None,
+             extraction_method='resize'):
+    """Load an image into PIL format.
 
     # Arguments
         path: path to image file
         grayscale: boolean
         target_size: None (default to original size)
             or (img_height, img_width)
-        extraction_method: str, (default='resize') {'resize', 'crop', 'random-crop'}
-    '''
+        extraction_method: str, (default='resize')
+        {'resize', 'crop', 'random-crop'}
+    """
     img = Image.open(path)
     if grayscale:
         img = img.convert('L')
@@ -193,7 +194,7 @@ def load_img(path, grayscale=False, target_size=None, extraction_method='resize'
             end = start + (target_size[1], target_size[0])
             img = img.crop((start[0], start[1], end[0], end[1]))
 
-    return PaintingEnhancer(augmentations=augmentations).process(img)
+    return img
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
@@ -541,7 +542,7 @@ class DirectoryIterator(Iterator):
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
         self.extraction_method = extraction_method
-        self.augmentations = augmentations
+        self.enhancer = PaintingEnhancer(augmentations=augmentations)
         if color_mode not in {'rgb', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
                              '; expected "rgb" or "grayscale".')
@@ -621,11 +622,13 @@ class DirectoryIterator(Iterator):
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size,
-                           extraction_method=self.extraction_method, augmentations=self.augmentations)
+                           extraction_method=self.extraction_method)
+            img = self.enhancer.process(img)
             x = img_to_array(img, dim_ordering=self.dim_ordering)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
