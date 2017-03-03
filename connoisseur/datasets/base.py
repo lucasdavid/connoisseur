@@ -14,35 +14,14 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib import request
 
 import numpy as np
-from PIL import ImageEnhance, ImageOps
+from PIL import ImageOps
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from ..utils.image import img_to_array, load_img
+from ..utils.image import img_to_array, load_img, PaintingEnhancer
 
 
-class PaintingEnhancer(object):
-    def __init__(self, augmentations=('color', 'brightness', 'contrast'),
-                 variability=0.5):
-        self.augmentations = augmentations
-        self.variability = variability
-
-    def process(self, patch):
-        if 'color' in self.augmentations:
-            enhance = ImageEnhance.Color(patch)
-            patch = enhance.enhance(self.variability * np.random.randn() + 1)
-
-        if 'brightness' in self.augmentations:
-            enhance = ImageEnhance.Brightness(patch)
-            patch = enhance.enhance(self.variability * np.random.randn() + 1)
-
-        if 'contrast' in self.augmentations:
-            enhance = ImageEnhance.Contrast(patch)
-            patch = enhance.enhance(self.variability * np.random.randn() + 1)
-        return patch
-
-
-class DataSet(object):
+class DataSet:
     """DataSet Base Class.
 
     Parameters

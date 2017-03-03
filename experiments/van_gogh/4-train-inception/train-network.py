@@ -1,5 +1,4 @@
-"""Transfer and fine-tune InceptionV3 on van Gogh dataset, then classify
-using an SVM.
+"""Transfer and fine-tune InceptionV3 on van Gogh dataset.
 
 Uses InceptionV3 trained over `imagenet` and fine-tune it to van Gogh dataset.
 Image patches are loaded directly from the disk. Finally, train an SVM over
@@ -21,7 +20,7 @@ from sacred import Experiment
 
 from connoisseur import datasets, utils
 
-ex = Experiment('train-inception-pca-train-svm')
+ex = Experiment('4-1-train-inception')
 
 
 @ex.config
@@ -64,13 +63,6 @@ def run(dataset_seed, image_shape, batch_size, data_dir,
     tf_config.gpu_options.allow_growth = True
     s = tf.Session(config=tf_config)
     K.set_session(s)
-
-    datasets.VanGogh(
-        base_dir=data_dir,
-        image_shape=image_shape,
-        valid_split=valid_split,
-        random_state=dataset_seed
-    ).download().extract().split_train_valid().extract_patches_to_disk()
 
     # These parameters produce the same results of `preprocess_input`.
     g = utils.image.ImageDataGenerator(rescale=2. / 255., featurewise_center=True)

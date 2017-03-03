@@ -98,8 +98,7 @@ def evaluate(model, x, y, names, nb_patches):
     x = crop_or_pad_patch_count(x, nb_patches=nb_patches)
 
     for strategy in ('farthest', 'sum', 'most_frequent'):
-        f = SkLearnFusion(model, strategy=strategy)
-        p = f.predict(x)
+        p = SkLearnFusion(model, strategy=strategy).predict(x)
         accuracy_score = metrics.accuracy_score(y, p)
         print('score using', strategy, 'strategy: %.2f' % accuracy_score, '\n',
               metrics.classification_report(y, p),
@@ -126,7 +125,7 @@ def run(data_dir, nb_patches, ckpt_file_name):
     model = joblib.load(ckpt_file_name)
     print('done.')
 
-    print('loading data...', end='')
+    print('loading data...', end=' ')
     data = load_data(data_dir=data_dir)
     print('done.')
 

@@ -61,11 +61,8 @@ def run(_run, dataset_seed, svm_seed,
     K.set_session(s)
 
     with tf.device(device):
-        images = Input(batch_shape=[None] + image_shape)
-        base_model = InceptionV3(weights='imagenet', input_tensor=images, include_top=False)
-        x = base_model.output
-        x = layers.AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
-        x = layers.Flatten(name='flatten')(x)
+        base_model = InceptionV3(input_shape=image_shape, include_top=False)
+        x = layers.Flatten(name='flatten')(base_model.output)
         f_model = Model(input=base_model.input, output=x)
 
     vangogh = datasets.VanGogh(
@@ -74,21 +71,19 @@ def run(_run, dataset_seed, svm_seed,
         test_n_patches=test_n_patches,
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
-        random_state=dataset_seed
-    ).download().extract().split_train_valid(valid_size=.1)
+        random_state=dataset_seed)
 
-    X, y = vangogh.load_patches_from_full_images('train').train_data
-    vangogh.unload('train')
+    (X, y), = vangogh.load_patches_from_full_images('train')
     preprocess_input(X)
     # Leave arrays flatten, we don't use patches for training.
     X = f_model.predict(X.reshape((-1,) + X.shape[2:]), batch_size=batch_size)
     y = np.repeat(y, train_n_patches)
     print('train data: %s, %f MB' % (X.shape, X.nbytes / 1024 / 1024))
 
-    X_test, y_test = vangogh.load_patches_from_full_images('test').test_data
-    vangogh.unload('test')
+    (X_test, y_test), = vangogh.load_patches_from_full_images('test')
     preprocess_input(X_test)
-    X_test = (f_model.predict(X_test.reshape((-1,) + X_test.shape[2:]), batch_size=batch_size)
+    X_test = (f_model.predict(X_test.reshape((-1,) + X_test.shape[2:]),
+                              batch_size=batch_size)
               .reshape(X_test.shape[:2] + (-1,)))
     print('test data: %s, %f MB' % (X_test.shape, X_test.nbytes / 1024 / 1024))
 
@@ -101,7 +96,8 @@ def run(_run, dataset_seed, svm_seed,
             ('pca', PCA(n_components=.99)),
             ('svc', SVC(class_weight='balanced', random_state=svm_seed))
         ])
-        grid = GridSearchCV(estimator=flow, param_grid=param_grid, n_jobs=n_jobs, verbose=1)
+        grid = GridSearchCV(estimator=flow, param_grid=param_grid,
+                            n_jobs=n_jobs, verbose=1)
         grid.fit(X, y)
         print('best params: %s' % grid.best_params_)
         print('best score on validation data: %.2f' % grid.best_score_)
@@ -117,21 +113,20 @@ def run(_run, dataset_seed, svm_seed,
 
     pca = model.named_steps['pca']
     print('dimensionality reduction: R^%i->R^%i (%.2f variance kept)'
-          % (X.shape[-1], pca.n_components_, np.sum(pca.explained_variance_ratio_)))
+          % (X.shape[-1], pca.n_components_,
+             np.sum(pca.explained_variance_ratio_)))
     accuracy_score = model.score(X, y)
     print('score on training data: %.2f' % accuracy_score)
-    _run.info['accuracy'] = {
-        'train': accuracy_score,
-        'test': -1
-    }
+    _run.info['accuracy'] = {'train': accuracy_score, 'test': -1}
     del X, y
 
     for strategy in ('farthest', 'sum', 'most_frequent'):
         f = SkLearnFusion(model, strategy=strategy)
         p_test = f.predict(X_test)
         accuracy_score = metrics.accuracy_score(y_test, p_test)
-        print('score using', strategy, 'strategy: %.2f' % accuracy_score, '\n',
-              metrics.classification_report(y_test, p_test), '\nConfusion matrix:\n',
+        print('score using', strategy, 'strategy: %.2f' % accuracy_score,
+              '\n', metrics.classification_report(y_test, p_test),
+              '\nConfusion matrix:\n',
               metrics.confusion_matrix(y_test, p_test))
 
         if accuracy_score > _run.info['accuracy']['test']:

@@ -6,13 +6,14 @@ new preprocessing methods, etc...
 from __future__ import absolute_import
 from __future__ import print_function
 
+import math
 import os
 import re
 import threading
-import math
 
 import numpy as np
 import scipy.ndimage as ndi
+from PIL import Image, ImageEnhance
 from keras import backend as K
 from scipy import linalg
 from six.moves import range
@@ -122,7 +123,6 @@ def flip_axis(x, axis):
 
 
 def array_to_img(x, dim_ordering='default', scale=True):
-    from PIL import Image
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     if dim_ordering == 'th':
@@ -174,7 +174,6 @@ def load_img(path, grayscale=False, target_size=None, extraction_method='resize'
             or (img_height, img_width)
         extraction_method: str, (default='resize') {'resize', 'crop', 'random-crop'}
     '''
-    from PIL import Image, ImageEnhance
     img = Image.open(path)
     if grayscale:
         img = img.convert('L')
@@ -194,17 +193,7 @@ def load_img(path, grayscale=False, target_size=None, extraction_method='resize'
             end = start + (target_size[1], target_size[0])
             img = img.crop((start[0], start[1], end[0], end[1]))
 
-    if 'color' in augmentations:
-        enhance = ImageEnhance.Color(img)
-        img = enhance.enhance(.5 * np.random.randn() + 1)
-    if 'brightness' in augmentations:
-        enhance = ImageEnhance.Brightness(img)
-        img = enhance.enhance(.5 * np.random.randn() + 1)
-    if 'contrast' in augmentations:
-        enhance = ImageEnhance.Contrast(img)
-        img = enhance.enhance(.5 * np.random.randn() + 1)
-
-    return img
+    return PaintingEnhancer(augmentations=augmentations).process(img)
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
@@ -690,3 +679,24 @@ class PairsDirectoryIterator(DirectoryIterator):
         pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
 
         return list(pairs_x), pairs_y
+
+
+class PaintingEnhancer:
+    def __init__(self, augmentations=('color', 'brightness', 'contrast'),
+                 variability=0.25):
+        self.augmentations = augmentations
+        self.variability = variability
+
+    def process(self, patch):
+        if 'color' in self.augmentations:
+            enhance = ImageEnhance.Color(patch)
+            patch = enhance.enhance(self.variability * np.random.randn() + 1)
+
+        if 'brightness' in self.augmentations:
+            enhance = ImageEnhance.Brightness(patch)
+            patch = enhance.enhance(self.variability * np.random.randn() + 1)
+
+        if 'contrast' in self.augmentations:
+            enhance = ImageEnhance.Contrast(patch)
+            patch = enhance.enhance(self.variability * np.random.randn() + 1)
+        return patch

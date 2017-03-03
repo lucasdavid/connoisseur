@@ -63,25 +63,20 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
         test_n_patches, test_augmentations,
         hard_balancing,
         device, grid_searching, param_grid, n_jobs):
-    config = tf.ConfigProto(allow_soft_placement=True)
-    config.gpu_options.allow_growth = True
-    s = tf.Session(config=config)
+    tf_config = tf.ConfigProto(allow_soft_placement=True)
+    tf_config.gpu_options.allow_growth = True
+    s = tf.Session(config=tf_config)
     K.set_session(s)
 
     with tf.device(device):
-        images = Input(batch_shape=[None] + image_shape)
-        base_model = InceptionV3(weights='imagenet', input_tensor=images, include_top=False)
-        x = base_model.output
-        x = layers.AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
-        x = layers.Flatten(name='flatten')(x)
+        base_model = InceptionV3(input_shape=image_shape, include_top=False)
+        x = layers.Flatten(name='flatten')(base_model.output)
         f_model = Model(input=base_model.input, output=x)
 
-    vangogh = datasets.VanGogh(
-        base_dir=data_dir, image_shape=image_shape,
-        test_n_patches=test_n_patches,
-        test_augmentations=test_augmentations,
-        random_state=dataset_seed
-    ).download().extract().split_train_valid().extract_patches_to_disk()
+    vangogh = datasets.VanGogh(base_dir=data_dir, image_shape=image_shape,
+                               test_n_patches=test_n_patches,
+                               test_augmentations=test_augmentations,
+                               random_state=dataset_seed)
 
     g = ImageDataGenerator(rescale=2. / 255., featurewise_center=True)
     g.mean = 1
@@ -104,7 +99,8 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
 
     # Hard balance classes.
     _, occurrences = np.unique(y, return_counts=True)
-    print('label occurrences before balancing: %s' % dict(enumerate(occurrences)))
+    print('label occurrences before balancing: %s' % dict(
+        enumerate(occurrences)))
 
     if hard_balancing:
         min_label_occurrence = occurrences.min()
@@ -119,13 +115,14 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
         del X_balanced, y_balanced
 
         _, occurrences = np.unique(y, return_counts=True)
-        print('label occurrences after balancing: %s' % dict(enumerate(occurrences)))
+        print('label occurrences after balancing: %s' % dict(
+            enumerate(occurrences)))
         print('train data: %s, %f MB' % (X.shape, X.nbytes / 1024 / 1024))
 
-    X_test, y_test = vangogh.load_patches_from_full_images('test').test_data
-    vangogh.unload('test')
+    (X_test, y_test), = vangogh.load_patches_from_full_images('test')
     preprocess_input(X_test)
-    X_test = (f_model.predict(X_test.reshape((-1,) + X_test.shape[2:]), batch_size=batch_size)
+    X_test = (f_model.predict(X_test.reshape((-1,) + X_test.shape[2:]),
+                              batch_size=batch_size)
               .reshape(X_test.shape[:2] + (-1,)))
     print('test data: %s, %f MB' % (X_test.shape, X_test.nbytes / 1024 / 1024))
 
@@ -138,7 +135,8 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
             ('pca', PCA(n_components=.99)),
             ('svc', SVC(class_weight='balanced', random_state=svm_seed))
         ])
-        grid = GridSearchCV(estimator=flow, param_grid=param_grid, n_jobs=n_jobs, verbose=1)
+        grid = GridSearchCV(estimator=flow, param_grid=param_grid,
+                            n_jobs=n_jobs, verbose=1)
         grid.fit(X, y)
         print('best params: %s' % grid.best_params_)
         print('best score on validation data: %.2f' % grid.best_score_)
@@ -154,13 +152,11 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
 
     pca = model.named_steps['pca']
     print('dimensionality reduction: R^%i->R^%i (%.2f variance kept)'
-          % (X.shape[-1], pca.n_components_, np.sum(pca.explained_variance_ratio_)))
+          % (X.shape[-1], pca.n_components_,
+             np.sum(pca.explained_variance_ratio_)))
     accuracy_score = model.score(X, y)
     print('score on training data: %.2f' % accuracy_score)
-    _run.info['accuracy'] = {
-        'train': accuracy_score,
-        'test': -1
-    }
+    _run.info['accuracy'] = {'train': accuracy_score, 'test': -1}
     del X, y
 
     for strategy in ('farthest', 'sum', 'most_frequent'):
@@ -168,7 +164,8 @@ def run(_run, dataset_seed, svm_seed, n_train_samples,
         p_test = f.predict(X_test)
         accuracy_score = metrics.accuracy_score(y_test, p_test)
         print('score using', strategy, 'strategy: %.2f' % accuracy_score, '\n',
-              metrics.classification_report(y_test, p_test), '\nConfusion matrix:\n',
+              metrics.classification_report(y_test, p_test),
+              '\nConfusion matrix:\n',
               metrics.confusion_matrix(y_test, p_test))
 
         if accuracy_score > _run.info['accuracy']['test']:
