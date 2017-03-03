@@ -3,3 +3,4 @@ bin/
 .idea/
 data/
 *.hdf5
+*egg-info/
