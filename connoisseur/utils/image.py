@@ -296,14 +296,15 @@ class ImageDataGenerator(object):
 
     def flow_from_directory(self, directory,
                             target_size=(256, 256), extraction_method='resize',
-                            augmentations=(), color_mode='rgb',
+                            augmentations=(), augmentation_variability=.1,
+                            color_mode='rgb',
                             classes=None, class_mode='categorical',
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None, save_prefix='', save_format='jpeg'):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, extraction_method=extraction_method,
-            augmentations=augmentations,
+            augmentations=augmentations, augmentation_variability=augmentation_variability,
             color_mode=color_mode,
             classes=classes, class_mode=class_mode,
             dim_ordering=self.dim_ordering,
@@ -532,7 +533,8 @@ class NumpyArrayIterator(Iterator):
 class DirectoryIterator(Iterator):
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), extraction_method='resize',
-                 augmentations=(), color_mode='rgb', dim_ordering='default',
+                 augmentations=(), augmentation_variability=.1,
+                 color_mode='rgb', dim_ordering='default',
                  classes=None, class_mode='categorical', balanced_classes=False,
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
@@ -542,7 +544,8 @@ class DirectoryIterator(Iterator):
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
         self.extraction_method = extraction_method
-        self.enhancer = PaintingEnhancer(augmentations=augmentations)
+        self.enhancer = PaintingEnhancer(variability=augmentation_variability,
+                                         augmentations=augmentations)
         if color_mode not in {'rgb', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
                              '; expected "rgb" or "grayscale".')
@@ -664,18 +667,18 @@ class PairsDirectoryIterator(DirectoryIterator):
         if self.class_mode == 'categorical':
             batch_y = np.argmax(batch_y, axis=-1)
 
-        if self.balanced_classes:
-            samples0, = np.where(batch_y != self.anchor_label)
-            samples1, = np.where(batch_y == self.anchor_label)
+        samples0, = np.where(batch_y != self.anchor_label)
+        samples1, = np.where(batch_y == self.anchor_label)
 
+        if not self.balanced_classes or not len(samples0) or not len(samples1):
+            # Random pairs combination.
+            c = np.random.randint(0, batch_size, size=(2, batch_size))
+        else:
             c0 = np.hstack((
                 np.random.choice(samples1, size=(math.floor(batch_size / 2), 1)),
                 np.random.choice(samples0, size=(math.floor(batch_size / 2), 1))))
             c1 = np.random.choice(samples1, size=(math.ceil(batch_size / 2), 2))
             c = np.vstack((c0, c1)).T
-        else:
-            # Random pairs combination.
-            c = np.random.randint(0, batch_size, size=(2, batch_size))
 
         pairs_x = batch_x[c]
         pairs_y = batch_y[c]

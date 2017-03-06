@@ -86,23 +86,20 @@ class SoftMaxFusion(Fusion):
 class ContrastiveFusion(Fusion):
     def __init__(self, estimator, strategy='sum'):
         super().__init__(estimator=estimator, strategy=strategy)
-        assert self.strategy in (strategies.contrastive_avg,
+        assert self.strategy in (strategies.contrastive_mean,
                                  strategies.most_frequent), \
-            ('ContrastiveFusion only accept contrastive_avg and '
+            ('ContrastiveFusion only accept contrastive_mean and '
              'most_frequent strategies')
 
     def predict(self, X, threshold=.5, batch_size=32):
         probabilities = np.array([self.estimator.predict(
             x, batch_size=batch_size) for x in X], copy=False)
-        labels = np.array([self.distance_to_label(x) for x in probabilities],
-                          copy=False)
+        labels = self.distance_to_label(probabilities, threshold=threshold)
         probabilities, labels = self._reduce_rank(probabilities, labels)
 
-        if self.strategy is strategies.contrastive_avg:
-            probabilities = self.strategy(labels, probabilities)
-            return self.distance_to_label(probabilities, threshold=threshold)
-
-        return self.strategy(labels, probabilities, multi_class=False)
+        return self.strategy(labels, probabilities,
+                             t=threshold,
+                             multi_class=False)
 
     def distance_to_label(self, p, threshold=.5):
-        return (p.ravel() < threshold).astype(np.int)
+        return (p < threshold).astype(np.int)

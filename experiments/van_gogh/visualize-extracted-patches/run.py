@@ -4,7 +4,7 @@ Extract patches from the paintings using the ImageDataGenerator Keras'
 backdoor in connoisseur module. This experiment is only made to confirm
 that the extraction happens as expected.
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -34,7 +34,7 @@ class VisualizingExtractedPatchesExperiment(Experiment):
         c = self.consts
 
         tf.logging.debug('checking van-Gogh data set...')
-        datasets.VanGogh(c).download().extract().split_train_valid()
+        datasets.VanGogh(c).download().extract().split()
 
         g = ImageDataGenerator()
 

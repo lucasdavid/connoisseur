@@ -1,6 +1,6 @@
 """3 Train Contrastive.
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -14,8 +14,7 @@ from keras import backend as K
 from keras import callbacks
 from sacred import Experiment
 
-from base import combine_pairs_for_training_gen, evaluate
-from model import build_model
+from base import combine_pairs_for_training_gen, evaluate, build_model
 
 ex = Experiment('3-train-contrastive')
 
@@ -28,12 +27,12 @@ def config():
 
     opt_params = {'lr': 0.001}
     ckpt_file = './ckpt/opt-weights.hdf5'
-    nb_epoch = 500
+    nb_epoch = 1000
     train_samples_per_epoch = 24000
     nb_val_samples = 2048
     nb_worker = 1
-    early_stop_patience = 80
-    reduce_lr_on_plateau_patience = 10
+    early_stop_patience = 200
+    reduce_lr_on_plateau_patience = 100
     tensorboard_file = './logs/loss:contrastive,fc:3,samples:2048-dropout:.5'
 
 
@@ -89,10 +88,10 @@ def run(batch_size, data_dir,
             train_data, samples_per_epoch=train_samples_per_epoch, nb_epoch=nb_epoch,
             validation_data=valid_data, nb_val_samples=nb_val_samples, nb_worker=nb_worker,
             callbacks=[
-                callbacks.ReduceLROnPlateau(patience=reduce_lr_on_plateau_patience),
-                # callbacks.EarlyStopping(patience=early_stop_patience),
-                callbacks.TensorBoard(tensorboard_file, write_graph=False),
-                callbacks.ModelCheckpoint(ckpt_file, verbose=1, save_best_only=True),
+                callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=reduce_lr_on_plateau_patience),
+                callbacks.EarlyStopping(patience=early_stop_patience),
+                callbacks.TensorBoard(tensorboard_file, histogram_freq=5),
+                callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
             ])
     except KeyboardInterrupt:
         print('training interrupted by user.')

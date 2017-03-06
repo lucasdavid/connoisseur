@@ -1,6 +1,6 @@
 """Connoisseur DataSet Base Class.
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -10,15 +10,25 @@ import os
 import shutil
 import tarfile
 import zipfile
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from urllib import request
 
 import numpy as np
+import tensorflow as tf
 from PIL import ImageOps
+from scipy.signal import convolve2d
+from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from ..utils.image import img_to_array, load_img, PaintingEnhancer
+from ..utils.image import img_to_array, load_img, PaintingEnhancer, array_to_img
+
+
+def _load_patch_coroutine(options):
+    return img_to_array(
+        PaintingEnhancer(options['augmentations'],
+                         variability=options.get('variability', .25)).process(
+            load_img(options['name'])))
 
 
 def _load_patches_coroutine(args):
@@ -40,11 +50,10 @@ def _load_patches_coroutine(args):
     return patches
 
 
-def _save_image_patches_coroutine(args):
-    name, patches_path, patch_size = args
-    image = load_img(name)
-    border = np.array(patch_size) - image.size
-    painting_name = os.path.splitext(os.path.basename(name))[0]
+def _save_image_patches_coroutine(options):
+    image = load_img(options['name'])
+    border = np.array(options['patch_size']) - image.size
+    painting_name = os.path.splitext(os.path.basename(options['name']))[0]
 
     if np.any(border > 0):
         # The image is smaller than the patch size in any dimension.
@@ -52,17 +61,52 @@ def _save_image_patches_coroutine(args):
         border = np.ceil(border.clip(0, border.max()) / 2).astype(np.int)
         image = ImageOps.expand(image, border=tuple(border))
 
-    n_patches = 0
-    for d_width in range(patch_size[0], image.width + 1, patch_size[0]):
-        for d_height in range(patch_size[1], image.height + 1,
-                              patch_size[1]):
-            e = np.array([d_width, d_height])
-            s = e - (patch_size[0], patch_size[1])
+    mode = options['mode']
+    patch_size = options.get('patch_size', [256, 256])
+    n_patches = options['n_patches']
 
-            fn = '%s-%i.jpg' % (painting_name, n_patches)
-            (image.crop((s[0], s[1], e[0], e[1]))
-             .save(os.path.join(patches_path, fn)))
-            n_patches += 1
+    if mode in ('min-gradient', 'max-gradient'):
+        gray_image = image.convert('L')
+        gray_tensor = img_to_array(gray_image).squeeze(-1)
+        e = feature.canny(gray_tensor, low_threshold=options['low_threshold'], use_quantiles=True).astype(np.float)
+
+        pool_size = options.get('pool_size', 2)
+        x, y = options['tensors']
+
+        p = y.eval(feed_dict={x: e.reshape((1,) + e.shape + (1,))})
+        p = p.squeeze((0, -1))
+        p /= p.sum()
+
+        if mode == 'min-gradient':
+            p = 1 - p
+            p /= p.sum()
+
+        c = np.random.choice(np.arange(np.product(p.shape)), size=(n_patches, 1), p=p.flatten())
+        c = np.concatenate((c // p.shape[1], c % p.shape[1]), axis=-1).astype(np.int)
+        c += np.array(patch_size) // (2 * pool_size)  # restore sizes before convolution
+        c *= pool_size  # restore sizes before max_pooling2d
+        c -= np.array(patch_size) // 2  # center selected pixels
+
+        starting_points = np.array([c[:, 1], c[:, 0]]).T
+
+    elif mode == 'random':
+        starting_points = (np.random.rand(n_patches, 2) * patch_size).astype(np.int)
+
+    elif mode == 'all':
+        d_widths = list(range(0, image.width, patch_size[0]))
+        d_heights = list(range(0, image.height, patch_size[1]))
+        starting_points = itertools.product(d_widths, d_heights)
+    else:
+        raise ValueError('unknown mode: %s' % mode)
+
+    patches_path = options['patches_path']
+
+    for patch_id, (s_w, s_h) in enumerate(starting_points):
+        (image
+         .crop((s_w, s_h, s_w + patch_size[0], s_h + patch_size[1]))
+         .save(os.path.join(patches_path, '%s-%i.jpg' % (painting_name, patch_id))))
+
+    print('.', end='')
 
 
 class DataSet:
@@ -83,6 +127,7 @@ class DataSet:
 
     train_n_patches: int, default=50, quantity of patches to extract from
         every training painting.
+    
     test_n_patches: int, default=50, quantity of patches to extract from
         every test painting.
 
@@ -132,6 +177,7 @@ class DataSet:
         self.random_state = check_random_state(random_state)
 
         self.label_encoder_ = None
+        self.feature_names_ = None
 
     @property
     def full_data_path(self):
@@ -176,6 +222,9 @@ class DataSet:
             print('dataset extracted.')
         return self
 
+    def prepare(self, override=False):
+        return self
+
     @staticmethod
     def _get_specific_extractor(zipped):
         ext = os.path.splitext(zipped)[1]
@@ -193,14 +242,14 @@ class DataSet:
                                    'and extracted it first?')
         return self
 
-    def split_train_valid(self, valid_size):
+    def split(self, fraction, phase='valid'):
         base = self.full_data_path
 
-        if os.path.exists(os.path.join(base, 'valid')):
-            print('train-valid splitting skipped.')
+        if os.path.exists(os.path.join(base, phase)):
+            print('train-%s splitting skipped.' % phase)
             return self
 
-        print('splitting train-valid data...')
+        print('splitting train-%s data...' % phase)
 
         labels = os.listdir(os.path.join(base, 'train'))
         files = [list(map(lambda x: os.path.join(l, x),
@@ -209,20 +258,19 @@ class DataSet:
         files = np.array(list(itertools.chain(*files)))
         self.random_state.shuffle(files)
 
-        valid_split = (valid_size
-                       if isinstance(valid_size, int)
-                       else int(files.shape[0] * valid_size))
+        faction = (fraction if isinstance(fraction, int) else
+                   int(files.shape[0] * fraction))
 
-        print('%i/%i files will be used for validation.' % (
-            valid_split, files.shape[0]))
-        train_files, valid_files = files[valid_split:], files[:valid_split]
+        print('%i/%i files will be used for %s.' % (
+            faction, files.shape[0], phase))
+        train_files, phase_values = files[faction:], files[:faction]
 
         for l in labels:
-            os.makedirs(os.path.join(base, 'valid', l), exist_ok=True)
+            os.makedirs(os.path.join(base, phase, l), exist_ok=True)
 
-        for file in valid_files:
+        for file in phase_values:
             shutil.move(os.path.join(base, 'train', file),
-                        os.path.join(base, 'valid', file))
+                        os.path.join(base, phase, file))
         print('splitting done.')
         return self
 
@@ -243,9 +291,10 @@ class DataSet:
         rates = n_samples_per_label / n_samples_per_label.sum()
 
         if 'train' in phases:
-            print('labels\'s rates: %s' % dict(zip(labels,
-                                                   np.round(rates, 2))))
-            print('min tolerated label rate: %.2f' % self.min_label_rate)
+            print('labels\'s rates:',
+                  ', '.join(['%s: %.2f' % (l, r)
+                             for l, r in zip(labels, rates)]))
+            print('minimum label rate tolerated: %.2f' % self.min_label_rate)
 
         labels = list(map(lambda i: labels[i],
                           filter(lambda i: rates[i] >= self.min_label_rate,
@@ -282,10 +331,9 @@ class DataSet:
                 self.label_encoder_ = LabelEncoder().fit(y)
 
             if self.label_encoder_ is None:
-                raise ValueError(
-                    'you need to load train data first in order to '
-                    'initialize the label encoder that will be used'
-                    ' to transform the %s data.' % phase)
+                raise ValueError('you need to load train data first in order '
+                                 'to initialize the label encoder that will '
+                                 'be used to transform the %s data.' % phase)
             y = self.label_encoder_.transform(y)
             results.append([np.array(X, copy=False), y,
                             np.array(names, copy=False)])
@@ -294,7 +342,6 @@ class DataSet:
 
     def load_patches(self, *phases):
         phases = phases or ('train', 'valid', 'test')
-        print('loading %s images patches' % ','.join(phases))
 
         results = []
         data_path = self.full_data_path
@@ -305,6 +352,8 @@ class DataSet:
             n_patches = getattr(self, '%s_n_patches' % phase)
             enhancer = getattr(self, '%s_enhancer' % phase)
 
+            X, y, names = [], [], []
+
             for label in labels:
                 label_sample_path = os.path.join(data_path, phase, label)
                 label_patch_path = os.path.join(data_path,
@@ -314,7 +363,6 @@ class DataSet:
                                  for p in os.listdir(label_sample_path)]
                 patches_names = os.listdir(label_patch_path)
 
-                X, y = [], []
                 for sample in samples_names:
                     sample_patches_names = list(filter(lambda x: sample in x,
                                                        patches_names))
@@ -327,20 +375,57 @@ class DataSet:
 
                     sample_patches_names = sample_patches_names[:n_patches]
 
-                    _patches = []
-                    for sample_patch_name in sample_patches_names:
-                        _patches.append(
-                            img_to_array(enhancer.process(load_img(
-                                os.path.join(label_patch_path,
-                                             sample_patch_name)))))
+                    with ProcessPoolExecutor(max_workers=self.n_jobs) as executor:
+                        _patches = list(executor.map(
+                            _load_patch_coroutine,
+                            [dict(name=os.path.join(label_patch_path, sample_patch_name),
+                                  augmentations=enhancer.augmentations,
+                                  variability=enhancer.variability)
+                             for sample_patch_name in sample_patches_names]))
 
-                    X.append(np.array(_patches, copy=False))
-                    y.append(y)
-                X, y = np.array(X, copy=False), np.array(y, copy=False)
-                results.append((X, y))
+                    X.append(_patches)
+                    y.append(label)
+                    names.append(sample)
+
+            if phase == 'train':
+                self.label_encoder_ = LabelEncoder().fit(y)
+
+            if self.label_encoder_ is None:
+                raise ValueError('you need to load train data first in order '
+                                 'to initialize the label encoder that will '
+                                 'be used to transform the %s data.' % phase)
+            y = self.label_encoder_.transform(y)
+            results.append([np.array(X, copy=False), y,
+                            np.array(names, copy=False)])
         return results
 
-    def save_patches_to_disk(self):
+    def save_patches_to_disk(self, mode='all', low_threshold=.9, pool_size=2,
+                             device='/cpu:0'):
+        """Extract and save patches to disk.
+
+        :param mode: str, mode in which patches are extracted. Options are:
+            * 'all': all available patches are extracted.
+            * 'random': random patches are extracted.
+            * 'max-gradient':
+                extract patches randomly, where the probability of extracting
+                a patch p is the normalized intensity of the gradient in the
+                pixels contained in the patch.
+            * 'min-gradient':
+                same as 'max-gradient', but using 1-p as probability
+                distribution, where p used is the gradient intensity map.
+        :param low_threshold: threshold passed to canny filter when deciding
+            upon which pixels definitely do not belong to edges.
+            Ignored if mode != 'max-gradient'.
+        :param pool_size: max-pool size. Scalar by which the input image is
+            reduced before convolved with the kernels of ones. Higher values
+            will decrease the accuracy of the procedure but decrease in time
+            and memory requirements.
+            Ignored if mode != 'max-gradient'.
+        :param device: device in which the gradient-related ops will be computed.
+            Ignored if mode != 'max-gradient'.
+
+        :return: self
+        """
         print('saving patches to disk...')
 
         data_path = self.full_data_path
@@ -357,25 +442,56 @@ class DataSet:
         if os.path.exists(os.path.join(data_path, 'valid')):
             phases += 'valid',
 
-        for phase in phases:
-            if os.path.exists(os.path.join(patches_path, phase)):
-                print('%s patches extraction to disk skipped.' % phase)
-                continue
+        tensors = None
 
-            print('extracting %s patches to disk...' % phase)
+        with tf.device(device):
+            if mode in ('min-gradient', 'max-gradient'):
+                with tf.name_scope('max_gradient_patches'):
+                    x = tf.placeholder(tf.float32, shape=(1, None, None, 1))
 
-            for label in labels:
-                class_path = os.path.join(data_path, phase, label)
-                patches_label_path = os.path.join(patches_path, phase, label)
-                os.makedirs(patches_label_path)
+                    with tf.name_scope('max_pool_1'):
+                        y = tf.layers.average_pooling2d(x, pool_size=pool_size, strides=pool_size)
 
-                samples = os.listdir(class_path)
-                with ThreadPoolExecutor(max_workers=self.n_jobs) as executor:
-                    list(executor.map(_save_image_patches_coroutine,
-                                      [(os.path.join(class_path, n),
-                                        patches_label_path,
-                                        patch_size)
-                                       for n in samples]))
+                    with tf.name_scope('conv_1'):
+                        kernel_weights = tf.ones([patch_size[0] // pool_size, patch_size[1] // pool_size, 1, 1],
+                                                 name='kernel')
+                        y = tf.nn.conv2d(y, kernel_weights, strides=(1, 1, 1, 1), padding="VALID", name='op')
+
+                tensors = (x, y)
+
+            tf_config = tf.ConfigProto(allow_soft_placement=True)
+            tf_config.gpu_options.allow_growth = True
+            with tf.Session(config=tf_config):
+                tf.global_variables_initializer().run()
+
+                for phase in phases:
+                    if os.path.exists(os.path.join(patches_path, phase)):
+                        print('%s patches extraction to disk skipped.' % phase)
+                        continue
+
+                    n_patches = getattr(self, '%s_n_patches' % phase)
+
+                    print('extracting %s patches to disk...' % phase)
+
+                    for label in labels:
+                        class_path = os.path.join(data_path, phase, label)
+                        patches_label_path = os.path.join(patches_path, phase, label)
+                        os.makedirs(patches_label_path)
+
+                        samples = os.listdir(class_path)
+
+                        for n in samples:
+                            _save_image_patches_coroutine(
+                                dict(
+                                    name=os.path.join(class_path, n),
+                                    patches_path=patches_label_path,
+                                    patch_size=patch_size,
+                                    n_patches=n_patches,
+                                    mode=mode,
+                                    low_threshold=low_threshold,
+                                    pool_size=pool_size,
+                                    device=device,
+                                    tensors=tensors))
 
         print('patches extraction completed.')
         return self

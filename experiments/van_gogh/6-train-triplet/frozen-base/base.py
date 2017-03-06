@@ -6,19 +6,23 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-def load_data(data_dir, share_val_samples=None, random_state=None):
+def load_data(data_dir, share_val_samples=None, phases=None,
+              random_state=None):
     data = {}
-    for p in ('train', 'valid', 'test'):
+
+    for p in phases or ('train', 'valid', 'test'):
         try:
             with open(os.path.join(data_dir, '%s.pickle' % p), 'rb') as f:
                 data[p] = pickle.load(f)
-                data[p] = (data[p]['data'],
-                           data[p]['target'],
-                           np.array(data[p]['names'], copy=False))
+                data[p] = [
+                    data[p]['data'].reshape(data[p]['data'].shape[0], -1),
+                    data[p]['target'],
+                    np.array(data[p]['names'], copy=False)]
+                data[p][0] /= 255.
         except IOError:
             continue
 
-    if 'valid' not in data and share_val_samples:
+    if 'train' in data and 'valid' not in data and share_val_samples:
         # Separate train and valid sets.
         X, y, names = data['train']
         (X_train, X_valid,
@@ -40,9 +44,9 @@ def triplet_loss(a, p, n):
 
     tf.cast(a > 0, tf.float32) * a
 
-    return tf.reduce_sum(tf.nn.relu(tf.reduce_sum((a - p) ** 2, axis=-1)
-                                    - tf.reduce_sum((a - n) ** 2, axis=-1)
-                                    + alpha))
+    return tf.reduce_mean(tf.nn.relu(tf.reduce_sum((a - p) ** 2, axis=-1)
+                                     - tf.reduce_sum((a - n) ** 2, axis=-1)
+                                     + alpha))
 
 
 def triplets_gen(X, y, names, embedding_inputs, embedding_net,
@@ -61,13 +65,12 @@ def triplets_gen(X, y, names, embedding_inputs, embedding_net,
 
     epoch = 0
     while epoch < nb_epochs:
-        window_offset = 0
+        w_offset = 0
 
-        while window_offset < nb_samples:
-            window_indices = indices[
-                             window_offset: window_offset + window_size]
+        while w_offset < nb_samples:
+            w_indices = indices[w_offset: w_offset + window_size]
 
-            X_window, y_window = X[window_indices], y[window_indices]
+            X_window, y_window = X[w_indices], y[w_indices]
             f_window = embedding_net.eval(
                 feed_dict={embedding_inputs: X_window})
 
@@ -79,22 +82,21 @@ def triplets_gen(X, y, names, embedding_inputs, embedding_net,
 
             # Select only hard-negatives triplets (p.4)
             triplets = np.array(
-                [[a, p, negatives[
-                    np.argmin(np.sum(np.abs(f_negatives - f_a), axis=-1))]]
-                 for (p, f_p) in zip(positives, f_positives)
-                 for a, f_a in zip(positives, f_positives)], copy=False)
+                [[a_i, p_i, np.argmin(np.sum(np.square(f_negatives - f_positives[a_i]), axis=-1))]
+                 for p_i in range(len(positives))
+                 for a_i in range(len(positives))
+                 ], copy=False)
 
-            batch_offset = 0
-            while batch_offset < triplets.shape[0]:
-                triplets_batch = triplets[
-                                 batch_offset:batch_offset + batch_size]
+            b_offset = 0
+            while b_offset < triplets.shape[0]:
+                batch_indices = triplets[b_offset:b_offset + batch_size]
 
-                yield ([triplets_batch[:, 0],
-                        triplets_batch[:, 1],
-                        triplets_batch[:, 2]])
+                yield ([positives[batch_indices[:, 0]],
+                        positives[batch_indices[:, 1]],
+                        negatives[batch_indices[:, 2]]])
 
-                batch_offset += batch_size
-            window_offset += window_size
+                b_offset += batch_size
+            w_offset += window_size
         epoch += 1
 
 

@@ -11,7 +11,7 @@ setup(
     scripts=[],
 
     author='Lucas David',
-    author_email='ld492@drexel.edu',
+    author_email='lucasolivdavid@gmail.com',
 
     install_requires=open('docs/requirements-base.txt').readlines(),
     tests_require=open('docs/requirements-dev.txt').readlines(),

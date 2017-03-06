@@ -28,16 +28,16 @@ It can be build with:
 
 ```shell
 $ cd /path/to/connoisseur
-$ cd docker/
+$ cd docs/
 $ docker build -t connoisseur-image .
 ```
 
 The run the container and install connoisseur:
 
 ```shell
-$ nvidia-docker run -it -v /datasets/ldavid:/datasets/ldavid \
-                        -v /home/ldavid/repositories/:/repositories \
-                        -v /work/ldavid/:/work/ldavid/ \
+$ nvidia-docker run -it -v /mnt/datasets:/datasets \
+                        -v /home/ldavid/repos:/repos \
+                        -v /mnt/work:/work \
     connoisseur-image /bin/bash
 $ cd /repositories/connoisseur
 $ python setup.py install
@@ -50,7 +50,7 @@ experiments can be found at the `/repositories/connoisseur/experiments`
 folder. An execution example follows:
 
 ```shell
-cd /repositories/connoisseur/experiments/van_gogh/extract-inception-train-svm/
+cd ./experiments/van_gogh/extract-inception-train-svm/
 python run.py
 ```
 

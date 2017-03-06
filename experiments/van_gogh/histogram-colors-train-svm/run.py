@@ -10,7 +10,7 @@ This experiment consists on the following procedures:
  * Classify each patch of each test painting with an SVM machine
  * Fuse the predicted classes for each patch, resulting in the predicted class for the painting
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -107,7 +107,7 @@ def run(_run, dataset_seed, svm_seed, image_shape, batch_size, data_dir, load_mo
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().split_train_valid()
+    ).download().extract().split()
 
     with tf.device(device):
         images = Input(batch_shape=[None] + image_shape)

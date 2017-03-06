@@ -7,7 +7,7 @@ This experiment consists on the following procedures:
  * Classify each patch of each test painting with the trained SVM
  * Fuse the predicted classes for each patch, resulting in the predicted class for the painting
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -82,7 +82,7 @@ def run(_run, dataset_seed, svm_seed,
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().split_train_valid()
+    ).download().extract().split()
 
     X, y = vangogh.load_patches_from_full_images('train').train_data
     vangogh.unload('train')

@@ -1,4 +1,0 @@
-{
-  "train_augmentations": ["brightness", "contrast"],
-  "test_augmentations": ["brightness", "contrast"]
-}

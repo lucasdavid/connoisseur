@@ -5,7 +5,7 @@ Uses InceptionV3 trained over `imagenet` and fine-tune it to van Gogh dataset.
 Image patches are loaded directly from the disk. Finally, train an SVM over
 the fine-tuned extraction network.
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -116,7 +116,7 @@ def run(_run, dataset_seed,
         valid_augmentations=valid_augmentations,
         valid_split=valid_split,
         random_state=dataset_seed
-    ).download().extract().split_train_valid()
+    ).download().extract().split()
 
     print('building model...')
     with tf.device(device):

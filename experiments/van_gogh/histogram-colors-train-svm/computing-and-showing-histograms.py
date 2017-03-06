@@ -3,7 +3,7 @@
 Uses openCV to compute color histograms and over paintings in VanGogh
 dataset and save those as JPG images.
 
-Author: Lucas David -- <ld492@drexel.edu>
+Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
@@ -71,7 +71,7 @@ def run(dataset_seed, image_shape, data_dir, n_color_histogram_bins,
         train_augmentations=train_augmentations,
         test_augmentations=test_augmentations,
         random_state=dataset_seed
-    ).download().extract().split_train_valid()
+    ).download().extract().split()
 
     for phase in ('train', 'test'):
         os.makedirs('./histograms/%s/' % phase, exist_ok=True)

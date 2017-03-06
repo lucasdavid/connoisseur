@@ -5,6 +5,7 @@ MAINTAINER Lucas David <lucasolivdavid@gmail.com>
 RUN pip install --upgrade --no-cache-dir numpy \
                                          scipy \
                                          scikit-learn \
+                                         scikit-image \
                                          h5py \
                                          keras \
                                          image \
