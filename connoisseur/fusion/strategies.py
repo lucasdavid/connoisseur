@@ -1,10 +1,8 @@
 import numpy as np
 
-from keras.utils.generic_utils import get_from_module
-
 AVAILABLE_STRATEGIES = ['sum', 'mean', 'farthest', 'most_frequent',
                         'contrastive_mean']
-__all__ = AVAILABLE_STRATEGIES + ['get']
+__all__ = AVAILABLE_STRATEGIES
 
 
 def sum(labels, distances, multi_class=True, t=0.0):
@@ -37,9 +35,3 @@ def farthest(labels, distances, multi_class=True, t=0.0):
 def most_frequent(labels, distances, multi_class=True, t=0.0):
     return np.array([np.argmax(np.bincount(patch_labels))
                      for patch_labels in labels], copy=False)
-
-
-def get(strategy):
-    if strategy is None:
-        return sum
-    return get_from_module(strategy, globals(), 'fusion strategy')

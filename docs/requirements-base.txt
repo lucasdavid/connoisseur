@@ -1,10 +1,11 @@
 numpy
 scipy
 scikit-learn
+scikit-image
 h5py
 keras
 h5py
 image
 sacred
 opencv-python
-tensorflow-gpu
+pandas

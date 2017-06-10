@@ -51,7 +51,7 @@ def config():
     dataset_test_seed = 53
     test_augmentations = []
     device = "/gpu:0"
-    data_dir = "/datasets/van_gogh"
+    data_dir = "/datasets/vangogh"
 
     architecture = 'inception'
     opt_ckpt_file = './ckpt/opt-weights.hdf5'

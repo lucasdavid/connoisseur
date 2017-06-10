@@ -1,0 +1,30 @@
+{
+  "C": 1.0,
+  "grid_searching": false,
+  "histogram_range": [
+    0,
+    255
+  ],
+  "histogram_variability": 0.95,
+  "maintain_energy": 0.8,
+  "n_bins": 64,
+  "n_jobs": 4,
+  "param_grid": {
+    "C": [
+      0.01,
+      0.1,
+      1,
+      10,
+      100
+    ],
+    "kernel": [
+      "linear",
+      "rbf"
+    ]
+  },
+  "seed": 898872403,
+  "svm_seed": 2,
+  "test_dir": "/work/ldavid/datasets/vangogh/vgdb_2016/extracted_patches/test",
+  "train_dir": "/work/ldavid/datasets/vangogh/vgdb_2016/extracted_patches/train",
+  "valid_dir": "/work/ldavid/datasets/vangogh/vgdb_2016/extracted_patches/valid"
+}

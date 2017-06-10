@@ -6,38 +6,46 @@ Licence: MIT License 2016 (c)
 """
 import os
 import shutil
+import unicodedata
+from logging import warning
 
 import pandas as pd
 
 from .base import DataSet
 
 
+def strip_accents(s):
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn')
+
+
 class PainterByNumbers(DataSet):
     def prepare(self, override=False):
         print('preparing PainterByNumbers...')
 
+        warning('up to this point, PainterByNumbers#prepare() only prepares train data')
+
         base_dir = self.full_data_path
 
-        for phase in ('train',):
-            file_name = os.path.join(base_dir, '%s_info.csv' % phase)
-            phase_path = os.path.join(base_dir, phase)
+        file_name = os.path.join(base_dir, 'train_info.csv')
 
-            frame = pd.read_csv(file_name, quotechar='"', delimiter=',')
-            self.feature_names_ = frame.columns.values
+        frame = pd.read_csv(file_name, quotechar='"', delimiter=',')
+        self.feature_names_ = frame.columns.values
+        data = frame.values
 
-            # Organize files in a Keras-friendly representation.
-            data = frame.values
+        for painting in data:
+            file_name, artist = painting[:2]
 
-            for painting_name, artist_url in zip(data[:, 0], data[:, 1]):
-                os.makedirs(os.path.join(phase_path, str(artist_url)), exist_ok=True)
+            phase = 'train'
+            src = os.path.join(base_dir, phase, file_name)
+            os.makedirs(os.path.join(base_dir, phase, artist), exist_ok=True)
 
-                try:
-                    shutil.move(
-                        os.path.join(phase_path, painting_name),
-                        os.path.join(phase_path, str(artist_url), painting_name)
-                    )
-                except FileNotFoundError:
-                    # Already moved. Ignore.
-                    pass
+            dst = os.path.join(base_dir, phase, artist, file_name)
+
+            try:
+                shutil.move(src, dst)
+            except FileNotFoundError:
+                # Already moved. Ignore.
+                warning('%s not found' % src)
 
         return self

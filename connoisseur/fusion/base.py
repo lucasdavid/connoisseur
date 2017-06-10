@@ -28,9 +28,9 @@ class Fusion(ClassifierMixin, BaseEstimator, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self, estimator, strategy='sum'):
+    def __init__(self, estimator, strategy=strategies.sum):
         self.estimator = estimator
-        self.strategy = strategies.get(strategy)
+        self.strategy = strategy
 
     def fit(self, X, y, **fit_params):
         return self.estimator.fit(X, y, **fit_params)

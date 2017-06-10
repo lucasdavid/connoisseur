@@ -16,12 +16,11 @@ from urllib import request
 import numpy as np
 import tensorflow as tf
 from PIL import ImageOps
-from scipy.signal import convolve2d
 from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from ..utils.image import img_to_array, load_img, PaintingEnhancer, array_to_img
+from ..utils.image import img_to_array, load_img, PaintingEnhancer
 
 
 def _load_patch_coroutine(options):
@@ -54,59 +53,67 @@ def _save_image_patches_coroutine(options):
     image = load_img(options['name'])
     border = np.array(options['patch_size']) - image.size
     painting_name = os.path.splitext(os.path.basename(options['name']))[0]
-
-    if np.any(border > 0):
-        # The image is smaller than the patch size in any dimension.
-        # Pad it to make sure we can extract at least one patch.
-        border = np.ceil(border.clip(0, border.max()) / 2).astype(np.int)
-        image = ImageOps.expand(image, border=tuple(border))
-
-    mode = options['mode']
-    patch_size = options.get('patch_size', [256, 256])
-    n_patches = options['n_patches']
-
-    if mode in ('min-gradient', 'max-gradient'):
-        gray_image = image.convert('L')
-        gray_tensor = img_to_array(gray_image).squeeze(-1)
-        e = feature.canny(gray_tensor, low_threshold=options['low_threshold'], use_quantiles=True).astype(np.float)
-
-        pool_size = options.get('pool_size', 2)
-        x, y = options['tensors']
-
-        p = y.eval(feed_dict={x: e.reshape((1,) + e.shape + (1,))})
-        p = p.squeeze((0, -1))
-        p /= p.sum()
-
-        if mode == 'min-gradient':
-            p = 1 - p
-            p /= p.sum()
-
-        c = np.random.choice(np.arange(np.product(p.shape)), size=(n_patches, 1), p=p.flatten())
-        c = np.concatenate((c // p.shape[1], c % p.shape[1]), axis=-1).astype(np.int)
-        c += np.array(patch_size) // (2 * pool_size)  # restore sizes before convolution
-        c *= pool_size  # restore sizes before max_pooling2d
-        c -= np.array(patch_size) // 2  # center selected pixels
-
-        starting_points = np.array([c[:, 1], c[:, 0]]).T
-
-    elif mode == 'random':
-        starting_points = (np.random.rand(n_patches, 2) * patch_size).astype(np.int)
-
-    elif mode == 'all':
-        d_widths = list(range(0, image.width, patch_size[0]))
-        d_heights = list(range(0, image.height, patch_size[1]))
-        starting_points = itertools.product(d_widths, d_heights)
-    else:
-        raise ValueError('unknown mode: %s' % mode)
-
     patches_path = options['patches_path']
 
-    for patch_id, (s_w, s_h) in enumerate(starting_points):
-        (image
-         .crop((s_w, s_h, s_w + patch_size[0], s_h + patch_size[1]))
-         .save(os.path.join(patches_path, '%s-%i.jpg' % (painting_name, patch_id))))
+    try:
+        if np.any(border > 0):
+            # The image is smaller than the patch size in any dimension.
+            # Pad it to make sure we can extract at least one patch.
+            border = np.ceil(border.clip(0, border.max()) / 2).astype(np.int)
+            image = ImageOps.expand(image, border=tuple(border))
 
-    print('.', end='')
+        mode = options['mode']
+        patch_size = options.get('patch_size', [256, 256])
+        n_patches = options['n_patches']
+
+        if mode in ('min-gradient', 'max-gradient'):
+            gray_image = image.convert('L')
+            gray_tensor = img_to_array(gray_image).squeeze(-1)
+            e = feature.canny(gray_tensor, low_threshold=options['low_threshold'], use_quantiles=True).astype(np.float)
+
+            pool_size = options.get('pool_size', 2)
+            x, y = options['tensors']
+
+            p = y.eval(feed_dict={x: e.reshape((1,) + e.shape + (1,))})
+            p = p.squeeze((0, -1))
+
+            p = np.exp(p / p.sum())
+            p /= p.sum()
+
+            if mode == 'min-gradient':
+                p = 1 - p
+                p /= p.sum()
+
+            c = np.random.choice(np.arange(np.product(p.shape)), size=(n_patches, 1), p=p.flatten())
+            c = np.concatenate((c // p.shape[1], c % p.shape[1]), axis=-1).astype(np.int)
+            c += np.array(patch_size) // (2 * pool_size)  # restore sizes before convolution
+            c *= pool_size  # restore sizes before max_pooling2d
+            c -= np.array(patch_size) // 2  # center selected pixels
+
+            starting_points = np.array([c[:, 1], c[:, 0]]).T
+
+        elif mode == 'random':
+            starting_points = (
+                np.random.rand(n_patches, 2)
+                * (image.width - patch_size[0], image.height - patch_size[1])
+            ).astype(np.int)
+
+        elif mode == 'all':
+            d_widths = list(range(0, image.width, patch_size[0]))
+            d_heights = list(range(0, image.height, patch_size[1]))
+            starting_points = itertools.product(d_widths, d_heights)
+        else:
+            raise ValueError('unknown mode %s' % mode)
+
+        for patch_id, (s_w, s_h) in enumerate(starting_points):
+            (image
+             .crop((s_w, s_h, s_w + patch_size[0], s_h + patch_size[1]))
+             .save(os.path.join(patches_path, '%s-%i.jpg' % (painting_name, patch_id))))
+
+    except MemoryError:
+        print('f', end='')
+    else:
+        print('.', end='')
 
 
 class DataSet:
@@ -147,8 +154,6 @@ class DataSet:
     COMPACTED_FILE = 'dataset.zip'
     EXPECTED_SIZE = 0
     EXTRACTED_FOLDER = None
-
-    generator = None
 
     def __init__(self, base_dir='./data', load_mode='exact',
                  train_n_patches=50, valid_n_patches=50, test_n_patches=50,
@@ -438,9 +443,8 @@ class DataSet:
 
         os.makedirs(patches_path, exist_ok=True)
 
-        phases = ('train', 'test')
-        if os.path.exists(os.path.join(data_path, 'valid')):
-            phases += 'valid',
+        phases = list(filter(lambda x: os.path.exists(os.path.join(data_path, x)),
+                             ('train', 'test', 'valid')))
 
         tensors = None
 
@@ -465,10 +469,6 @@ class DataSet:
                 tf.global_variables_initializer().run()
 
                 for phase in phases:
-                    if os.path.exists(os.path.join(patches_path, phase)):
-                        print('%s patches extraction to disk skipped.' % phase)
-                        continue
-
                     n_patches = getattr(self, '%s_n_patches' % phase)
 
                     print('extracting %s patches to disk...' % phase)
@@ -476,14 +476,21 @@ class DataSet:
                     for label in labels:
                         class_path = os.path.join(data_path, phase, label)
                         patches_label_path = os.path.join(patches_path, phase, label)
-                        os.makedirs(patches_label_path)
+                        os.makedirs(patches_label_path, exist_ok=True)
 
                         samples = os.listdir(class_path)
 
-                        for n in samples:
+                        for sample in samples:
+                            if os.path.exists(
+                                    os.path.join(patches_label_path,
+                                                 os.path.splitext(sample)[0] + '-0.jpg')):
+                                # skip this painting.
+                                print('s', end='')
+                                continue
+
                             _save_image_patches_coroutine(
                                 dict(
-                                    name=os.path.join(class_path, n),
+                                    name=os.path.join(class_path, sample),
                                     patches_path=patches_label_path,
                                     patch_size=patch_size,
                                     n_patches=n_patches,

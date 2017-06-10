@@ -163,7 +163,7 @@ def img_to_array(img, dim_ordering='default'):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None,
+def load_img(path, mode='RGB', target_size=None,
              extraction_method='resize'):
     """Load an image into PIL format.
 
@@ -176,10 +176,12 @@ def load_img(path, grayscale=False, target_size=None,
         {'resize', 'crop', 'random-crop'}
     """
     img = Image.open(path)
-    if grayscale:
+    mode = mode.upper()
+    if mode == 'GRAYSCALE':
         img = img.convert('L')
-    else:  # Ensure 3 channel even when loaded image is grayscale
-        img = img.convert('RGB')
+    else:
+        img = img.convert(mode)
+
     if target_size:
         if extraction_method == 'resize':
             img = img.resize((target_size[1], target_size[0]))
@@ -546,12 +548,12 @@ class DirectoryIterator(Iterator):
         self.extraction_method = extraction_method
         self.enhancer = PaintingEnhancer(variability=augmentation_variability,
                                          augmentations=augmentations)
-        if color_mode not in {'rgb', 'grayscale'}:
+        if color_mode not in {'rgb', 'hsv', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
                              '; expected "rgb" or "grayscale".')
         self.color_mode = color_mode
         self.dim_ordering = dim_ordering
-        if self.color_mode == 'rgb':
+        if self.color_mode in ('rgb', 'hsv'):
             if self.dim_ordering == 'tf':
                 self.image_shape = self.target_size + (3,)
             else:
@@ -620,11 +622,11 @@ class DirectoryIterator(Iterator):
             index_array, current_index, current_batch_size = next(self.index_generator)
         # The transformation of images is not under thread lock so it can be done in parallel
         batch_x = np.zeros((current_batch_size,) + self.image_shape)
-        grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
-            img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size,
+            img = load_img(os.path.join(self.directory, fname), mode=self.color_mode,
+                           target_size=self.target_size,
                            extraction_method=self.extraction_method)
             img = self.enhancer.process(img)
             x = img_to_array(img, dim_ordering=self.dim_ordering)

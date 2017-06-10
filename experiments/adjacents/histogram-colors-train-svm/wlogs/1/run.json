@@ -1,0 +1,83 @@
+{
+  "artifacts": [],
+  "command": "run",
+  "experiment": {
+    "base_dir": "/repositories/connoisseur/experiments/van_gogh/7-histogram-colors-train-svm",
+    "dependencies": [
+      "connoisseur==0.1",
+      "json==2.0.9",
+      "keras==2.0.4",
+      "matplotlib==2.0.2",
+      "numpy==1.13.0",
+      "sacred==0.7b2",
+      "sklearn==0.18.1",
+      "tensorflow==1.1.0"
+    ],
+    "name": "7-histogram-colors-train-svm",
+    "repositories": [],
+    "sources": [
+      [
+        "run.py",
+        "_sources/run_1fb129c69e08a2df3c1b436c739df672.py"
+      ]
+    ]
+  },
+  "heartbeat": "2017-06-23T18:51:23.482843",
+  "host": {
+    "cpu": "Intel(R) Core(TM) i7-5820K CPU @ 3.30GHz",
+    "gpus": {
+      "driver_version": "361.93.02",
+      "gpus": [
+        {
+          "model": "GeForce GTX 980",
+          "persistence_mode": false,
+          "total_memory": 4043
+        },
+        {
+          "model": "GeForce GTX 980",
+          "persistence_mode": false,
+          "total_memory": 4041
+        }
+      ]
+    },
+    "hostname": "1cb6e82d0e8a",
+    "os": [
+      "Linux",
+      "Linux-3.13.0-107-generic-x86_64-with-Ubuntu-14.04-trusty"
+    ],
+    "python_version": "3.4.3"
+  },
+  "meta": {
+    "command": "run",
+    "options": {
+      "--beat_interval": null,
+      "--comment": null,
+      "--debug": false,
+      "--enforce_clean": false,
+      "--file_storage": "./wlogs",
+      "--force": false,
+      "--help": false,
+      "--loglevel": null,
+      "--mongo_db": null,
+      "--pdb": false,
+      "--print_config": false,
+      "--priority": null,
+      "--queue": false,
+      "--sql": null,
+      "--tiny_db": null,
+      "--unobserved": false,
+      "COMMAND": null,
+      "UPDATE": [
+        "n_jobs=4",
+        "maintain_energy=.8"
+      ],
+      "help": false,
+      "with": true
+    }
+  },
+  "resources": [],
+  "result": null,
+  "start_time": "2017-06-23T18:49:13.734062",
+  "status": "COMPLETED",
+  "stop_time": "2017-06-23T18:51:23.481856"
+}
