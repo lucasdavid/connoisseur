@@ -30,17 +30,19 @@ def config():
     test_n_patches = 50
     downloading = True
     extracting = True
+    preparing = True
     pool_size = 4
     patches_saving_mode = 'random'
-    device = '/cpu:0'
+    device = '/gpu:0'
 
 
 @ex.automain
 def run(dataset_name, dataset_seed, classes, image_shape, data_dir,
-        downloading, extracting,
+        downloading, extracting, preparing,
         train_n_patches, valid_n_patches, test_n_patches,
         patches_saving_mode, valid_size, n_jobs, pool_size, device):
     from PIL import ImageFile
+    import tensorflow as tf
     from connoisseur import datasets
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -58,13 +60,10 @@ def run(dataset_name, dataset_seed, classes, image_shape, data_dir,
         dataset.download()
     if extracting:
         dataset.extract()
-
-    dataset.prepare()
-
+    if preparing:
+        dataset.prepare()
     if valid_size > 0:
         dataset.split(fraction=valid_size, phase='valid')
-
-    dataset.save_patches_to_disk(mode=patches_saving_mode,
-                                 pool_size=pool_size,
-                                 device=device)
+    with tf.device(device):
+        dataset.save_patches_to_disk(mode=patches_saving_mode, pool_size=pool_size)
     print('done')

@@ -5,7 +5,8 @@ Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
+from .base import load_pickle_data
+from .painter_by_numbers import PainterByNumbers
 from .paintings91 import Paintings91
 from .van_gogh import VanGogh
 from .wikiart import WikiArt
-from .painter_by_numbers import PainterByNumbers

@@ -16,17 +16,17 @@ from sklearn.externals import joblib
 
 from connoisseur.fusion import SkLearnFusion, strategies
 
-from base import load_data
-
-ex = Experiment('van-gogh/3-train-svm/evaluate')
+ex = Experiment('5-generate-predictions')
 
 
 @ex.config
 def config():
-    data_dir = '/datasets/ldavid/vangogh/random_299/inceptionV3/'
-    ckpt_file_name = './random-inceptionV3-svm.pkl'
-    results_file_name = './results-random-299-inceptionV3-svm.json'
+    data_dir = '/datasets/vangogh/preprocessed/min_gradient_299/inceptionv3'
+    ckpt_file_name = './patches:min-gradient-299,model:inception-svm,pca:0.90.pkl'
+    results_file_name = './results-patches:min-gradient-299,model:inception-svm,pca:0.90.json'
     nb_patches = 50
+    phases = ('train', 'test',)
+    classes = None
 
 
 def group_by_paintings(x, y, names):
@@ -72,7 +72,7 @@ def evaluate(model, x, y, names, nb_patches):
               metrics.classification_report(y, p),
               '\nConfusion matrix:\n',
               metrics.confusion_matrix(y, p))
-        print('samples incorrectly classified:', names[p != y])
+        print('samples incorrectly classified:', names[p != y], '\n')
 
         results['evaluations'].append({
             'strategy': strategy_tag,
@@ -84,7 +84,8 @@ def evaluate(model, x, y, names, nb_patches):
 
 
 @ex.automain
-def run(data_dir, nb_patches, ckpt_file_name, results_file_name):
+def run(data_dir, phases, classes, nb_patches, ckpt_file_name, results_file_name):
+    from connoisseur.datasets import load_pickle_data
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
     print('loading model...', end=' ')
@@ -92,20 +93,17 @@ def run(data_dir, nb_patches, ckpt_file_name, results_file_name):
     print('done.')
 
     print('loading data...', end=' ')
-    data = load_data(data_dir=data_dir)
+    data = load_pickle_data(data_dir=data_dir, phases=phases, chunks=(0, 1), classes=classes)
     print('done.')
 
     results = []
 
-    for phase in ('train', 'valid', 'test'):
-        if phase not in data:
-            continue
-
+    for phase in phases:
         x, y, names = data[phase]
         x = x.reshape(x.shape[0], -1)
-        y = np.argmax(y, -1)
 
         print('\n# %s evaluation' % phase)
+
         phase_results = evaluate(model, x, y, names, nb_patches=nb_patches)
         phase_results['phase'] = phase
         results.append(phase_results)

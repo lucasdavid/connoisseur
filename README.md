@@ -50,15 +50,14 @@ experiments can be found at the `/repositories/connoisseur/experiments`
 folder. An execution example follows:
 
 ```shell
-cd ./experiments/van_gogh/extract-inception-train-svm/
-python run.py
+cd ./experiments/
+python 1-extract-patches.py with batch_size=256
 ```
 
-Each experiment is wrapped by sacred package, responsible for
-monitoring the experiment and logging its progression to RECOD's main
-mongodb at `mongodb://10.0.1.218:27017/meteor`. However, `python run.py`
-will not persist any log. To do so, use the `m` parameter:
+Each experiment is wrapped by sacred package, capable of monitoring an
+experiment and logging its progression to a file. To do so, use the `F`
+parameter:
 
 ```shell
-python run.py -m 10.0.1.218:27017:meteor
+python train-svm.py -F ./logs/train-svm/
 ```

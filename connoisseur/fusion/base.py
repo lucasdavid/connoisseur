@@ -54,17 +54,24 @@ class SkLearnFusion(Fusion):
         :param X: list, shaped as (paintings, patches, features).
         :return: y, predicted labels, according to a fusion strategy.
         """
-        probabilities = (self.estimator
-                         .decision_function(X.reshape((-1,) + X.shape[2:]))
-                         .reshape(X.shape[:2] + (-1,)))
+        Z = X.reshape((-1,) + X.shape[2:])
+
+        try:
+            probabilities = self.estimator.predict_proba(Z)
+            multi_class = True
+        except AttributeError:
+            probabilities = self.estimator.decision_function(Z)
+            multi_class = len(self.estimator.classes_) > 2
+
+        probabilities = probabilities.reshape(X.shape[:2] + (-1,))
+
         labels = (self.estimator
                   .predict(X.reshape((-1,) + X.shape[2:]))
                   .astype(np.int)
                   .reshape(X.shape[:2] + (-1,)))
 
         probabilities, labels = self._reduce_rank(probabilities, labels)
-        return self.strategy(labels, probabilities,
-                             multi_class=len(self.estimator.classes_) > 2)
+        return self.strategy(labels, probabilities, multi_class=multi_class)
 
 
 class SoftMaxFusion(Fusion):
