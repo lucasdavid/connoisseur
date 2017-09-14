@@ -90,54 +90,6 @@ def group_by_paintings(x, y, names):
             np.array(_names, copy=False))
 
 
-def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
-                     layers=None, classes=None):
-    phases = phases or ('train', 'valid', 'test')
-    keys = keys or ('data', 'target', 'names')
-
-    data = {p: {k: [] for k in keys} for p in phases}
-
-    for p in phases:
-        for c in chunks:
-            file_name = os.path.join(data_dir, '%s.%i.pickle' % (p, c))
-
-            if os.path.exists(file_name):
-                with open(file_name, 'rb') as file:
-                    d = pickle.load(file)
-                    for k in keys:
-                        data[p][k].append(d[k])
-            elif c > 0:
-                print('skipping', file_name)
-            else:
-                raise ValueError(p % ' data cannot be found.')
-
-        _layers = layers or data[p]['data'][0].keys()
-
-        for k in keys:
-            if k == 'data':
-                # Merges chunks of each layer output.
-                data[p][k] = {l: np.concatenate([x[l] for x in data[p][k]]) for l in _layers}
-            else:
-                # Merges chunks integrally.
-                data[p][k] = np.concatenate(data[p][k])
-
-        if classes is not None:
-            if isinstance(classes, int):
-                classes = range(classes)
-            classes = list(classes)
-
-            s = np.in1d(data[p]['target'], classes)
-            for k in keys:
-                if k == 'data':
-                    for l in data[p][k].keys():
-                        data[p][k][l] = data[p][k][l][s]
-                else:
-                    data[p][k] = data[p][k][s]
-
-        data[p] = tuple(data[p][k] for k in keys)
-    return data
-
-
 def _load_patch_coroutine(options):
     return img_to_array(
         PaintingEnhancer(options['augmentations'],

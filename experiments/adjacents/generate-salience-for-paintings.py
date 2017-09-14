@@ -7,19 +7,18 @@ Licence: MIT License 2016 (c)
 import itertools
 import os
 from math import floor
+
+import keras.backend as K
+import numpy as np
+import tensorflow as tf
+from PIL import ImageFile
+from keras.preprocessing.image import load_img, img_to_array
+from matplotlib import pylab as plt
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
-import numpy as np
-import tensorflow as tf
-
-from PIL import Image, ImageFile
-from keras.preprocessing.image import load_img, img_to_array
-import keras.backend as K
-from matplotlib import pylab as plt
-
-from connoisseur.models import build_model
 from connoisseur import saliency
+from connoisseur.models import build_model
 
 ex = Experiment('generate-salience-for-paintings')
 
@@ -72,7 +71,7 @@ def show_image(image, grayscale=True, ax=None, title=''):
 @ex.automain
 def run(image_shape, data_dir, classes,
         architecture, weights, last_base_layer, use_gram_matrix, pooling, dense_layers,
-        saliency_method,
+        saliency_method, saliency_dir,
         device, dropout_p, resuming, ckpt_file):
     os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
     os.makedirs(os.path.dirname(saliency_dir), exist_ok=True)
@@ -105,7 +104,6 @@ def run(image_shape, data_dir, classes,
             print('re-loading weights...')
             model.load_weights(ckpt_file)
 
-
         saliency_model = getattr(saliency, saliency_method)
 
         try:
@@ -127,7 +125,7 @@ def run(image_shape, data_dir, classes,
 
                     for h, w in cuts:
                         p = x[h:h + image_shape[0], w:w + image_shape[0], :]
-                        r[h:h + image_shape[0], w:w + image_shape[0], :] = saliency_pipe.get_mask(p)
+                        r[h:h + image_shape[0], w:w + image_shape[0], :] = saliency_model.get_mask(p)
 
                     show_image(x), plt.show(), plt.hold()
                     show_image(r), plt.show(), plt.hold()

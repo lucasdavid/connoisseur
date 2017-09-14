@@ -133,6 +133,23 @@ class PairsDirectoryIterator(DirectoryIterator):
         return list(pairs_x), pairs_y
 
 
+class PairsNumpyArrayIterator(keras_image.NumpyArrayIterator):
+    def next(self):
+        batch_x, batch_y = super().next()
+        batch_size = batch_x.shape[0]
+
+        if len(batch_y.shape) > 1:
+            batch_y = np.argmax(batch_y, axis=-1)
+
+        c = np.random.randint(0, batch_size, size=(2, batch_size))
+
+        pairs_x = batch_x[c]
+        pairs_y = batch_y[c]
+        pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
+
+        return list(pairs_x), pairs_y
+
+
 class PaintingEnhancer:
     def __init__(self, augmentations=('color', 'brightness', 'contrast'),
                  variability=0.25):

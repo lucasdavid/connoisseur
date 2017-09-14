@@ -1,40 +1,49 @@
-from keras import (applications, engine, layers, models, regularizers,
-                   backend as K)
+from keras import applications, engine, layers, models, regularizers, backend as K
 
 from .utils import euclidean, gram_matrix
 
 
-def build_model(image_shape, arch='inception', dropout_p=.5, weights='imagenet',
-                classes=1000, last_base_layer=None, use_gram_matrix=False,
-                dense_layers=()):
-    assert arch in ('inception', 'inejc', 'vgg19')
+def get_base_model(architecture):
+    try:
+        return getattr(applications, architecture)
+    except AttributeError:
+        try:
+            return globals()['_arch_%s' % architecture]
+        except KeyError:
+            raise ValueError('unknown architecture ' + architecture)
 
-    base_model = globals()['_arch_%s' % arch](image_shape, weights=weights, dropout_p=dropout_p)
+
+def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
+                classes=1000, last_base_layer=None, use_gram_matrix=False,
+                dense_layers=(), pooling='avg', include_base_top=False, include_top=True):
+    base_model = get_base_model(architecture)(include_top=include_base_top, weights=weights,
+                                              input_shape=image_shape, pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
          if last_base_layer
          else base_model.output)
 
     if use_gram_matrix:
-        k = K.get_variable_shape(x)[-1]
-        x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
-                          output_shape=[k, k])(x)
+        sizes = K.get_variable_shape(x)
+        k = sizes[-1]
+        x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
 
-    x = layers.Flatten(name='flatten')(x)
+    if include_top:
+        if K.ndim(x) > 2:
+            x = layers.Flatten(name='flatten')(x)
 
-    print('feature extraction network\'s output shape:', K.get_variable_shape(x))
+        for l_id, n_units in enumerate(dense_layers):
+            x = layers.Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
+            x = layers.Dropout(dropout_p)(x)
+            print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
 
-    for n_units in dense_layers:
-        print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
-        x = layers.Dense(n_units, activation='relu')(x)
-        x = layers.Dropout(dropout_p)(x)
+        x = layers.Dense(classes, activation='softmax', name='predictions')(x)
 
-    x = layers.Dense(classes, activation='softmax', name='predictions')(x)
     return engine.Model(base_model.input, x)
 
 
 def build_siamese_model(x_shape, arch='inception', dropout_p=.5, weights='imagenet',
                         classes=1000, use_gram_matrix=False, distance=euclidean):
-    base_network = build_model(x_shape, arch=arch, dropout_p=dropout_p, weights=weights,
+    base_network = build_model(x_shape, architecture=arch, dropout_p=dropout_p, weights=weights,
                                classes=classes, use_gram_matrix=use_gram_matrix)
     base_network = engine.Model(base_network.input,
                                 base_network.get_layer('flatten').output)
@@ -53,22 +62,12 @@ def build_siamese_model(x_shape, arch='inception', dropout_p=.5, weights='imagen
     return model
 
 
-def _arch_inception(input_shape, weights='imagenet', dropout_p=.5):
-    return applications.InceptionV3(input_shape=input_shape, weights=weights,
-                                    include_top=False)
-
-
-def _arch_vgg19(input_shape, weights='imagenet', dropout_p=.5):
-    return applications.VGG19(input_shape=input_shape, weights=weights,
-                              include_top=False)
-
-
-def _arch_inejc(batch_shape, weights=None, dropout_p=.5):
+def _arch_inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):
     weights_init_fn = 'he_normal'
 
     model = models.Sequential()
 
-    model.add(_convolutional_layer(nb_filter=16, input_shape=batch_shape[1:]))
+    model.add(_convolutional_layer(nb_filter=16, input_shape=input_shape))
     model.add(layers.BatchNormalization())
     model.add(layers.PReLU(init=weights_init_fn))
     model.add(_convolutional_layer(nb_filter=16))
@@ -120,6 +119,12 @@ def _arch_inejc(batch_shape, weights=None, dropout_p=.5):
     model.add(layers.PReLU(init=weights_init_fn))
     model.add(layers.MaxPooling2D(pool_size=(2, 2)))
     model.add(layers.Dropout(p=dropout_p))
+
+    if pooling == 'avg':
+        model.add(layers.GlobalAveragePooling2D())
+    elif pooling == 'max':
+        model.add(layers.GlobalMaxPooling2D())
+
     return model
 
 

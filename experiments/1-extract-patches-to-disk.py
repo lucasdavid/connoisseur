@@ -34,7 +34,7 @@ def config():
     preparing = True
     pool_size = 4
     patches_saving_mode = 'random'
-    device = '/gpu:0'
+    device = '/cpu:0'
 
 
 @ex.automain

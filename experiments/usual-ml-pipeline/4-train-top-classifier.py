@@ -15,12 +15,13 @@ ex = Experiment('4-train-svm')
 @ex.config
 def config():
     data_dir = '/datasets/vangogh/min_inception_flatten'
-    ckpt_file_name = '/work/models/256/random/vgg19-%s-svm,pca:0.95.pkl'
+    ckpt_file_name = '/work/models/256/random/vgg19-%s-svm,pca:0.99.pkl'
+    phases = ('train', 'valid')
     nb_samples_used = None
     chunks_loaded = [0, 1]
-    grid_searching = False
+    grid_searching = True
     param_grid = {
-        'pca__n_components': [.95],
+        'pca__n_components': [.99],
         'svc__C': [0.1, 1.0, 10, 100, 1000],
         'svc__kernel': ['linear', 'rbf'],
         'svc__class_weight': ['balanced'],
@@ -28,11 +29,11 @@ def config():
     cv = None
     n_jobs = 4
     classes = None
-    layers = ['block1_conv1', 'block2_conv1']
+    layers = ['block%i_conv1' % i for i in range(1, 6)]
 
 
 @ex.automain
-def run(data_dir, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
+def run(data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
         ckpt_file_name, chunks_loaded, classes, layers):
     import os
     import numpy as np
@@ -47,7 +48,7 @@ def run(data_dir, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
     os.makedirs(os.path.dirname(ckpt_file_name), exist_ok=True)
 
     print('loading data...')
-    data = load_pickle_data(data_dir=data_dir, phases=('train', 'valid'),
+    data = load_pickle_data(data_dir=data_dir, phases=phases,
                             chunks=chunks_loaded, layers=layers, classes=classes)
     Xs, y, _ = data['train']
 
@@ -84,9 +85,8 @@ def run(data_dir, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
         X = X.reshape(X.shape[0], -1)
 
         model = Pipeline([
-            ('pca', PCA(n_components=.95, random_state=7)),
-            ('svc', SVC(kernel='linear', C=1.0, class_weight='balanced', random_state=13, max_iter=10000000)),
-            # ('rf', RandomForestClassifier())
+            ('pca', PCA(n_components=.99, random_state=7)),
+            ('svc', SVC(kernel='rbf', C=1000.0, class_weight='balanced', random_state=13, max_iter=10000000)),
         ])
 
         if grid_searching:
@@ -99,7 +99,11 @@ def run(data_dir, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
             print('training...', end=' ')
             model.fit(X, y)
 
-        print('done -- training score:', model.score(X, y))
+        pca = model.steps[0][1]
+
+        print('done -- training score:', model.score(X, y),
+              'pca components:', pca.n_components_,
+              '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
         print('saving model...', end=' ')
         joblib.dump(model, ckpt_file_name % layer_tag)
         print('done.')
