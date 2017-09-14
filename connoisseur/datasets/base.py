@@ -21,7 +21,8 @@ from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from ..utils.image import img_to_array, load_img, PaintingEnhancer
+from keras.preprocessing.image import img_to_array
+from ..utils.image import load_img, PaintingEnhancer
 
 
 def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),

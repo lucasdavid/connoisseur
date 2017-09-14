@@ -1,4 +1,4 @@
-"""Embed Painting Patches' Gram Matrices.
+"""Embed Painting Patches.
 
 This experiment consists on the following procedures:
 
@@ -13,7 +13,6 @@ Licence: MIT License 2016 (c)
 import os
 import pickle
 
-from keras import backend as K
 from sacred import Experiment
 
 ex = Experiment('3-embed-patches-gram')
@@ -29,25 +28,31 @@ def config():
     image_shape = [256, 256, 3]
     device = "/gpu:0"
     data_dir = "/datasets/vangogh"
+    output_dir = data_dir
     pretrained_weights_path = None
     override = False
+    last_base_layer = None
     use_gram_matrix = False
-    embedded_files_max_size = 10 * 1024 ** 3
-    output_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
+    dense_layers = ()
+    embedded_files_max_size = 20 * 1024 ** 3
+    output_layers = ['mixed4']
+    # ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
 
 
 @ex.automain
-def run(dataset_seed, image_shape, batch_size, device, data_dir,
+def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
         architecture, n_classes, output_layers, pretrained_weights_path, pre_weights,
-        use_gram_matrix,
+        use_gram_matrix, last_base_layer, dense_layers,
         override, embedded_files_max_size):
     import numpy as np
     import tensorflow as tf
     from keras import layers
     from keras.engine import Model
     from keras.preprocessing.image import ImageDataGenerator
+    from keras import backend as K
     from connoisseur.models import build_model
     from connoisseur.utils import gram_matrix
+    from connoisseur.utils.image import DirectoryIterator
 
     if architecture == 'vgg19':
         from keras.applications.vgg19 import preprocess_input
@@ -63,69 +68,78 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir,
         print('building model...')
         # model = build_siamese_model(image_shape, arch=architecture, weights=pre_weights, dropout_p=0)
         model = build_model(image_shape, arch=architecture, weights=pre_weights, dropout_p=0,
-                            classes=n_classes)
+                            classes=n_classes, last_base_layer=last_base_layer,
+                            use_gram_matrix=False, include_top=False,
+                            dense_layers=dense_layers)
 
         if pretrained_weights_path:
             # Restore best parameters.
             print('loading weights from:', pretrained_weights_path)
-            model.load_weights(pretrained_weights_path)
+            model.load_weights(pretrained_weights_path, by_name=True)
 
         # For siamese networks, get only first leg:
         # model = model.layers[2]
         # extract_model = Model(model.get_input_at(0), model.get_layer('flatten').output)
-        
+
         style_features = [model.get_layer(l).output for l in output_layers]
-        
+
         if use_gram_matrix:
             gram_layer = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False))
             style_features = [gram_layer(f) for f in style_features]
-        
+
         extract_models = [Model(model.input, f) for f in style_features]
+
+    all_classes = sorted(os.listdir(os.path.join(data_dir, 'train')))
+    classes = all_classes[:n_classes] if len(all_classes) > n_classes else None
 
     g = ImageDataGenerator(preprocessing_function=preprocess_input)
 
     for phase in ('train', 'valid', 'test'):
         phase_data_dir = os.path.join(data_dir, phase)
-        output_file_name = os.path.join(data_dir, phase + '.%i.pickle')
+        output_file_name = os.path.join(output_dir, phase + '.%i.pickle')
 
         if (os.path.exists(output_file_name % 0) and not override or
                 not os.path.exists(phase_data_dir)):
             print('%s transformation skipped' % phase)
             continue
 
-        data = g.flow_from_directory(
-            phase_data_dir,
-            target_size=image_shape[:2], class_mode='sparse',
-            batch_size=batch_size,
-            # Shuffle must always be off in order to keep names consistent.
-            shuffle=False, seed=dataset_seed)
-
+        # Shuffle must always be off in order to keep names consistent.
+        data = DirectoryIterator(phase_data_dir,
+                                 classes=classes,
+                                 image_data_generator=g,
+                                 target_size=image_shape[:2], class_mode='sparse',
+                                 batch_size=batch_size, shuffle=False, seed=dataset_seed)
         print('transforming %i %s samples' % (data.n, phase))
 
         part_id = 0
         samples_seen = 0
+        displayed_once = False
 
         while samples_seen < data.n:
             Z, y = {n: [] for n in output_layers}, []
             chunk_size = 0
             chunk_start = samples_seen
-            displayed_once = False
 
             while chunk_size < embedded_files_max_size and samples_seen < data.n:
                 _X, _y = next(data)
 
                 for layer, m in zip(output_layers, extract_models):
-                    _Z = m.predict_on_batch(_X)
+                    if not all(image_shape):
+                        # Pass images through 1 by 1 one, as their measurements differ.
+                        _Z = np.concatenate([m.predict_on_batch(x.reshape((1,) + x.shape))
+                                             for x in _X])
+                    else:
+                        _Z = m.predict_on_batch(_X)
                     Z[layer].append(_Z)
 
                 y.append(_y)
                 samples_seen += _Z.shape[0]
-                chunk_percentage = int(100 * (samples_seen / data.n))
+                chunk_p = int(100 * (samples_seen / data.n))
                 chunk_size += _Z.nbytes
 
-                if chunk_percentage % 10 == 0:
+                if chunk_p % 10 == 0:
                     if not displayed_once:
-                        print('%i%% (%.2f MB)...' % (chunk_percentage, chunk_size / 1024 ** 2),
+                        print('%i%% (%.2f MB)...' % (chunk_p, chunk_size / 1024 ** 2),
                               flush=True, end=' ')
                         displayed_once = True
                 else:

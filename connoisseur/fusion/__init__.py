@@ -1,6 +1,3 @@
-from keras.engine import Model
-from sklearn.base import BaseEstimator
-
 from . import strategies
 from .base import SoftMaxFusion, SkLearnFusion, ContrastiveFusion
 

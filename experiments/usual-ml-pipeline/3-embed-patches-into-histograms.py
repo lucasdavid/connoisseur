@@ -38,7 +38,7 @@ def config():
 
 def load_data(directory):
     X, y, names = [], [], []
-    labels = os.listdir(directory)
+    labels = sorted(os.listdir(directory))
 
     if not labels:
         raise ValueError('No labels detected. Perhaps the pointed directory is wrong: %s'

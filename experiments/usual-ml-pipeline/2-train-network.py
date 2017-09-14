@@ -29,6 +29,7 @@ def config():
     last_base_layer = None
     use_gram_matrix = False
     dense_layers = (2048, 2048)
+    pooling = 'avg'
     train_shuffle = True
     dataset_train_seed = 12
     valid_shuffle = True
@@ -55,7 +56,7 @@ def config():
 @ex.automain
 def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         n_classes,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, dense_layers,
+        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
         device, opt_params, dropout_p, resuming, ckpt_file, steps_per_epoch,
         nb_epoch, validation_steps, nb_worker, initial_epoch, early_stop_patience,
         tensorboard_file, first_trainable_layer, first_reset_layer):
@@ -106,7 +107,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
         print('building...')
         model = build_model(image_shape, arch=architecture, weights=weights, dropout_p=dropout_p,
                             classes=n_classes, last_base_layer=last_base_layer,
-                            use_gram_matrix=use_gram_matrix,
+                            use_gram_matrix=use_gram_matrix, pooling=pooling,
                             dense_layers=dense_layers)
 
         layer_names = [l.name for l in model.layers]

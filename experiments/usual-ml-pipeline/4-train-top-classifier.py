@@ -85,8 +85,7 @@ def run(data_dir, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
 
         model = Pipeline([
             ('pca', PCA(n_components=.95, random_state=7)),
-            ('svc', SVC(kernel='linear', C=1.0, class_weight='balanced', random_state=13, max_iter=10000000)),
-            # ('rf', RandomForestClassifier())
+            ('svc', SVC(kernel='rbf', C=1.0, class_weight='balanced', random_state=13, max_iter=10000000)),
         ])
 
         if grid_searching:

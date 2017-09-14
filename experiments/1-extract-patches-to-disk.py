@@ -33,7 +33,7 @@ def config():
     preparing = True
     pool_size = 4
     patches_saving_mode = 'random'
-    device = '/gpu:0'
+    device = '/cpu:0'
 
 
 @ex.automain
@@ -42,6 +42,7 @@ def run(dataset_name, dataset_seed, classes, image_shape, data_dir,
         train_n_patches, valid_n_patches, test_n_patches,
         patches_saving_mode, valid_size, n_jobs, pool_size, device):
     from PIL import ImageFile
+
     import tensorflow as tf
     from connoisseur import datasets
 

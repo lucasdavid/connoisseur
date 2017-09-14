@@ -12,6 +12,10 @@ def gram_matrix(x, norm_by_channels=False):
     """
     Returns the Gram matrix of the tensor x.
     """
+    if K.ndim(x) == 2:
+        # Flatten batches are up-sampled again.
+        x = K.expand_dims(K.expand_dims(x, 1), 1)
+
     if K.ndim(x) == 3:
         features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
         shape = K.shape(x)
