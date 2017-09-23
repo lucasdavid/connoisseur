@@ -123,8 +123,6 @@ def main(data_dir, dataset_train_seed, dataset_valid_seed, batch_size, style_lay
         ia = Input(input_shape)
         ib = Input(input_shape)
 
-        siamese_models = []
-
         for m_id, l in enumerate(style_layers):
             y = base_model.get_layer(l).output
             # n_kernels = K.get_variable_shape(y)[-1]

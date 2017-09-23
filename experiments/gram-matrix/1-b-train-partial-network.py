@@ -54,7 +54,8 @@ def contrastive_loss(y_true, y_pred):
 def create_pairs(x, indices):
     pairs = []
     labels = []
-    n = round(sum([len(indices[d]) for d in range(len(indices))]) / len(indices))
+    # n = round(sum([len(indices[d]) for d in range(len(indices))]) / len(indices))
+    n = max(map(len, indices))
     for d in range(len(indices)):
         count = len(indices[d])
         if not count: continue
@@ -102,7 +103,7 @@ def main(data_dir, batch_size, style_layers, n_classes,
             data = load_pickle_data(data_dir, phases=('train', 'valid'),
                                     layers=[layer_tag], classes=n_classes)
             x, y, _ = data['train']
-            xv, y_valid, _ = data['valid']
+            xv, yv, _ = data['valid']
             x, xv = x[layer_tag], xv[layer_tag]
             x, xv = x.reshape(x.shape[0], -1), xv.reshape(xv.shape[0], -1)
 
@@ -113,63 +114,73 @@ def main(data_dir, batch_size, style_layers, n_classes,
             input_shape = x.shape[1:]
             print('input shape:', input_shape)
 
-            labels = np.unique(y)
-            tr_indices = [np.where(y == l)[0] for l in labels]
-            vl_indices = [np.where(y_valid == l)[0] for l in labels]
+            # labels = np.unique(y)
+            # tr_indices = [np.where(y == l)[0] for l in labels]
+            # vl_indices = [np.where(yv == l)[0] for l in labels]
+            #
+            # x, y = create_pairs(x, tr_indices)
+            # xv, yv = create_pairs(xv, vl_indices)
 
-            tr_pairs, tr_y = create_pairs(x, tr_indices)
-            vl_pairs, vl_y = create_pairs(xv, vl_indices)
+            p = np.random.permutation(np.arange(x.shape[0]))
+            x, y = x[p], y[p]
+            del p
 
-            # y = to_categorical(y, num_classes=n_classes)
-            # y_valid = to_categorical(y_valid, num_classes=n_classes)
+            y = to_categorical(y, num_classes=n_classes)
+            yv = to_categorical(yv, num_classes=n_classes)
 
             # *** Softmax classifier ***
             # m = create_base_network(input_shape)
-            # n = layers.Dense(n_classes, activation='softmax')(m.output)
-            # m = Model(inputs=m.input, outputs=n)
+            i = Input(input_shape)
+            n = layers.Dense(n_classes, activation='softmax')(i)
+            m = Model(inputs=i, outputs=n)
 
             # *** Siamese distance regressor ***
-            a = Input(input_shape)
-            b = Input(input_shape)
+            # a = Input(input_shape)
+            # b = Input(input_shape)
+            #
+            # m = create_base_network(input_shape)
+            # ya = m(a)
+            # yb = m(b)
+            #
+            # n = layers.Lambda(euclidean_distance,
+            #                   output_shape=lambda x: (x[0][0], 1))([ya, yb])
+            # n = layers.BatchNormalization()(n)
+            # n = layers.Dense(1, activation='sigmoid')(n)
+            # m = Model(inputs=[a, b], outputs=n)
 
-            m = create_base_network(input_shape)
-            ya = m(a)
-            yb = m(b)
-
-            n = layers.Lambda(euclidean_distance,
-                              output_shape=lambda x: (x[0][0], 1))([ya, yb])
-            m = Model(inputs=[a, b], outputs=n)
-
-            m.compile(optimizer=optimizers.SGD(),
-                      loss=contrastive_loss)
+            m.compile(optimizer=optimizers.Adam(**opt_params),
+                      loss='categorical_crossentropy',
+                      metrics=['accuracy'])
 
             print('training model #%i from epoch %i' % (m_id, initial_epoch))
 
             try:
-                m.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
-                      batch_size=batch_size, epochs=epochs,
-                      verbose=1, initial_epoch=initial_epoch,
-                      validation_data=([vl_pairs[:, 0], vl_pairs[:, 1]], vl_y),
-                      callbacks=[
-                          # callbacks.LearningRateScheduler(lambda epoch: .5 ** (epoch // 10) * opt_params['lr']),
-                          callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
-                          callbacks.EarlyStopping(patience=early_stop_patience),
-                          callbacks.TensorBoard(tensorboard_file, histogram_freq=1, write_grads=True),
-                          callbacks.ModelCheckpoint(ckpt_file % {'id': m_id}, save_best_only=True, verbose=1),
-                      ])
+                m.fit(
+                    x, y,
+                    # [x[:, 0], x[:, 1]], y,
+                    batch_size=batch_size, epochs=epochs,
+                    verbose=1, initial_epoch=initial_epoch,
+                    validation_data=(xv, yv),  # ([xv[:, 0], xv[:, 1]], yv),
+                    callbacks=[
+                        # callbacks.LearningRateScheduler(lambda epoch: .5 ** (epoch // 10) * opt_params['lr']),
+                        callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
+                        callbacks.EarlyStopping(patience=early_stop_patience),
+                        callbacks.TensorBoard(tensorboard_file, histogram_freq=1, write_grads=True),
+                        callbacks.ModelCheckpoint(ckpt_file % {'id': m_id}, save_best_only=True, verbose=1),
+                    ])
 
             except KeyboardInterrupt:
                 print('interrupted by user')
             else:
                 print('done')
 
+            # compute final accuracy on training and test sets
+            # pred = m.predict([x[:, 0], x[:, 1]])
+            # tr_acc = compute_accuracy(pred, y)
+            # pred = m.predict([xv[:, 0], xv[:, 1]])
+            # te_acc = compute_accuracy(pred, yv)
+            # print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
+            # print('* Accuracy on test set: %0.2f%%' % (100 * te_acc))
+
             del n, m
             K.clear_session()
-
-            # compute final accuracy on training and test sets
-            pred = m.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
-            tr_acc = compute_accuracy(pred, tr_y)
-            pred = m.predict([vl_pairs[:, 0], vl_pairs[:, 1]])
-            te_acc = compute_accuracy(pred, vl_y)
-            print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
-            print('* Accuracy on test set: %0.2f%%' % (100 * te_acc))

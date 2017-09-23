@@ -26,7 +26,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from connoisseur.utils.image import load_img, img_to_array
 
-ex = Experiment('3-embed-patches-into-histograms')
+ex = Experiment('embed-patches-into-histograms')
 
 
 @ex.config

@@ -1,12 +1,10 @@
-import abc
-
 import numpy as np
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import ClassifierMixin
 
 from . import strategies
 
 
-class Fusion(ClassifierMixin, BaseEstimator, metaclass=abc.ABCMeta):
+class Fusion(ClassifierMixin):
     """Classification Fusion Base Class.
 
     This meta-classifier predicts data in the format
@@ -16,83 +14,38 @@ class Fusion(ClassifierMixin, BaseEstimator, metaclass=abc.ABCMeta):
 
     Parameters
     ----------
-    estimator: machine learning model
-        A Keras' model or a classifier from scikit-learn.
-    strategy: str, optional (default 'sum') {'sum', 'farthest', 'most_frequent'}
-        sum : the probabilities for reach patch are added. Wins the class that
-              occurred with most strength among all patches of a sample.
-        farthest : the patch containing the highest probability (trust)
-                   for one given class is selected.
-        most_frequent : select the most frequent class among the patches
-                        of the image.
-
+    strategy: a function defined in connoisseur.fusion.strategies
     """
 
-    def __init__(self, estimator, strategy=strategies.sum):
-        self.estimator = estimator
+    def __init__(self, strategy=strategies.sum, multi_class=True):
         self.strategy = strategy
+        self.multi_class = multi_class
 
-    def fit(self, X, y, **fit_params):
-        return self.estimator.fit(X, y, **fit_params)
+    def predict(self, probabilities=None, hyperplane_distance=None, labels=None):
+        """Predict the class for each sample.
 
-    def predict(self, X):
-        raise NotImplementedError
-
-    def _reduce_rank(self, probabilities, labels):
-        if len(probabilities.shape) == 3 and probabilities.shape[-1] == 1:
-            probabilities = probabilities.reshape(probabilities.shape[:-1])
-        if len(labels.shape) == 3 and labels.shape[-1] == 1:
-            labels = labels.reshape(labels.shape[:-1])
-
-        return probabilities, labels
-
-
-class SkLearnFusion(Fusion):
-    def predict(self, X):
-        """Predict the class for each sample in X.
-
-        :param X: list, shaped as (paintings, patches, features).
+        :param probabilities: array-like, shaped as (paintings, patches, labels).
+        :param hyperplane_distance: array-like, shaped as (paintings, patches, 1).
+        :param labels: array-like, shaped as (paintings, patches).
         :return: y, predicted labels, according to a fusion strategy.
         """
-        Z = X.reshape((-1,) + X.shape[2:])
+        assert probabilities is not None or all(x is not None for x in (labels, hyperplane_distance))
 
-        try:
-            probabilities = self.estimator.predict_proba(Z)
-            multi_class = True
-        except AttributeError:
-            probabilities = self.estimator.decision_function(Z)
-            multi_class = len(self.estimator.classes_) > 2
+        if labels is None:
+            labels = np.argmax(probabilities, axis=-1)
 
-        probabilities = probabilities.reshape(X.shape[:2] + (-1,))
+        if probabilities is None:
+            # The same operations are applied to these two measures. We can
+            # therefore join them and simplify the equations ahead.
+            probabilities = hyperplane_distance
 
-        labels = (self.estimator
-                  .predict(X.reshape((-1,) + X.shape[2:]))
-                  .astype(np.int)
-                  .reshape(X.shape[:2] + (-1,)))
-
-        probabilities, labels = self._reduce_rank(probabilities, labels)
-        return self.strategy(labels, probabilities, multi_class=multi_class)
-
-
-class SoftMaxFusion(Fusion):
-    def predict(self, X):
-        """Predict the class for each sample in X.
-
-        :param X: list, shaped as (paintings, patches, features).
-        :return: y, predicted labels, according to a fusion strategy.
-        """
-        probabilities = self.estimator.predict(X.reshape((-1,) + X.shape[2:]))
-        labels = np.argmax(probabilities, axis=-1)
-        labels = labels.reshape(X.shape[:2] + (-1,))
-        probabilities = probabilities.reshape(X.shape[:2] + (-1,))
-
-        probabilities, labels = self._reduce_rank(probabilities, labels)
-        return self.strategy(labels, probabilities, multi_class=True)
+        return self.strategy(labels, probabilities, multi_class=self.multi_class)
 
 
 class ContrastiveFusion(Fusion):
     def __init__(self, estimator, strategy='sum'):
-        super().__init__(estimator=estimator, strategy=strategy)
+        super().__init__(strategy=strategy, multi_class=False)
+        self.estimator = estimator
         assert self.strategy in (strategies.contrastive_mean,
                                  strategies.most_frequent), \
             ('ContrastiveFusion only accept contrastive_mean and '

@@ -15,35 +15,34 @@ import pickle
 
 from sacred import Experiment
 
-ex = Experiment('3-embed-patches-gram')
+ex = Experiment('embed-patches')
 
 
 @ex.config
 def config():
     dataset_seed = 4
     batch_size = 128
-    architecture = 'vgg19'
-    n_classes = 2
-    pre_weights = 'imagenet'
-    image_shape = [256, 256, 3]
+    architecture = 'InceptionV3'
+    n_classes = None
+    weights = 'imagenet'
+    image_shape = (224, 224, 3)
     device = "/gpu:0"
     data_dir = "/datasets/vangogh"
     output_dir = data_dir
-    pretrained_weights_path = None
+    phases = ['train', 'valid', 'test']
+    ckpt_file = './ckpt/params.h5'
     override = False
     last_base_layer = None
     use_gram_matrix = False
-    dense_layers = ()
     embedded_files_max_size = 20 * 1024 ** 3
     output_layers = ['mixed4']
     # ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
 
 
 @ex.automain
-def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
-        architecture, n_classes, output_layers, pretrained_weights_path, pre_weights,
-        use_gram_matrix, last_base_layer, dense_layers,
-        override, embedded_files_max_size):
+def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir, phases,
+        architecture, n_classes, output_layers, ckpt_file, weights,
+        use_gram_matrix, last_base_layer, override, embedded_files_max_size):
     import numpy as np
     import tensorflow as tf
     from keras import layers
@@ -51,35 +50,34 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
     from keras.preprocessing.image import ImageDataGenerator
     from keras import backend as K
     from connoisseur.models import build_model
-    from connoisseur.utils import gram_matrix
+    from connoisseur.utils import gram_matrix, get_preprocess_fn
     from connoisseur.utils.image import DirectoryIterator
-
-    if architecture == 'vgg19':
-        from keras.applications.vgg19 import preprocess_input
-    else:
-        from keras.applications.inception_v3 import preprocess_input
 
     tf_config = tf.ConfigProto(allow_soft_placement=True)
     tf_config.gpu_options.allow_growth = True
     s = tf.Session(config=tf_config)
     K.set_session(s)
+    os.makedirs(output_dir, exist_ok=True)
 
     with tf.device(device):
         print('building model...')
-        # model = build_siamese_model(image_shape, arch=architecture, weights=pre_weights, dropout_p=0)
-        model = build_model(image_shape, arch=architecture, weights=pre_weights, dropout_p=0,
+        # model = build_siamese_model(image_shape, arch=architecture, weights=weights, dropout_p=0)
+        model = build_model(tuple(image_shape), architecture=architecture, weights=weights, dropout_p=0,
                             classes=n_classes, last_base_layer=last_base_layer,
-                            use_gram_matrix=False, include_top=False,
-                            dense_layers=dense_layers)
+                            use_gram_matrix=False, include_base_top=True, include_top=False,
+                            dense_layers=())
 
-        if pretrained_weights_path:
+        if ckpt_file:
             # Restore best parameters.
-            print('loading weights from:', pretrained_weights_path)
-            model.load_weights(pretrained_weights_path, by_name=True)
+            print('loading weights from:', ckpt_file)
+            model.load_weights(ckpt_file, by_name=True)
 
         # For siamese networks, get only first leg:
         # model = model.layers[2]
         # extract_model = Model(model.get_input_at(0), model.get_layer('flatten').output)
+
+        print('available layers:', [l.name for l in model.layers])
+        print('selected:', output_layers)
 
         style_features = [model.get_layer(l).output for l in output_layers]
 
@@ -90,16 +88,17 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
         extract_models = [Model(model.input, f) for f in style_features]
 
     all_classes = sorted(os.listdir(os.path.join(data_dir, 'train')))
-    classes = all_classes[:n_classes] if len(all_classes) > n_classes else None
+    classes = all_classes[:n_classes] if n_classes else None
+
+    preprocess_input = get_preprocess_fn(architecture)
 
     g = ImageDataGenerator(preprocessing_function=preprocess_input)
 
-    for phase in ('train', 'valid', 'test'):
+    for phase in phases:
         phase_data_dir = os.path.join(data_dir, phase)
         output_file_name = os.path.join(output_dir, phase + '.%i.pickle')
 
-        if (os.path.exists(output_file_name % 0) and not override or
-                not os.path.exists(phase_data_dir)):
+        if os.path.exists(output_file_name % 0) and not override or not os.path.exists(phase_data_dir):
             print('%s transformation skipped' % phase)
             continue
 
@@ -116,26 +115,21 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
         displayed_once = False
 
         while samples_seen < data.n:
-            Z, y = {n: [] for n in output_layers}, []
+            z, y = {n: [] for n in output_layers}, []
             chunk_size = 0
             chunk_start = samples_seen
 
             while chunk_size < embedded_files_max_size and samples_seen < data.n:
-                _X, _y = next(data)
+                _x, _y = next(data)
 
                 for layer, m in zip(output_layers, extract_models):
-                    if not all(image_shape):
-                        # Pass images through 1 by 1 one, as their measurements differ.
-                        _Z = np.concatenate([m.predict_on_batch(x.reshape((1,) + x.shape))
-                                             for x in _X])
-                    else:
-                        _Z = m.predict_on_batch(_X)
-                    Z[layer].append(_Z)
+                    _z = m.predict_on_batch(_x)
+                    z[layer].append(_z)
+                    chunk_size += _z.nbytes
 
                 y.append(_y)
-                samples_seen += _Z.shape[0]
+                samples_seen += _x.shape[0]
                 chunk_p = int(100 * (samples_seen / data.n))
-                chunk_size += _Z.nbytes
 
                 if chunk_p % 10 == 0:
                     if not displayed_once:
@@ -146,10 +140,10 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
                     displayed_once = False
 
             for layer in output_layers:
-                Z[layer] = np.concatenate(Z[layer])
+                z[layer] = np.concatenate(z[layer])
 
             with open(output_file_name % part_id, 'wb') as f:
-                pickle.dump({'data': Z,
+                pickle.dump({'data': z,
                              'target': np.concatenate(y),
                              'names': np.array(data.filenames[chunk_start: samples_seen], copy=False)},
                             f, pickle.HIGHEST_PROTOCOL)

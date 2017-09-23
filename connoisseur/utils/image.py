@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
-import math
 
 import numpy as np
 from keras import backend as K
@@ -62,9 +61,9 @@ def load_img(path, grayscale=False, target_size=None, extraction_method='resize'
 
 class DirectoryIterator(keras_image.DirectoryIterator):
     def __init__(self, *args, extraction_method='resize', enhancer=None, **kwargs):
+        super(DirectoryIterator, self).__init__(*args, **kwargs)
         self.extraction_method = extraction_method
         self.enhancer = enhancer or PaintingEnhancer(augmentations=())
-        super(DirectoryIterator, self).__init__(*args, **kwargs)
 
     def next(self):
         """For python 2.x.
@@ -118,46 +117,11 @@ class DirectoryIterator(keras_image.DirectoryIterator):
 
 
 class PairsDirectoryIterator(DirectoryIterator):
-    def __init__(self, *args,
-                #  anchor_label=1, balance_labels=False,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        # self.anchor_label = anchor_label
-        # self.balance_labels = balance_labels
-
     def next(self):
         batch_x, batch_y = super().next()
         batch_size = batch_x.shape[0]
 
         if self.class_mode == 'categorical':
-            batch_y = np.argmax(batch_y, axis=-1)
-
-        # samples0, = np.where(batch_y != self.anchor_label)
-        # samples1, = np.where(batch_y == self.anchor_label)
-
-        # if not self.balance_labels or not len(samples0) or not len(samples1):
-            # Random pairs combination.
-        c = np.random.randint(0, batch_size, size=(2, batch_size))
-        # else:
-            # c0 = np.hstack((
-            #     np.random.choice(samples1, size=(math.floor(batch_size / 2), 1)),
-            #     np.random.choice(samples0, size=(math.floor(batch_size / 2), 1))))
-            # c1 = np.random.choice(samples1, size=(math.ceil(batch_size / 2), 2))
-            # c = np.vstack((c0, c1)).T
-
-        pairs_x = batch_x[c]
-        pairs_y = batch_y[c]
-        pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
-
-        return list(pairs_x), pairs_y
-
-
-class PairsNumpyArrayIterator(keras_image.NumpyArrayIterator):
-    def next(self):
-        batch_x, batch_y = super().next()
-        batch_size = batch_x.shape[0]
-
-        if len(batch_y.shape) > 1:
             batch_y = np.argmax(batch_y, axis=-1)
 
         c = np.random.randint(0, batch_size, size=(2, batch_size))

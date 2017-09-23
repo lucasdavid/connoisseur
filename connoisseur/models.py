@@ -1,40 +1,34 @@
 from keras import (applications, engine, layers, models, regularizers,
                    backend as K)
-from keras.layers import GlobalAveragePooling2D
 
 from .utils import euclidean, gram_matrix
 
 
 def build_model(image_shape, arch='inception', dropout_p=.5, weights='imagenet',
                 classes=1000, last_base_layer=None, use_gram_matrix=False,
-                dense_layers=(), pooling='avg', include_top=True):
+                dense_layers=()):
     assert arch in ('inception', 'inejc', 'vgg19')
 
-    base_model = globals()['_arch_%s' % arch](image_shape, weights=weights, dropout_p=dropout_p,
-                                              pooling=pooling)
+    base_model = globals()['_arch_%s' % arch](image_shape, weights=weights, dropout_p=dropout_p)
     x = (base_model.get_layer(last_base_layer).output
          if last_base_layer
          else base_model.output)
 
     if use_gram_matrix:
-        sizes = K.get_variable_shape(x)
-        k = sizes[-1]
+        k = K.get_variable_shape(x)[-1]
         x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
                           output_shape=[k, k])(x)
 
-    if K.ndim(x) > 2:
-        x = layers.Flatten(name='flatten')(x)
+    x = layers.Flatten(name='flatten')(x)
 
-    if include_top:
-        print('feature extraction network\'s output shape:', K.get_variable_shape(x))
+    print('feature extraction network\'s output shape:', K.get_variable_shape(x))
 
-        for n_units in dense_layers:
-            print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
-            x = layers.Dense(n_units, activation='relu')(x)
-            x = layers.Dropout(dropout_p)(x)
+    for n_units in dense_layers:
+        print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
+        x = layers.Dense(n_units, activation='relu')(x)
+        x = layers.Dropout(dropout_p)(x)
 
-        x = layers.Dense(classes, activation='softmax', name='predictions')(x)
-
+    x = layers.Dense(classes, activation='softmax', name='predictions')(x)
     return engine.Model(base_model.input, x)
 
 
@@ -59,17 +53,17 @@ def build_siamese_model(x_shape, arch='inception', dropout_p=.5, weights='imagen
     return model
 
 
-def _arch_inception(input_shape, weights='imagenet', dropout_p=.5, pooling=None):
+def _arch_inception(input_shape, weights='imagenet', dropout_p=.5):
     return applications.InceptionV3(input_shape=input_shape, weights=weights,
-                                    include_top=False, pooling=pooling)
+                                    include_top=False)
 
 
-def _arch_vgg19(input_shape, weights='imagenet', dropout_p=.5, pooling=None):
+def _arch_vgg19(input_shape, weights='imagenet', dropout_p=.5):
     return applications.VGG19(input_shape=input_shape, weights=weights,
-                              include_top=False, pooling=pooling)
+                              include_top=False)
 
 
-def _arch_inejc(batch_shape, weights=None, dropout_p=.5, pooling=None):
+def _arch_inejc(batch_shape, weights=None, dropout_p=.5):
     weights_init_fn = 'he_normal'
 
     model = models.Sequential()
@@ -126,12 +120,6 @@ def _arch_inejc(batch_shape, weights=None, dropout_p=.5, pooling=None):
     model.add(layers.PReLU(init=weights_init_fn))
     model.add(layers.MaxPooling2D(pool_size=(2, 2)))
     model.add(layers.Dropout(p=dropout_p))
-
-    if pooling == 'avg':
-        model.add(layers.GlobalAveragePooling2D())
-    elif pooling == 'max':
-        model.add(layers.GlobalMaxPooling2D())
-
     return model
 
 

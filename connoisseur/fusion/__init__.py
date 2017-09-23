@@ -1,6 +1,5 @@
 from . import strategies
-from .base import SoftMaxFusion, SkLearnFusion, ContrastiveFusion
+from .base import Fusion, ContrastiveFusion
 
 
-__all__ = ['SoftMaxFusion', 'SkLearnFusion', 'ContrastiveFusion',
-           'strategies']
+__all__ = ['Fusion', 'ContrastiveFusion', 'strategies']

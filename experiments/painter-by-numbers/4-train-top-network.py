@@ -1,11 +1,4 @@
-"""Transfer and/or fine-tune models on a dataset.
-
-Uses an architecture to train over a dataset.
-Image patches are loaded directly from the disk.
-
-Note: if you want to check the transfer learning results out, you may skip
-this script and go straight ahead to "3-embed-patches.py".
-However, make sure you are passing `pre_weights="imagenet"`.
+"""Train a network on top of the network trained on Painters-by-numbers.
 
 Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
@@ -17,7 +10,7 @@ from math import ceil
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
-ex = Experiment('train-network')
+ex = Experiment('train-top-network')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
 
@@ -43,18 +36,17 @@ def config():
 
     opt_params = {'lr': .001}
     dropout_p = 0.2
-    ckpt_file = './ckpt/pbn,all-classes-,all-patches,inception.hdf5'
-    resuming_from_ckpt_file = ckpt_file
-    epochs = 500
+    ckpt = './ckpt/pbn_inception_dense3_sigmoid.hdf5'
+    resuming_from_base_ckpt = ckpt
+    epochs = 100
     steps_per_epoch = None
     validation_steps = None
     workers = 8
     use_multiprocessing = False
     initial_epoch = 0
     early_stop_patience = 30
-    tensorboard_file = './logs/2-train-network/pbn,all-classes,all-patches,%s' % architecture
-    first_trainable_layer = None
-    first_reset_layer = None
+    tensorboard_file = './logs/2-train-top-network/'
+    trainable_base_model = False
     class_weight = 'balanced'
 
 
@@ -67,23 +59,26 @@ def get_class_weights(y):
 @ex.automain
 def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
-        device, opt_params, dropout_p, resuming_from_ckpt_file, ckpt_file, steps_per_epoch,
+        architecture, weights, batch_size, last_base_layer, pooling,
+        device, opt_params, dropout_p, resuming_from_base_ckpt, ckpt, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
-        tensorboard_file, first_trainable_layer, first_reset_layer, class_weight):
+        use_gram_matrix, dense_layers,
+        tensorboard_file, trainable_base_model, class_weight):
     import os
 
     import tensorflow as tf
     from PIL import ImageFile
-    from keras import callbacks, optimizers, backend as K
+    from keras import Input, layers, callbacks, optimizers, backend as K
+    from keras.engine import Model
     from keras.preprocessing.image import ImageDataGenerator
 
     from connoisseur.models import build_model
     from connoisseur.utils import get_preprocess_fn
+    from connoisseur.utils.image import PairsDirectoryIterator
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-    os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
+    os.makedirs(os.path.dirname(ckpt), exist_ok=True)
     tf.logging.set_verbosity(tf.logging.ERROR)
     tf_config = tf.ConfigProto(allow_soft_placement=True)
     tf_config.gpu_options.allow_growth = True
@@ -102,13 +97,13 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
         fill_mode='reflect',
         preprocessing_function=preprocess_input)
 
-    train_data = g.flow_from_directory(
-        os.path.join(data_dir, 'train'),
+    train_data = PairsDirectoryIterator(
+        os.path.join(data_dir, 'train'), g,
         target_size=image_shape[:2], classes=classes,
         batch_size=batch_size, shuffle=train_shuffle, seed=dataset_train_seed)
 
-    valid_data = g.flow_from_directory(
-        os.path.join(data_dir, 'valid'),
+    valid_data = PairsDirectoryIterator(
+        os.path.join(data_dir, 'valid'), g,
         target_size=image_shape[:2], classes=classes,
         batch_size=batch_size, shuffle=valid_shuffle, seed=dataset_valid_seed)
 
@@ -122,53 +117,32 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
 
     with tf.device(device):
         print('building...')
-        model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
-                            classes=train_data.num_class, last_base_layer=last_base_layer,
-                            use_gram_matrix=use_gram_matrix, pooling=pooling,
-                            dense_layers=dense_layers)
+        ia, ib = Input(shape=image_shape), Input(shape=image_shape)
+        base_model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
+                                 classes=train_data.num_class, last_base_layer=last_base_layer,
+                                 use_gram_matrix=use_gram_matrix, pooling=pooling,
+                                 dense_layers=dense_layers)
+        base_model.trainable = trainable_base_model
 
-        layer_names = [l.name for l in model.layers]
+        ya = base_model(ia)
+        yb = base_model(ib)
 
-        if first_trainable_layer:
-            if first_trainable_layer not in layer_names:
-                raise ValueError('%s is not a layer in the model: %s'
-                                 % (first_trainable_layer, layer_names))
+        x = layers.multiply([ya, yb])
+        x = layers.Dense(2018, activation='relu')(x)
+        x = layers.Dropout(dropout_p)(x)
+        x = layers.Dense(2018, activation='relu')(x)
+        x = layers.Dropout(dropout_p)(x)
+        x = layers.Dense(1, activation='sigmoid')(x)
 
-            _trainable = False
-            for layer in model.layers:
-                if layer.name == first_trainable_layer:
-                    _trainable = True
-                layer.trainable = _trainable
-            del _trainable
+        model = Model(inputs=[ia, ib], outputs=x)
+
+        if resuming_from_base_ckpt:
+            print('re-loading weights...')
+            model.load_weights(resuming_from_base_ckpt, by_name=True)
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
                       metrics=['accuracy'],
-                      loss='categorical_crossentropy')
-
-        if resuming_from_ckpt_file:
-            print('re-loading weights...')
-            model.load_weights(resuming_from_ckpt_file)
-
-        if first_reset_layer:
-            if first_reset_layer not in layer_names:
-                raise ValueError('%s is not a layer in the model: %s'
-                                 % (first_reset_layer, layer_names))
-            print('first layer to have its weights reset:', first_reset_layer)
-            random_model = build_model(image_shape, architecture=architecture, weights=None, dropout_p=dropout_p,
-                                       classes=train_data.num_class, last_base_layer=last_base_layer,
-                                       use_gram_matrix=use_gram_matrix,
-                                       dense_layers=dense_layers)
-            _reset = False
-            for layer, random_layer in zip(model.layers, random_model.layers):
-                if layer.name == first_reset_layer:
-                    _reset = True
-                if _reset:
-                    layer.set_weights(random_layer.get_weights())
-            del random_model
-
-            model.compile(optimizer=optimizers.Adam(**opt_params),
-                          metrics=['accuracy'],
-                          loss='categorical_crossentropy')
+                      loss='binary_crossentropy')
 
         print('training from epoch %i...' % initial_epoch)
         try:
@@ -183,7 +157,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
                     callbacks.EarlyStopping(patience=early_stop_patience),
                     callbacks.TensorBoard(tensorboard_file, batch_size=batch_size),
-                    callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
+                    callbacks.ModelCheckpoint(ckpt, save_best_only=True, save_weights_only=True, verbose=1),
                 ])
 
         except KeyboardInterrupt:

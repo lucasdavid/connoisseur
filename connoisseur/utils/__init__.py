@@ -1,6 +1,10 @@
-from . import image
+import matplotlib
 
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from keras import backend as K
+
+from . import image
 
 
 def euclidean(vectors):
@@ -12,10 +16,6 @@ def gram_matrix(x, norm_by_channels=False):
     """
     Returns the Gram matrix of the tensor x.
     """
-    if K.ndim(x) == 2:
-        # Flatten batches are up-sampled again.
-        x = K.expand_dims(K.expand_dims(x, 1), 1)
-
     if K.ndim(x) == 3:
         features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
         shape = K.shape(x)
@@ -42,9 +42,28 @@ def gram_matrix(x, norm_by_channels=False):
     return gram
 
 
-def get_style_features(out_dict, layer_names, norm_by_channels=False):
-    features = []
-    for l in layer_names:
-        x = out_dict[l]
-        features.append((x))
-    return features
+def get_preprocess_fn(architecture):
+    # get appropriate pre-process function
+    if architecture == 'InceptionV3':
+        from keras.applications.inception_v3 import preprocess_input
+    elif architecture == 'Xception':
+        from keras.applications.xception import preprocess_input
+    elif 'densenet' in architecture.lower():
+        from keras_contrib.applications.densenet import preprocess_input
+    else:
+        from keras.applications.imagenet_utils import preprocess_input
+
+    return preprocess_input
+
+
+def plot_confusion_matrix(cm, labels, name='cm.jpg', **kwargs):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(cm, **kwargs)
+    plt.title('Confusion matrix of the classifier')
+    fig.colorbar(cax)
+    ax.set_xticklabels([''] + labels)
+    ax.set_yticklabels([''] + labels)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    fig.savefig(name)

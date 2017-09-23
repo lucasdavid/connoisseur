@@ -23,29 +23,27 @@ class PainterByNumbers(DataSet):
     def prepare(self, override=False):
         print('preparing PainterByNumbers...')
 
-        warning('up to this point, PainterByNumbers#prepare() only prepares train data')
-
         base_dir = self.full_data_path
 
-        file_name = os.path.join(base_dir, 'train_info.csv')
+        fn = os.path.join(base_dir, 'train_info.csv')
 
-        frame = pd.read_csv(file_name, quotechar='"', delimiter=',')
+        frame = pd.read_csv(fn, quotechar='"', delimiter=',')
         self.feature_names_ = frame.columns.values
         data = frame.values
 
-        for painting in data:
-            file_name, artist = painting[:2]
-
-            phase = 'train'
-            src = os.path.join(base_dir, phase, file_name)
-            os.makedirs(os.path.join(base_dir, phase, artist), exist_ok=True)
-
-            dst = os.path.join(base_dir, phase, artist, file_name)
-
+        for sample in data:
+            fn, label = sample[:2]
+            os.makedirs(os.path.join(base_dir, 'train', label), exist_ok=True)
             try:
-                shutil.move(src, dst)
+                shutil.move(os.path.join(base_dir, 'train', fn),
+                            os.path.join(base_dir, 'train', label, fn))
             except FileNotFoundError:
                 # Already moved. Ignore.
-                warning('%s not found' % src)
+                pass
 
+        os.makedirs(os.path.join(base_dir, 'test', 'unknown'), exist_ok=True)
+        for sample in os.listdir(os.path.join(base_dir, 'test')):
+            if os.path.isfile(os.path.join(base_dir, 'test', sample)):
+                shutil.move(os.path.join(base_dir, 'test', sample),
+                            os.path.join(base_dir, 'test', 'unknown', sample))
         return self

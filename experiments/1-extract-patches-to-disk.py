@@ -13,7 +13,7 @@ Licence: MIT License 2016 (c)
 
 from sacred import Experiment
 
-ex = Experiment('1-extract-patches-to-disk')
+ex = Experiment('extract-patches-to-disk')
 
 
 @ex.config
@@ -23,7 +23,8 @@ def config():
     image_shape = [256, 256, 3]
     n_jobs = 2
     dataset_name = 'VanGogh'
-    data_dir = "/home/ldavid/datasets/vangogh"
+    data_dir = "/datasets/vangogh"
+    saving_directory = '/datasets/vangogh/patches/'
     valid_size = .1
     train_n_patches = 50
     valid_n_patches = 50
@@ -33,13 +34,12 @@ def config():
     preparing = True
     pool_size = 4
     patches_saving_mode = 'random'
-    device = '/cpu:0'
+    device = '/gpu:0'
 
 
 @ex.automain
-def run(dataset_name, dataset_seed, classes, image_shape, data_dir,
-        downloading, extracting, preparing,
-        train_n_patches, valid_n_patches, test_n_patches,
+def run(dataset_name, dataset_seed, classes, image_shape, data_dir, saving_directory,
+        downloading, extracting, preparing, train_n_patches, valid_n_patches, test_n_patches,
         patches_saving_mode, valid_size, n_jobs, pool_size, device):
     from PIL import ImageFile
 
@@ -66,5 +66,6 @@ def run(dataset_name, dataset_seed, classes, image_shape, data_dir,
     if valid_size > 0:
         dataset.split(fraction=valid_size, phase='valid')
     with tf.device(device):
-        dataset.save_patches_to_disk(mode=patches_saving_mode, pool_size=pool_size)
+        dataset.save_patches_to_disk(directory=saving_directory, mode=patches_saving_mode, pool_size=pool_size)
+
     print('done')

@@ -44,6 +44,71 @@ def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
             elif c > 0:
                 print('skipping', file_name)
             else:
+                raise ValueError('%s data cannot be found.' % p)
+
+        _layers = layers or data[p]['data'][0].keys()
+
+        for k in keys:
+            if k == 'data':
+                # Merges chunks of each layer output.
+                data[p][k] = {l: np.concatenate([x[l] for x in data[p][k]]) for l in _layers}
+            else:
+                # Merges chunks integrally.
+                data[p][k] = np.concatenate(data[p][k])
+
+        if classes is not None:
+            if isinstance(classes, int):
+                classes = range(classes)
+            classes = list(classes)
+
+            s = np.in1d(data[p]['target'], classes)
+            for k in keys:
+                if k == 'data':
+                    for l in data[p][k].keys():
+                        data[p][k][l] = data[p][k][l][s]
+                else:
+                    data[p][k] = data[p][k][s]
+
+        data[p] = tuple(data[p][k] for k in keys)
+    return data
+
+
+def group_by_paintings(x, y, names):
+    # Aggregate test patches by their respective paintings.
+    _x, _y, _names = [], [], []
+    # Remove patches indices, leaving just the painting name.
+    clipped_names = np.array(['-'.join(n.split('-')[:-1]) for n in names])
+    for name in set(clipped_names):
+        s = clipped_names == name
+        _x.append(x[s])
+        if y is not None:
+            _y.append(y[s][0])
+        _names.append(clipped_names[s][0])
+
+    return (np.array(_x, copy=False),
+            np.array(_y, copy=False) if _y else None,
+            np.array(_names, copy=False))
+
+
+def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
+                     layers=None, classes=None):
+    phases = phases or ('train', 'valid', 'test')
+    keys = keys or ('data', 'target', 'names')
+
+    data = {p: {k: [] for k in keys} for p in phases}
+
+    for p in phases:
+        for c in chunks:
+            file_name = os.path.join(data_dir, '%s.%i.pickle' % (p, c))
+
+            if os.path.exists(file_name):
+                with open(file_name, 'rb') as file:
+                    d = pickle.load(file)
+                    for k in keys:
+                        data[p][k].append(d[k])
+            elif c > 0:
+                print('skipping', file_name)
+            else:
                 raise ValueError(p % ' data cannot be found.')
 
         _layers = layers or data[p]['data'][0].keys()
@@ -448,9 +513,10 @@ class DataSet:
                             np.array(names, copy=False)])
         return results
 
-    def save_patches_to_disk(self, mode='all', low_threshold=.9, pool_size=2):
+    def save_patches_to_disk(self, directory, mode='all', low_threshold=.9, pool_size=2):
         """Extract and save patches to disk.
 
+        :param directory: str, directory in which the patches will be saved.
         :param mode: str, mode in which patches are extracted. Options are:
             * 'all': all available patches are extracted.
             * 'random': random patches are extracted.
@@ -475,14 +541,11 @@ class DataSet:
         print('saving patches to disk...')
 
         data_path = self.full_data_path
-        labels = self.classes or os.listdir(os.path.join(data_path, 'train'))
         patch_size = self.image_shape
         # Keras (height, width) -> PIL Image (width, height)
         patch_size = [patch_size[1], patch_size[0]]
 
-        patches_path = os.path.join(data_path, 'extracted_patches')
-
-        os.makedirs(patches_path, exist_ok=True)
+        os.makedirs(directory, exist_ok=True)
 
         phases = list(filter(lambda x: os.path.exists(os.path.join(data_path, x)),
                              ('train', 'test', 'valid')))
@@ -513,39 +576,30 @@ class DataSet:
 
                 print('extracting %s patches to disk...' % phase)
 
+                labels = self.classes or os.listdir(os.path.join(data_path, phase))
                 for label in labels:
                     class_path = os.path.join(data_path, phase, label)
-                    patches_label_path = os.path.join(patches_path, phase, label)
+                    patches_label_path = os.path.join(directory, phase, label)
                     os.makedirs(patches_label_path, exist_ok=True)
 
                     samples = os.listdir(class_path)
 
                     for sample in samples:
-                        print('/'.join((label, sample)), end=' ')
-
                         try:
-                            if os.path.exists(
-                                    os.path.join(
-                                        patches_label_path,
-                                                os.path.splitext(sample)[0] + '-0.jpg')):
-                                raise ValueError('already extracted')
+                            if os.path.exists(os.path.join(patches_label_path, os.path.splitext(sample)[0] + '-0.jpg')):
+                                continue
 
-                            _save_image_patches_coroutine(
-                                dict(
-                                    name=os.path.join(class_path, sample),
-                                    patches_path=patches_label_path,
-                                    patch_size=patch_size,
-                                    n_patches=n_patches,
-                                    mode=mode,
-                                    low_threshold=low_threshold,
-                                    pool_size=pool_size,
-                                    tensors=tensors))
-                        except ValueError:
-                            print('skipped')
+                            _save_image_patches_coroutine(dict(
+                                name=os.path.join(class_path, sample),
+                                patches_path=patches_label_path,
+                                patch_size=patch_size,
+                                n_patches=n_patches,
+                                mode=mode,
+                                low_threshold=low_threshold,
+                                pool_size=pool_size,
+                                tensors=tensors))
                         except MemoryError:
                             print('failed')
-                        else:
-                            print('done')
 
         print('patches extraction completed.')
         return self
