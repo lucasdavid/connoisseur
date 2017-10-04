@@ -1,16 +1,19 @@
 from keras import applications, engine, layers, models, regularizers, backend as K
+from keras_contrib.applications import densenet
 
 from .utils import euclidean, gram_matrix
 
 
 def get_base_model(architecture):
-    try:
-        return getattr(applications, architecture)
-    except AttributeError:
-        try:
-            return globals()['_arch_%s' % architecture]
-        except KeyError:
-            raise ValueError('unknown architecture ' + architecture)
+    """Finds an network inside one of the modules."""
+    for a in (applications, densenet):
+        if hasattr(a, architecture):
+            return getattr(a, architecture)
+
+    if architecture in globals():
+        return globals()[architecture]
+
+    raise ValueError('unknown architecture ' + architecture)
 
 
 def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
@@ -62,7 +65,7 @@ def build_siamese_model(x_shape, arch='inception', dropout_p=.5, weights='imagen
     return model
 
 
-def _arch_inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):
+def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):
     weights_init_fn = 'he_normal'
 
     model = models.Sequential()

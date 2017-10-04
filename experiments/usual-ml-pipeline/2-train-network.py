@@ -17,7 +17,7 @@ from math import ceil
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
-ex = Experiment('2-train-network')
+ex = Experiment('train-network')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
 
@@ -43,12 +43,13 @@ def config():
 
     opt_params = {'lr': .001}
     dropout_p = 0.2
-    resuming = False
     ckpt_file = './ckpt/pbn,all-classes-,all-patches,inception.hdf5'
+    resuming_from_ckpt_file = ckpt_file
     epochs = 500
     steps_per_epoch = None
     validation_steps = None
     workers = 8
+    use_multiprocessing = False
     initial_epoch = 0
     early_stop_patience = 30
     tensorboard_file = './logs/2-train-network/pbn,all-classes,all-patches,%s' % architecture
@@ -67,8 +68,8 @@ def get_class_weights(y):
 def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes,
         architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
-        device, opt_params, dropout_p, resuming, ckpt_file, steps_per_epoch,
-        epochs, validation_steps, workers, initial_epoch, early_stop_patience,
+        device, opt_params, dropout_p, resuming_from_ckpt_file, ckpt_file, steps_per_epoch,
+        epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         tensorboard_file, first_trainable_layer, first_reset_layer, class_weight):
     import os
 
@@ -78,6 +79,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
     from keras.preprocessing.image import ImageDataGenerator
 
     from connoisseur.models import build_model
+    from connoisseur.utils import get_preprocess_fn
 
     ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -88,13 +90,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
     s = tf.Session(config=tf_config)
     K.set_session(s)
 
-    # get appropriate pre-process function
-    if architecture == 'InceptionV3':
-        from keras.applications.inception_v3 import preprocess_input
-    elif architecture == 'Xception':
-        from keras.applications.xception import preprocess_input
-    else:
-        from keras.applications.imagenet_utils import preprocess_input
+    preprocess_input = get_preprocess_fn(architecture)
 
     g = ImageDataGenerator(
         horizontal_flip=True,
@@ -149,9 +145,9 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
                       metrics=['accuracy'],
                       loss='categorical_crossentropy')
 
-        if resuming:
+        if resuming_from_ckpt_file:
             print('re-loading weights...')
-            model.load_weights(ckpt_file)
+            model.load_weights(resuming_from_ckpt_file)
 
         if first_reset_layer:
             if first_reset_layer not in layer_names:
@@ -179,8 +175,9 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
             model.fit_generator(
                 train_data, steps_per_epoch=steps_per_epoch, epochs=epochs, verbose=1,
                 validation_data=valid_data, validation_steps=validation_steps,
-                workers=workers, initial_epoch=initial_epoch,
+                initial_epoch=initial_epoch,
                 class_weight=class_weight,
+                workers=workers, use_multiprocessing=use_multiprocessing,
                 callbacks=[
                     # callbacks.LearningRateScheduler(lambda epoch: .5 ** (epoch // 10) * opt_params['lr']),
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
