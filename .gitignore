@@ -4,3 +4,4 @@ bin/
 data/
 *.hdf5
 *egg-info/
+.eggs/

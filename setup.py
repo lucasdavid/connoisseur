@@ -1,5 +1,8 @@
 from setuptools import setup, find_packages
 
+base_requirements = open('docs/requirements-base.txt').readlines()
+dev_requirements = open('docs/requirements-dev.txt').readlines()
+
 setup(
     name='connoisseur',
     description='Machine Learning for art authorship recognition.',
@@ -13,6 +16,7 @@ setup(
     author='Lucas David',
     author_email='lucasolivdavid@gmail.com',
 
-    install_requires=open('docs/requirements-base.txt').readlines(),
-    tests_require=open('docs/requirements-dev.txt').readlines(),
+    setup_requires=base_requirements,
+    install_requires=base_requirements,
+    tests_require=dev_requirements,
 )
