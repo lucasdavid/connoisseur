@@ -27,7 +27,7 @@ from connoisseur.utils import get_preprocess_fn
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-ex = Experiment('generate-top-network-answer-for-painter-by-numbers')
+ex = Experiment('generate-top-meta-network-answer-for-painter-by-numbers')
 
 
 @ex.config
@@ -48,6 +48,7 @@ def config():
     device = "/gpu:0"
     dropout_p = 0.2
     ckpt_file = '/work/painter-by-numbers/ckpt/pbn_inception_dense3_sigmoid.hdf5'
+    results_from_3a = './results-pbn_random_299_inception_auc.json'
     results_file_name = './results-pbn_random_299_inception_dense3_sigmoid.hdf5_auc.json'
 
 
@@ -84,27 +85,28 @@ def pairs_generator(pairs, y, target_size, patches, batch_size, preprocess_input
     for a, b in pairs:
         names += [[a + '-' + i + '.jpg', b + '-' + i + '.jpg'] for i in map(str, range(patches))]
 
-    while True:
-        seen = 0
-        while seen < len(names):
-            names_batch = names[seen:seen + batch_size]
+    seen = 0
+    while seen < len(names):
+        names_batch = names[seen:seen + batch_size]
 
-            x = [[], []]
+        x = [[], []]
 
-            for a, b in names_batch:
-                x[0].append(img_to_array(load_img(a, target_size=target_size)))
-                x[1].append(img_to_array(load_img(b, target_size=target_size)))
+        for a, b in names_batch:
+            x[0].append(img_to_array(load_img(a, target_size=target_size)))
+            x[1].append(img_to_array(load_img(b, target_size=target_size)))
 
-            x = list(map(preprocess_input_fn, map(np.array, (x[0], x[1]))))
-            yield x, y[seen:seen + batch_size]
-            seen += len(names_batch)
+        x = list(map(preprocess_input_fn, map(np.array, (x[0], x[1]))))
+        yield x, y[seen:seen + batch_size]
+        seen += len(names_batch)
+
+    raise StopIteration
 
 
 @ex.automain
-def run(image_shape, data_dir, patches,
-        submission_info_path, solution_path,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling,
-        dense_layers, device, n_classes, dropout_p, ckpt_file, results_file_name):
+def run(image_shape, data_dir, patches, submission_info_path, solution_path,
+        architecture, weights, batch_size, last_base_layer, use_gram_matrix,
+        pooling, dense_layers, device, n_classes, dropout_p, ckpt_file,
+        results_from_3a, results_file_name):
     tf.logging.set_verbosity(tf.logging.ERROR)
     tf_config = tf.ConfigProto(allow_soft_placement=True)
     tf_config.gpu_options.allow_growth = True
@@ -113,14 +115,8 @@ def run(image_shape, data_dir, patches,
 
     with tf.device(device):
         print('building...')
-        ia, ib = Input(shape=image_shape), Input(shape=image_shape)
-        base_model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
-                                 classes=n_classes, last_base_layer=last_base_layer,
-                                 use_gram_matrix=use_gram_matrix, pooling=pooling,
-                                 dense_layers=dense_layers)
-        ya = base_model(ia)
-        yb = base_model(ib)
-        x = layers.multiply([ya, yb])
+        ia, ib = Input(shape=(2048,)), Input(shape=(2048,))
+        x = layers.multiply([ia, ib])
         x = layers.Dense(2018, activation='relu')(x)
         x = layers.Dropout(dropout_p)(x)
         x = layers.Dense(2018, activation='relu')(x)
@@ -136,9 +132,14 @@ def run(image_shape, data_dir, patches,
         pairs = pd.read_csv(submission_info_path, quotechar='"', delimiter=',').values[:, 1:]
         y = pd.read_csv(solution_path, quotechar='"', delimiter=',').values[:, 1:]
 
-        pairs = [[data_dir + 'test/unknown/' + os.path.splitext(a)[0],
-                  data_dir + 'test/unknown/' + os.path.splitext(b)[0]]
-                 for a, b in pairs]
+        with open(results_from_3a) as f:
+            results_from_3a = json.load(f)
+
+        assert results_from_3a[0]['phase'] == 'test'
+        names = results_from_3a[0]['names']
+        probabilities = results_from_3a[0]['evaluations'][0]['probabilities']
+
+        pairs = [['unknown/' + a, 'unknown/' + b] for a, b in pairs]
 
         print('\n# test evaluation')
         data = pairs_generator(pairs, y, target_size=image_shape, patches=patches,
