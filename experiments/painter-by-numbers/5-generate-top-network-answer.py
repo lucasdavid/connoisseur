@@ -63,7 +63,7 @@ def evaluate(probabilities, y, pairs):
     probabilities = probabilities.mean(axis=-1)
     p = (probabilities > .5).astype(np.float)
 
-    score = metrics.roc_auc_score(y, p)
+    score = metrics.roc_auc_score(y, probabilities)
     print('roc auc score using mean strategy:', score, '\n',
           metrics.classification_report(y, p),
           '\nConfusion matrix:\n',

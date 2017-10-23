@@ -5,9 +5,8 @@ dev_requirements = open('docs/requirements-dev.txt').readlines()
 
 setup(
     name='connoisseur',
-    description='Machine Learning for art authorship recognition.',
+    description='Machine Learning experiments on paintings',
     license='MIT License',
-    long_description=open('README.md').read(),
     keywords=['machine-learning', 'paintings'],
     version='0.1',
     packages=find_packages(),

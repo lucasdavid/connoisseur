@@ -18,7 +18,8 @@ def get_base_model(architecture):
 
 def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                 classes=1000, last_base_layer=None, use_gram_matrix=False,
-                dense_layers=(), pooling='avg', include_base_top=False, include_top=True):
+                dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
+                predictions_activation='softmax'):
     base_model = get_base_model(architecture)(include_top=include_base_top, weights=weights,
                                               input_shape=image_shape, pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
@@ -39,7 +40,7 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
             x = layers.Dropout(dropout_p)(x)
             print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
 
-        x = layers.Dense(classes, activation='softmax', name='predictions')(x)
+        x = layers.Dense(classes, activation=predictions_activation, name='predictions')(x)
 
     return engine.Model(base_model.input, x)
 

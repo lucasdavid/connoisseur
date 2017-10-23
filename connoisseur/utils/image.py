@@ -14,7 +14,8 @@ except ImportError:
     pil_image = None
 
 
-def load_img(path, grayscale=False, target_size=None, extraction_method='resize'):
+def load_img(path, grayscale=False, target_size=None,
+             extraction_method='resize'):
     """Loads an image into PIL format.
 
     # Arguments
@@ -45,22 +46,27 @@ def load_img(path, grayscale=False, target_size=None, extraction_method='resize'
         hw_tuple = (target_size[1], target_size[0])
         if img.size != hw_tuple and any(hw_tuple):
             if extraction_method == 'resize':
-                img = img.resize((target_size[1], target_size[0]), pil_image.ANTIALIAS)
+                img = img.resize((target_size[1], target_size[0]),
+                                 pil_image.ANTIALIAS)
 
             elif extraction_method == 'central-crop':
-                start = np.array([img.width - target_size[1], img.height - target_size[0]]) / 2
+                start = np.array([img.width - target_size[1],
+                                  img.height - target_size[0]]) / 2
                 end = start + (target_size[1], target_size[0])
                 img = img.crop((start[0], start[1], end[0], end[1]))
 
             elif extraction_method == 'random-crop':
-                start = (np.random.rand(2) * (img.width - target_size[1], img.height - target_size[0])).astype('int')
+                start = (np.random.rand(2) * (img.width - target_size[1],
+                                              img.height - target_size[
+                                                  0])).astype('int')
                 end = start + (target_size[1], target_size[0])
                 img = img.crop((start[0], start[1], end[0], end[1]))
     return img
 
 
 class DirectoryIterator(keras_image.DirectoryIterator):
-    def __init__(self, *args, extraction_method='resize', enhancer=None, **kwargs):
+    def __init__(self, *args, extraction_method='resize', enhancer=None,
+                 **kwargs):
         super(DirectoryIterator, self).__init__(*args, **kwargs)
         self.extraction_method = extraction_method
         self.enhancer = enhancer or PaintingEnhancer(augmentations=())
@@ -72,18 +78,21 @@ class DirectoryIterator(keras_image.DirectoryIterator):
             The next batch.
         """
         with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
+            index_array, current_index, current_batch_size = next(
+                self.index_generator)
         # The transformation of images is not under thread lock
         # so it can be done in parallel
         if all(self.image_shape):
-            batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
+            batch_x = np.zeros((current_batch_size,) + self.image_shape,
+                               dtype=K.floatx())
         else:
             batch_x = np.zeros(current_batch_size, dtype=object)
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
-            img = load_img(os.path.join(self.directory, fname), grayscale=grayscale,
+            img = load_img(os.path.join(self.directory, fname),
+                           grayscale=grayscale,
                            target_size=self.target_size,
                            extraction_method=self.extraction_method)
             img = self.enhancer.process(img)
@@ -94,11 +103,13 @@ class DirectoryIterator(keras_image.DirectoryIterator):
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = keras_image.array_to_img(batch_x[i], self.data_format, scale=True)
-                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
-                                                                  hash=np.random.randint(1e4),
-                                                                  format=self.save_format)
+                img = keras_image.array_to_img(batch_x[i], self.data_format,
+                                               scale=True)
+                fname = '{prefix}_{index}_{hash}.{format}'.format(
+                    prefix=self.save_prefix,
+                    index=current_index + i,
+                    hash=np.random.randint(1e4),
+                    format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
         if self.class_mode == 'input':
@@ -108,7 +119,8 @@ class DirectoryIterator(keras_image.DirectoryIterator):
         elif self.class_mode == 'binary':
             batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), self.num_class), dtype=K.floatx())
+            batch_y = np.zeros((len(batch_x), self.num_class),
+                               dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         else:
@@ -117,35 +129,55 @@ class DirectoryIterator(keras_image.DirectoryIterator):
 
 
 class PairsDirectoryIterator(DirectoryIterator):
+    """Iterator capable of creating pairs of images.
+
+    :param batch_size: size of the batch yielded each next(self) call.
+    :param window_size: size of the image window loaded from the disk.
+    """
+
+    def __init__(self, *args, batch_size=32, window_size=128, **kwargs):
+        super().__init__(*args, batch_size=window_size, **kwargs)
+        self.real_batch_size = batch_size
+        self.pix = 0
+        self.pairs_window = []
+        self.pairs_labels_window = []
+        self.x_window = None
+
     def next(self):
-        batch_x, batch_y = super().next()
-        batch_size = batch_x.shape[0]
+        if self.x_window is None:
+            x_window, y_window = super().next()
 
-        if self.class_mode == 'categorical':
-            batch_y = np.argmax(batch_y, axis=-1)
+            if self.class_mode == 'categorical':
+                y_window = np.argmax(y_window, axis=-1)
 
-        c = np.random.randint(0, batch_size, size=(2, batch_size))
+            labels, c = np.unique(y_window, return_counts=True)
+            indices = [np.where(y_window == l)[0] for l in labels]
+            count = c.max()
 
-        pairs_x = batch_x[c]
-        pairs_y = batch_y[c]
-        pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
+            pairs = []
+            pairs_labels = []
+            for i, _u in enumerate(labels):
+                for n in range(count):
+                    ul = len(indices[_u])
+                    pairs += [[indices[_u][n % ul], indices[_u][(n + np.random.randint(1, ul)) % ul]]]
 
-        return list(pairs_x), pairs_y
+                    dn = (i + np.random.randint(1, len(labels))) % len(labels)
+                    dn = labels[dn]
+                    dnl = len(indices[dn])
+                    pairs += [[indices[_u][n % ul], indices[dn][n % dnl]]]
+                    pairs_labels += [1, 0]
 
+            self.x_window = x_window
+            self.pairs_window = np.array(pairs)
+            self.pairs_labels_window = np.array(pairs_labels)
+            self.pix = 0
 
-class PairsNumpyArrayIterator(keras_image.NumpyArrayIterator):
-    def next(self):
-        batch_x, batch_y = super().next()
-        batch_size = batch_x.shape[0]
-
-        if len(batch_y.shape) > 1:
-            batch_y = np.argmax(batch_y, axis=-1)
-
-        c = np.random.randint(0, batch_size, size=(2, batch_size))
-
-        pairs_x = batch_x[c]
-        pairs_y = batch_y[c]
-        pairs_y = (pairs_y[0] == pairs_y[1]).astype(np.float)
+        c = self.pairs_window[self.pix:self.pix + self.real_batch_size]
+        pairs_x = self.x_window[c.T]
+        pairs_y = self.pairs_labels_window[self.pix:self.pix + self.real_batch_size]
+        self.pix += self.real_batch_size
+        if self.pix > len(self.pairs_window):
+            self.x_window = None
 
         return list(pairs_x), pairs_y
 

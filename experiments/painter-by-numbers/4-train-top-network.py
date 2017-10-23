@@ -17,8 +17,9 @@ ex.captured_out_filter = apply_backspaces_and_linefeeds
 
 @ex.config
 def config():
-    data_dir = "/datasets/vangogh/"
-    batch_size = 64
+    data_dir = "/datasets/vangogh/random_32/"
+    batch_size = 32
+    window_size = 128
     image_shape = [299, 299, 3]
     architecture = 'InceptionV3'
     weights = 'imagenet'
@@ -37,11 +38,11 @@ def config():
     opt_params = {'lr': .001}
     dropout_p = 0.2
     ckpt = './ckpt/pbn_inception_dense3_sigmoid.hdf5'
-    resuming_from_base_ckpt = ckpt
+    resuming_from_base_ckpt = None
     epochs = 100
     steps_per_epoch = None
     validation_steps = None
-    workers = 8
+    workers = 1
     use_multiprocessing = False
     initial_epoch = 0
     early_stop_patience = 30
@@ -59,7 +60,7 @@ def get_class_weights(y):
 @ex.automain
 def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes,
-        architecture, weights, batch_size, last_base_layer, pooling,
+        architecture, weights, batch_size, window_size, last_base_layer, pooling,
         device, opt_params, dropout_p, resuming_from_base_ckpt, ckpt, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         use_gram_matrix, dense_layers,
@@ -100,12 +101,14 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
     train_data = PairsDirectoryIterator(
         os.path.join(data_dir, 'train'), g,
         target_size=image_shape[:2], classes=classes,
-        batch_size=batch_size, shuffle=train_shuffle, seed=dataset_train_seed)
+        batch_size=batch_size, window_size=window_size,
+        shuffle=train_shuffle, seed=dataset_train_seed)
 
     valid_data = PairsDirectoryIterator(
         os.path.join(data_dir, 'valid'), g,
         target_size=image_shape[:2], classes=classes,
-        batch_size=batch_size, shuffle=valid_shuffle, seed=dataset_valid_seed)
+        batch_size=batch_size, window_size=window_size,
+        shuffle=valid_shuffle, seed=dataset_valid_seed)
 
     if class_weight == 'balanced':
         class_weight = get_class_weights(train_data.classes)
