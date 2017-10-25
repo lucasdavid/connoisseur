@@ -6,21 +6,23 @@ Licence: MIT License 2016 (c)
 """
 import os
 
+import numpy as np
 import tensorflow as tf
 from PIL import ImageFile
-from keras import callbacks, optimizers, backend as K
+from keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator
+from keras.utils import OrderedEnqueuer
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
+from sklearn import metrics
 
 from connoisseur import utils
 from connoisseur.models import build_siamese_model
 from connoisseur.utils.image import BalancedDirectoryPairsSequence
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
 ex = Experiment('train-top-network')
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 ex.captured_out_filter = apply_backspaces_and_linefeeds
 tf.logging.set_verbosity(tf.logging.ERROR)
 tf_config = tf.ConfigProto(allow_soft_placement=True)
@@ -33,8 +35,7 @@ K.set_session(session)
 def config():
     device = "/gpu:0"
 
-    data_dir = "/datasets/pbn/random_299/"
-    train_pairs = 1584
+    data_dir = "/datasets/vangogh/random_32/"
     valid_pairs = 1584
     num_classes = 1584
     classes = None
@@ -47,35 +48,24 @@ def config():
     use_gram_matrix = False
     dense_layers = ()
     embedding_units = 1024
-    joint = 'multiply'
     trainable_limbs = False
     pooling = 'avg'
 
     predictions_activation = 'softmax'
     limb_weights = '/work/painter-by-numbers/ckpt/limb_weights.hdf5'
 
-    opt_params = {'lr': .001}
     dropout_rate = 0.2
-    ckpt = 'top-network.hdf5'
-    resuming_ckpt = None
-    epochs = 100
-    steps_per_epoch = None
+    ckpt = './model.hdf5'
     validation_steps = None
     use_multiprocessing = False
-    workers = 1
-    initial_epoch = 0
-    early_stop_patience = 30
-    tensorboard_tag = 'train-top-network/'
 
 
 @ex.automain
-def run(_run, image_shape, data_dir, train_pairs, valid_pairs, classes,
+def run(image_shape, data_dir, valid_pairs, classes,
         num_classes, architecture, weights, batch_size, last_base_layer, pooling, device, predictions_activation,
-        opt_params, dropout_rate, resuming_ckpt, ckpt, steps_per_epoch, epochs, validation_steps, joint,
-        workers, use_multiprocessing, initial_epoch, early_stop_patience, use_gram_matrix, dense_layers,
-        embedding_units, limb_weights, trainable_limbs, tensorboard_tag):
-    report_dir = _run.observers[0].dir
-
+        dropout_rate, ckpt,
+        validation_steps, use_multiprocessing, use_gram_matrix, dense_layers,
+        embedding_units, limb_weights, trainable_limbs):
     if isinstance(classes, int):
         classes = sorted(os.listdir(os.path.join(data_dir, 'train')))[:classes]
 
@@ -83,12 +73,8 @@ def run(_run, image_shape, data_dir, train_pairs, valid_pairs, classes,
                            height_shift_range=.2, width_shift_range=.2,
                            fill_mode='reflect', preprocessing_function=utils.get_preprocess_fn(architecture))
 
-    train_data = BalancedDirectoryPairsSequence(os.path.join(data_dir, 'train'), g, target_size=image_shape[:2],
-                                                pairs=train_pairs, classes=classes, batch_size=batch_size)
     valid_data = BalancedDirectoryPairsSequence(os.path.join(data_dir, 'valid'), g, target_size=image_shape[:2],
                                                 pairs=valid_pairs, classes=classes, batch_size=batch_size)
-    if steps_per_epoch is None:
-        steps_per_epoch = len(train_data)
     if validation_steps is None:
         validation_steps = len(valid_data)
 
@@ -97,35 +83,34 @@ def run(_run, image_shape, data_dir, train_pairs, valid_pairs, classes,
         model = build_siamese_model(image_shape, architecture, dropout_rate, weights, num_classes, last_base_layer,
                                     use_gram_matrix, dense_layers, pooling, include_base_top=False, include_top=True,
                                     predictions_activation=predictions_activation, limb_weights=limb_weights,
-                                    trainable_limbs=trainable_limbs, embedding_units=embedding_units, joint=joint)
+                                    trainable_limbs=trainable_limbs, embedding_units=embedding_units, joint='multiply')
         print('siamese model summary:')
         model.summary()
-        if resuming_ckpt:
+        if ckpt:
             print('loading weights...')
-            model.load_weights(resuming_ckpt)
+            model.load_weights(ckpt)
 
-        model.compile(loss=utils.contrastive_loss,
-                      metrics=[utils.contrastive_accuracy],
-                      optimizer=optimizers.Adam(**opt_params))
-
-        print('training from epoch %i...' % initial_epoch)
+        enqueuer = None
         try:
-            model.fit_generator(
-                train_data,
-                steps_per_epoch=steps_per_epoch, epochs=epochs,
-                validation_data=valid_data,
-                validation_steps=validation_steps,
-                initial_epoch=initial_epoch,
-                use_multiprocessing=use_multiprocessing, workers=workers, verbose=1,
-                callbacks=[
-                    callbacks.TerminateOnNaN(),
-                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
-                    callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
-                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True,
-                                              save_weights_only=True, verbose=1),
-                ])
-        except KeyboardInterrupt:
-            print('interrupted by user')
-        else:
-            print('done')
+            enqueuer = OrderedEnqueuer(valid_data, use_multiprocessing=use_multiprocessing)
+            enqueuer.start()
+            output_generator = enqueuer.get()
+
+            y, p = [], []
+            for step in range(validation_steps):
+                x, _y = next(output_generator)
+                _p = model.predict(x, batch_size=batch_size)
+                y.append(_y)
+                p.append(_p)
+
+            y, p = (np.concatenate(e).flatten() for e in (y, p))
+
+            print('actual:', y[:80])
+            print('expected:', p[:80])
+            print('accuracy:', metrics.accuracy_score(y, p >= 0.5))
+            print(metrics.classification_report(y, p >= 0.5))
+            print(metrics.confusion_matrix(y, p >= 0.5))
+
+        finally:
+            if enqueuer is not None:
+                enqueuer.stop()

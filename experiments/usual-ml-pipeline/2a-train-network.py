@@ -11,15 +11,30 @@ Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
+import os
 from collections import Counter
 from math import ceil
 
+import tensorflow as tf
+from PIL import ImageFile
+from keras import callbacks, optimizers, backend as K
+from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
+
+from connoisseur.models import build_model
+from connoisseur.utils import get_preprocess_fn
 
 ex = Experiment('train-network')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+tf.logging.set_verbosity(tf.logging.ERROR)
+tf_config = tf.ConfigProto(allow_soft_placement=True)
+tf_config.gpu_options.allow_growth = True
+s = tf.Session(config=tf_config)
+K.set_session(s)
 
 
 @ex.config
@@ -43,7 +58,7 @@ def config():
 
     opt_params = {'lr': .001}
     dropout_p = 0.2
-    ckpt_file = './ckpt/pbn,all-classes-,all-patches,inception.hdf5'
+    ckpt_file = 'vangogh_inception.hdf5'
     resuming_from_ckpt_file = ckpt_file
     epochs = 500
     steps_per_epoch = None
@@ -52,7 +67,7 @@ def config():
     use_multiprocessing = False
     initial_epoch = 0
     early_stop_patience = 30
-    tensorboard_file = './logs/2-train-network/pbn,all-classes,all-patches,%s' % architecture
+    tensorboard_tag = 'vangogh_%s' % architecture
     first_trainable_layer = None
     first_reset_layer = None
     class_weight = 'balanced'
@@ -65,30 +80,12 @@ def get_class_weights(y):
 
 
 @ex.automain
-def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
-        classes,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
+def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
+        classes, architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
         device, opt_params, dropout_p, resuming_from_ckpt_file, ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
-        tensorboard_file, first_trainable_layer, first_reset_layer, class_weight):
-    import os
-
-    import tensorflow as tf
-    from PIL import ImageFile
-    from keras import callbacks, optimizers, backend as K
-    from keras.preprocessing.image import ImageDataGenerator
-
-    from connoisseur.models import build_model
-    from connoisseur.utils import get_preprocess_fn
-
-    ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-    os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
-    tf.logging.set_verbosity(tf.logging.ERROR)
-    tf_config = tf.ConfigProto(allow_soft_placement=True)
-    tf_config.gpu_options.allow_growth = True
-    s = tf.Session(config=tf_config)
-    K.set_session(s)
+        tensorboard_tag, first_trainable_layer, first_reset_layer, class_weight):
+    report_dir = _run.observers[0].dir
 
     preprocess_input = get_preprocess_fn(architecture)
 
@@ -124,8 +121,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
         print('building...')
         model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
                             classes=train_data.num_class, last_base_layer=last_base_layer,
-                            use_gram_matrix=use_gram_matrix, pooling=pooling,
-                            dense_layers=dense_layers)
+                            use_gram_matrix=use_gram_matrix, pooling=pooling, dense_layers=dense_layers)
 
         layer_names = [l.name for l in model.layers]
 
@@ -180,12 +176,12 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle,
                 workers=workers, use_multiprocessing=use_multiprocessing,
                 callbacks=[
                     # callbacks.LearningRateScheduler(lambda epoch: .5 ** (epoch // 10) * opt_params['lr']),
+                    callbacks.TerminateOnNaN(),
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
                     callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.TensorBoard(tensorboard_file, batch_size=batch_size),
-                    callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
+                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
+                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt_file), save_best_only=True, verbose=1),
                 ])
-
         except KeyboardInterrupt:
             print('interrupted by user')
         else:

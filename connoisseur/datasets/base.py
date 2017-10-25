@@ -85,9 +85,9 @@ def group_by_paintings(x, y, names):
             _y.append(y[s][0])
         _names.append(clipped_names[s][0])
 
-    return (np.array(_x, copy=False),
-            np.array(_y, copy=False) if _y else None,
-            np.array(_names, copy=False))
+    return (np.asarray(_x),
+            np.asarray(_y) if _y else None,
+            np.asarray(_names))
 
 
 def _load_patch_coroutine(options):

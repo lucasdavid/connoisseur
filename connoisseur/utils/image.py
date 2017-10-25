@@ -2,11 +2,13 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
+import math
 
 import numpy as np
 from keras import backend as K
-from keras.preprocessing import image as keras_image
+from keras.preprocessing import image as ki
 from six.moves import range
+from keras.utils.data_utils import Sequence
 
 try:
     from PIL import Image as pil_image, ImageEnhance
@@ -64,7 +66,7 @@ def load_img(path, grayscale=False, target_size=None,
     return img
 
 
-class DirectoryIterator(keras_image.DirectoryIterator):
+class DirectoryIterator(ki.DirectoryIterator):
     def __init__(self, *args, extraction_method='resize', enhancer=None,
                  **kwargs):
         super(DirectoryIterator, self).__init__(*args, **kwargs)
@@ -96,15 +98,15 @@ class DirectoryIterator(keras_image.DirectoryIterator):
                            target_size=self.target_size,
                            extraction_method=self.extraction_method)
             img = self.enhancer.process(img)
-            x = keras_image.img_to_array(img, data_format=self.data_format)
+            x = ki.img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = keras_image.array_to_img(batch_x[i], self.data_format,
-                                               scale=True)
+                img = ki.array_to_img(batch_x[i], self.data_format,
+                                      scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(
                     prefix=self.save_prefix,
                     index=current_index + i,
@@ -128,58 +130,128 @@ class DirectoryIterator(keras_image.DirectoryIterator):
         return batch_x, batch_y
 
 
-class PairsDirectoryIterator(DirectoryIterator):
+class MultipleOutputsSequence(Sequence):
+    """Iterator capable of creating (images, {painters, styles, ...}).
+
+    :param batch_size: size of the batch yielded each next(self) call.
+    """
+
+    def __init__(self, directory, y, image_data_generator, batch_size=32,
+                 target_size=None, classes=None):
+        self.directory = directory
+        self.image_data_generator = image_data_generator
+        self.batch_size = batch_size
+        self.target_size = target_size
+        self.classes = np.asarray(classes or sorted(os.listdir(directory)))
+
+        if not directory.endswith('/'):
+            directory += '/'
+
+        _id = 0
+        samples = {}
+        classes = []
+        for c in self.classes:
+            files = os.listdir(directory + c)
+            if files:
+                samples[_id] = list(map(lambda _f: directory + c + '/' + _f, files))
+                classes.append(c)
+                _id += 1
+        self.classes = np.asarray(classes)
+
+        x, y = [], []
+
+        for c1 in range(len(self.classes)):
+            x += np.random.choice(samples[c1], pairs).reshape(int(pairs / 2), 2).tolist()
+            y += int(pairs / 2) * [1.0]
+
+            others = (np.random.randint(1, len(self.classes), size=int(pairs / 2)) + c1) % len(self.classes)
+            x += zip(np.random.choice(samples[c1], int(pairs / 2)), (np.random.choice(samples[c2]) for c2 in others))
+            y += int(pairs / 2) * [0.0]
+
+        p = np.arange(len(x))
+        np.random.shuffle(p)
+        self.x, self.y = [np.asarray(e)[p] for e in (x, y)]
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_files = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        batch_x = [[], []]
+        # build batch of image data
+        for a, b in batch_files:
+            for i, n in enumerate((a, b)):
+                x = ki.img_to_array(ki.load_img(n, target_size=self.target_size))
+                x = self.image_data_generator.random_transform(x)
+                x = self.image_data_generator.standardize(x)
+                batch_x[i] += [x]
+
+        batch_x = [np.asarray(_x) for _x in batch_x]
+        return batch_x, np.array(batch_y)
+
+
+class BalancedDirectoryPairsSequence(Sequence):
     """Iterator capable of creating pairs of images.
 
     :param batch_size: size of the batch yielded each next(self) call.
-    :param window_size: size of the image window loaded from the disk.
     """
 
-    def __init__(self, *args, batch_size=32, window_size=128, **kwargs):
-        super().__init__(*args, batch_size=window_size, **kwargs)
-        self.real_batch_size = batch_size
-        self.pix = 0
-        self.pairs_window = []
-        self.pairs_labels_window = []
-        self.x_window = None
+    def __init__(self, directory, image_data_generator, batch_size=32,
+                 pairs=50, target_size=None, classes=None):
+        self.directory = directory
+        self.image_data_generator = image_data_generator
+        self.batch_size = batch_size
+        self.target_size = target_size
+        self.classes = np.asarray(classes or sorted(os.listdir(directory)))
 
-    def next(self):
-        if self.x_window is None:
-            x_window, y_window = super().next()
+        if not directory.endswith('/'):
+            directory += '/'
 
-            if self.class_mode == 'categorical':
-                y_window = np.argmax(y_window, axis=-1)
+        _id = 0
+        samples = {}
+        classes = []
+        for c in self.classes:
+            files = os.listdir(directory + c)
+            if files:
+                samples[_id] = list(map(lambda _f: directory + c + '/' + _f, files))
+                classes.append(c)
+                _id += 1
+        self.classes = np.asarray(classes)
 
-            labels, c = np.unique(y_window, return_counts=True)
-            indices = [np.where(y_window == l)[0] for l in labels]
-            count = c.max()
+        x, y = [], []
 
-            pairs = []
-            pairs_labels = []
-            for i, _u in enumerate(labels):
-                for n in range(count):
-                    ul = len(indices[_u])
-                    pairs += [[indices[_u][n % ul], indices[_u][(n + np.random.randint(1, ul)) % ul]]]
+        for c1 in range(len(self.classes)):
+            x += np.random.choice(samples[c1], pairs).reshape(int(pairs / 2), 2).tolist()
+            y += int(pairs / 2) * [1.0]
 
-                    dn = (i + np.random.randint(1, len(labels))) % len(labels)
-                    dn = labels[dn]
-                    dnl = len(indices[dn])
-                    pairs += [[indices[_u][n % ul], indices[dn][n % dnl]]]
-                    pairs_labels += [1, 0]
+            others = (np.random.randint(1, len(self.classes), size=int(pairs / 2)) + c1) % len(self.classes)
+            x += zip(np.random.choice(samples[c1], int(pairs / 2)), (np.random.choice(samples[c2]) for c2 in others))
+            y += int(pairs / 2) * [0.0]
 
-            self.x_window = x_window
-            self.pairs_window = np.array(pairs)
-            self.pairs_labels_window = np.array(pairs_labels)
-            self.pix = 0
+        p = np.arange(len(x))
+        np.random.shuffle(p)
+        self.x, self.y = [np.asarray(e)[p] for e in (x, y)]
 
-        c = self.pairs_window[self.pix:self.pix + self.real_batch_size]
-        pairs_x = self.x_window[c.T]
-        pairs_y = self.pairs_labels_window[self.pix:self.pix + self.real_batch_size]
-        self.pix += self.real_batch_size
-        if self.pix > len(self.pairs_window):
-            self.x_window = None
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
 
-        return list(pairs_x), pairs_y
+    def __getitem__(self, idx):
+        batch_files = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        batch_x = [[], []]
+        # build batch of image data
+        for a, b in batch_files:
+            for i, n in enumerate((a, b)):
+                x = ki.img_to_array(ki.load_img(n, target_size=self.target_size))
+                x = self.image_data_generator.random_transform(x)
+                x = self.image_data_generator.standardize(x)
+                batch_x[i] += [x]
+
+        batch_x = [np.asarray(_x) for _x in batch_x]
+        return batch_x, np.array(batch_y)
 
 
 class PaintingEnhancer:

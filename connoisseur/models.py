@@ -1,12 +1,16 @@
-from keras import applications, engine, layers, models, regularizers, backend as K
-from keras_contrib.applications import densenet
+from keras import applications, layers, models, regularizers, backend as K, Input
+from keras.engine import Model
 
-from .utils import euclidean, gram_matrix
+from .utils import siamese_functions, gram_matrix
+
+
+# from keras_contrib.applications import densenet
 
 
 def get_base_model(architecture):
     """Finds an network inside one of the modules."""
-    for a in (applications, densenet):
+    for a in (applications,  # densenet
+              ):
         if hasattr(a, architecture):
             return getattr(a, architecture)
 
@@ -19,51 +23,79 @@ def get_base_model(architecture):
 def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                 classes=1000, last_base_layer=None, use_gram_matrix=False,
                 dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
-                predictions_activation='softmax'):
+                predictions_activation='softmax', model_name=None):
     base_model = get_base_model(architecture)(include_top=include_base_top, weights=weights,
                                               input_shape=image_shape, pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
          if last_base_layer
          else base_model.output)
 
+    summary = 'architecture:'
+    summary += ' input --> %s ' % architecture
+
     if use_gram_matrix:
         sizes = K.get_variable_shape(x)
         k = sizes[-1]
         x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
+        summary += '--> gram() '
 
     if include_top:
         if K.ndim(x) > 2:
             x = layers.Flatten(name='flatten')(x)
+            summary += '--> flatten() '
 
         for l_id, n_units in enumerate(dense_layers):
             x = layers.Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
             x = layers.Dropout(dropout_p)(x)
-            print('dropout(relu(dense(x, %i))) layers stacked' % n_units)
+            summary += '--> dropout(relu(dense(%i))) ' % n_units
 
         x = layers.Dense(classes, activation=predictions_activation, name='predictions')(x)
+        summary += '--> dense(%i, activation=%s, name=\'predictions\')' % (classes, predictions_activation)
 
-    return engine.Model(base_model.input, x)
+    print('model summary:', summary)
+    return Model(inputs=base_model.input, outputs=x, name=model_name)
 
 
-def build_siamese_model(x_shape, arch='inception', dropout_p=.5, weights='imagenet',
-                        classes=1000, use_gram_matrix=False, distance=euclidean):
-    base_network = build_model(x_shape, architecture=arch, dropout_p=dropout_p, weights=weights,
-                               classes=classes, use_gram_matrix=use_gram_matrix)
-    base_network = engine.Model(base_network.input,
-                                base_network.get_layer('flatten').output)
+def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='imagenet',
+                        classes=1000, last_base_layer=None, use_gram_matrix=False,
+                        dense_layers=(), pooling='avg', include_base_top=False,
+                        include_top=True, limb_weights=None, predictions_activation='softmax',
+                        trainable_limbs=True, embedding_units=1024, joint='multiply'):
+    base_model = build_model(image_shape, architecture, dropout_rate, weights,
+                             classes, last_base_layer, use_gram_matrix,
+                             dense_layers, pooling, include_base_top,
+                             include_top, predictions_activation)
+    if limb_weights:
+        print('loading weights from', limb_weights)
+        base_model.load_weights(limb_weights)
 
-    ia = engine.Input(x_shape)
-    ib = engine.Input(x_shape)
+    if not trainable_limbs:
+        for l in base_model.layers:
+            l.trainable = False
 
-    ya, yb = map(base_network, (ia, ib))
+    if embedding_units:
+        x = base_model.output
+        x = layers.Dense(embedding_units, activation='relu')(x)
+        x = layers.Dropout(dropout_rate)(x)
+        x = layers.Dense(embedding_units, activation='relu')(x)
+        x = layers.Dropout(dropout_rate)(x)
+        x = layers.Dense(embedding_units, activation='relu')(x)
+        base_model = Model(inputs=base_model.inputs, outputs=x)
 
-    if isinstance(distance, str):
-        distance = locals()[distance]
+    ia, ib = Input(shape=image_shape), Input(shape=image_shape)
+    ya = base_model(ia)
+    yb = base_model(ib)
 
-    x = layers.Lambda(distance, output_shape=lambda x: (x[0][0], 1))([ya, yb])
-    model = engine.Model(input=[ia, ib], output=x)
+    if joint == 'multiply':
+        x = layers.multiply([ya, yb])
+        x = layers.Dense(1, activation='sigmoid', name='binary_predictions')(x)
+    else:
+        if isinstance(joint, str):
+            joint = siamese_functions(joint)
+        x = layers.Lambda(joint, lambda _x: (_x[0][0], 1),
+                          name='binary_predictions')([ya, yb])
 
-    return model
+    return Model([ia, ib], x)
 
 
 def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):

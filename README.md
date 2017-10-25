@@ -9,7 +9,46 @@ Available at: [wikiart.org/en/jan-matejko/battle-of-grunwald-1878](https://www.w
 Check the [INSTALL.md](docs/INSTALL.md) file for instructions on how to
 prepare your environment to run connoisseur.
 
-## Running the experiments
+
+## Installation
+
+### Straight Installation
+
+The simplest way to install connoisseur is the following command:
+
+```shell
+$ cd /path/to/connoisseur
+$ python3 setup.py install --user
+```
+
+As you are installing the package in a global environment, some
+incompatibilities might happen.
+Try [virtualenv](https://virtualenv.pypa.io/) if that's the case.
+
+### Docker
+
+This method is preferable, as I attached a Dockerfile in this repository.
+An image build from the Dockerfile will spawn containers that already have
+the correct dependencies to run the experiments.
+
+To use it, build the image:
+
+```shell
+$ cd /path/to/connoisseur/docs/
+$ docker build -t connoisseur-image .
+```
+
+Then run the container and install connoisseur:
+
+```shell
+$ nvidia-docker run -it --rm -v /path/to/connoisseur:/connoisseur \
+    connoisseur-image /bin/bash
+$ cd /connoisseur
+$ python setup.py install
+```
+
+
+## Running Experiments
 
 After entering the virtual environment or initiating the docker container,
 experiments can be found at the `/connoisseur/experiments` folder. An
@@ -63,14 +102,7 @@ test dataset using each strategy (e.g. sum, mean, farthest, most_frequent) and
 reports results. Best values are shown bellow:
 
    ```
-   score using sum strategy: 0.955223880597
-
-                 precision    recall  f1-score   support
-
-             0       1.00      0.93      0.96        42
-             1       0.89      1.00      0.94        25
-
-   avg / total       0.96      0.96      0.96        67
+   test score using sum strategy: 0.955223880597
 
    Confusion matrix:
        nvg  vg
@@ -79,6 +111,73 @@ reports results. Best values are shown bellow:
 
    samples incorrectly classified: nvg/nvg_10658644, nvg/nvg_10500055 and nvg/nvg_18195595.
    ```
+
+#### DenseNet264, PCA and SVM
+
+1. `1-extract-patches.py` is used to extract 50 random patches with sizes
+(32, 32, 3) from each sample in train and test folders.
+2. `2-train-network.py` trains `DenseNet264` over the extracted patches.
+3. `3-optional-generate-network-predictions.py` shows the following results:
+
+   ```
+   valid patches score using: 0.846538461538
+   Confusion matrix:
+        nvg   vg
+   nvg 1403  197
+    vg  202  798
+
+   valid score using farthest strategy: 0.942307692308
+   Confusion matrix:
+       nvg   vg
+   nvg  32    0
+    vg   3   17
+
+   test patches score using: 0.842089552239
+   Confusion matrix:
+        nvg   vg
+   nvg 1746  354
+    vg  175 1075
+
+   test score using farthest strategy: 0.925373134328
+       nvg   vg
+   nvg  39    3
+    vg   2   23
+
+   samples incorrectly classified: nvg/nvg_10658644, nvg/nvg_9780042, nvg/nvg_6860814,
+                                   vg/vg_17177301 and vg/vg_33566806.
+   ```
+
+4. `4a-embed-patches.py` is executed. Using DenseNet264 architecture trained
+in the previous step, patches are embedded to a lower dimensional space
+(cut-point is `GlobalAveragePooling2d(name='avg_pool')` layer).
+5. `5-train-top-classifier` trains a PCA --> SVM pipeline that classifies
+patches according to their labels. One interesting result here is that PCA
+reduces the network output to only 4 dimensions, making the rest of the
+classification pipeline very efficient.
+6. `6-evaluate-fusion` fuses the answers from the model trained above over the
+test dataset using each strategy (e.g. sum, mean, farthest, most_frequent) and
+reports results. Best values are shown bellow:
+
+   ```
+   test patches score: 0.870149253731
+
+   Confusion matrix:
+         nvg   vg
+    nvg 1878  222
+     vg  213 1037
+
+   test score using mean strategy: 0.910447761194
+
+   Confusion matrix:
+         nvg   vg
+    nvg   39    3
+    vg     3   22
+
+   samples incorrectly classified: vg/vg_33566806, nvg/nvg_10658644, vg/vg_17177301, vg/vg_9463608,
+                                   nvg/nvg_6860814 and nvg/nvg_9780042.
+   ```
+
+---
 
 ### Painter by Numbers
 
@@ -94,108 +193,135 @@ artist.
 Score is computed by ROC AUC between an estimated probabilities and the actual
 label (0.0 or 1.0).
 
-#### InceptionV3, PCA and SVM
+#### Siamese InceptionV3, PCA, SVC, Equal Joint
 
 The 100 first painters (sorted by their hash code) were considered and the
-pipeline described in the [previous section](#van-goghs).
+pipeline described bellow.
 
-![Confusion matrix for train set](assets/pbn-100-train-cm.png)
+![Diagram of Siamese InceptionV3, PCA, SVC, Equal Joint](assets/pbn-inception-svm-equals.png)
 
 We can see from the train confusion matrix and the test report bellow that the
 model performed well for the 100 artists selected in training, but clearly
 overfitted the data and missed many samples associated with the label
 `same-artist`.
 
+![Confusion matrix for train set](assets/pbn-100-train-cm.png)
+
 ```
-score using most_frequent strategy: 0.892038742206
-
-            precision    recall  f1-score   support
-
-        0.0      0.99      0.90      0.94  21628697
-        1.0      0.03      0.25      0.06    287350
-
-avg / total      0.98      0.89      0.93  21916047
-
+score using farthest strategy: 0.70295719844
 
 Confusion matrix:
 
                     different-painters same-painter
-different-painters            19477643      2151054
-      same-painter              215030        72320
+different-painters            15289495      6339202
+      same-painter              170802       116548
 
-samples incorrectly classified: unknown/79032, unknown/82441, unknown/86253,
-..., unknown/90371, unknown/37590 and unknown/45863.
+samples incorrectly classified: unknown/79032, unknown/82441, unknown/86253, ...,
+                                unknown/37590 and unknown/45863.
 ```
 
-#### Fine-tuned InceptionV3
+#### Siamese Fine-tuned InceptionV3, Custom Joint
 
-So far, the method responsible for best classification accuracy in the test
-set is as follows:
-
-![Diagram of best scoring pipeline for Painter-by-Numbers dataset](assets/pbn-inceptionv3.png)
+![Diagram of Siamese Fine-tuned InceptionV3, Dot Joint](assets/pbn-inception-softmax-dot.png)
 
 1. `1-extract-patches.py` is used to extract 50 random patches with sizes
 (299, 299, 3) from each sample in train and test folders.
-2. `2-train-network.py` fine-tunes InceptionV3 (transfered from imagenet)
+2. `2-train-network.py` fine-tunes InceptionV3 (transferred from imagenet)
 to the train dataset, associating patches to their respective painters.
 4. `3a-generate-network-answers` feed-forwards each test painting's test
-through the network trained in 2. Let `y` be the fined-tuned InceptionV3
-and `a` and `b` be paintings in a pair described in `submission_info.csv`:
-   - Patches probabilities are fused using each strategy, leaving us with the
-     probabilities of a work belonging to each one of the 1584 painters. The
-     probability of these being of a same painting is computed by
-     `argmax(y(a)) == argmax(y(b))`. Results are shown bellow:
+through the network trained in the previous step. Let `y` be the fined-tuned
+InceptionV3 and `a` and `b` be paintings in a pair described in
+`submission_info.csv`:
+   - **Equal Joint** Patches probabilities are fused using each strategy,
+     leaving us with the probabilities of a work belonging to each one of the
+     1584 painters. The probability of these being of a same painting is
+     computed by `argmax(y(a)) == argmax(y(b))`. Results are shown bellow:
 
-    ```
-    score using sum strategy: 0.988578688483
+     ```
+     roc auc score using mean strategy: ?
 
-                 precision    recall  f1-score   support
+     Confusion matrix:
 
-            0.0       0.99      1.00      0.99  21628697
-            1.0       0.67      0.25      0.37    287350
+                         different-painters same-painter
+     different-painters            21593154        35543
+           same-painter              214767        72583
 
-    avg / total       0.99      0.99      0.99  21916047
+     samples incorrectly classified: unknown/75211, unknown/46811,
+     unknown/66309, ..., unknown/89706, unknown/61690, unknown/55879
+     ```
 
-    Confusion matrix:
+   - **Dot Joint** patches probabilities are fused using `mean` strategy,
+     leaving us with the probabilities of a work belonging to each one of the
+     1584 painters. The probability of these being of a same painting is
+     computed by `y(a).dot(y(b))`. Results are shown bellow:
 
-                        different-painters same-painter
-    different-painters            21593154        35543
-          same-painter              214767        72583
+     ```
+     roc auc score using mean strategy: 0.902789501328
 
-    samples incorrectly classified: unknown/75211, unknown/46811,
-    unknown/66309, ..., unknown/89706, unknown/61690, unknown/55879
-    ```
+     Confusion matrix:
 
-    - Patches probabilities are fused using `mean` strategy, leaving us with the
-      probabilities of a work belonging to each one of the 1584 painters. The
-      probability of these being of a same painting is computed by
-      `y(a).dot(y(b))`. Results are shown bellow:
+                         different-painters same-painter
+     different-painters            21627458         1239
+           same-painter              261844        25506
 
-      ```
-      roc auc score using mean strategy: 0.902789501328
+     samples incorrectly classified: unknown/154, unknown/12888, unknown/39773,
+     ..., 'unknown/82178, unknown/38576 and unknown/35422.
+     ```
 
-                   precision    recall  f1-score   support
+   - **Pearsonr Joint** patches probabilities are fused using `mean` strategy,
+     leaving us with the probabilities of a work belonging to each one of the
+     1584 painters. The probability of these being of a same painting is
+     computed by `scipy.stat.pearsonr(y(a), y(b))[0]`. Results are shown bellow:
 
-              0.0       0.99      1.00      0.99  21628697
-              1.0       0.95      0.09      0.16    287350
+     ```
+     roc auc score using mean strategy: 0.880932204226
 
-      avg / total       0.99      0.99      0.98  21916047
+     Confusion matrix:
 
-      Confusion matrix:
+                         different-painters   same-painter
+     different-painters     21588252 (100%)    40445  (0%)
+           same-painter       207041  (72%)    80309 (28%)
 
-                          different-painters same-painter
-      different-painters            21627458         1239
-            same-painter              261844        25506
+     samples incorrectly classified: unknown/79067, unknown/3898, unknown/89191, ...,
+                                     unknown/74578, unknown/58718 and unknown/594.
+     ```
 
-      samples incorrectly classified: unknown/154, unknown/12888, unknown/39773,
-      ..., 'unknown/82178, unknown/38576 and unknown/35422.
-      ```
+#### Siamese Fine-tuned InceptionV3, Embedding Dense Layers, l^2 Joint
 
-#### Fine-tuned Siamese InceptionV3 (ongoing)
+The limbs of the network trained in [Siamese Fine-tuned InceptionV3, Custom Joint](#siamese-fine-tuned-inceptionv3-custom-joint)
+are used to compose a new network (frozen weights), illustrated in the diagram
+bellow:
 
-The pipeline presented in [Fine-tuned InceptionV3](#fine-tuned-inceptionv3) is
-utilized once again here. However, the predictions from Inception+Softmax are not
-directly combined with the dot product, but multiplied and fed to a dense network
-that learns to discriminate between `different-painters` and `same-painter`.
+![Diagram of Siamese Fine-tuned InceptionV3, l^2 Joint](assets/pbn-siamese-inception-1584-l2-contrastive.png)
 
-![Diagram of Siamese InceptionV3 for Painter-by-Numbers dataset](assets/pbn-siamese-inceptionv3.png)
+
+##### Multi-label Limbs
+
+![Diagram of Siamese Fine-tuned Multi-label InceptionV3, l^2 Joint](assets/pbn-siamese-inception-multilabel-1763-l2-contrastive.png)
+
+Needs limb training.
+
+#### Siamese Fine-tuned InceptionV3, Embedding Dense Layers, Sigmoid Joint
+
+The limbs of the network trained in [Siamese Fine-tuned InceptionV3, Custom Joint](#siamese-fine-tuned-inceptionv3-custom-joint)
+are used to compose a new network (frozen weights), illustrated in the diagram
+bellow:
+
+![Diagram of Siamese Fine-tuned InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-1584-sigmoid.png)
+
+
+##### Multi-label Limbs
+
+![Diagram of Siamese Fine-tuned Multi-label InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-multilabel-1763-sigmoid.png)
+
+```
+roc auc score using mean strategy: 0.913406464881
+
+Confusion matrix:
+
+                    different-painters   same-painter
+different-painters      20069328 (93%)  1559369  (7%)
+      same-painter         95072 (33%)   192278 (67%)
+
+samples incorrectly classified: ?
+```

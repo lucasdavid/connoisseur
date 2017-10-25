@@ -7,27 +7,9 @@ Licence: MIT License 2016 (c)
 import os
 import shutil
 
-import numpy as np
 import pandas as pd
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, Imputer, OneHotEncoder
 
 from .base import DataSet
-
-
-def load_labels(train_info_path):
-    info = pd.read_csv(train_info_path, quotechar='"', delimiter=',')
-    y = [info[p].apply(str) for p in ('artist', 'style', 'genre')]
-    encoders = [LabelEncoder().fit(_y) for _y in y]
-    y = [e.transform(_y).reshape(-1, 1) for e, _y in zip(encoders, y)]
-    y = np.concatenate(y, axis=1)
-
-    flow = Pipeline([
-        ('imp', Imputer(strategy='median')),
-        ('ohe', OneHotEncoder(sparse=False))
-    ])
-
-    return flow.fit_transform(y), info['filename'].values, encoders
 
 
 class PainterByNumbers(DataSet):

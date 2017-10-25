@@ -16,7 +16,7 @@ from keras.applications import VGG19
 from keras.applications.vgg19 import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 
-from connoisseur.utils.image import PairsDirectoryIterator
+from connoisseur.utils.image import BalancedDirectoryPairsSequence
 from connoisseur.utils import gram_matrix
 
 ex = Experiment('1-train-siamese-gram-network')
@@ -147,14 +147,14 @@ def main(data_dir, dataset_train_seed, dataset_valid_seed, batch_size, style_lay
 
             print('training model #%i from epoch %i' % (m_id, initial_epoch))
 
-            train_data = PairsDirectoryIterator(
+            train_data = BalancedDirectoryPairsSequence(
                 directory=os.path.join(data_dir, 'train'),
                 image_data_generator=g,
                 target_size=input_shape[:2],
                 classes=labels, batch_size=batch_size, shuffle=True,
                 seed=dataset_train_seed)
 
-            val_data = PairsDirectoryIterator(
+            val_data = BalancedDirectoryPairsSequence(
                 directory=os.path.join(data_dir, 'valid'),
                 image_data_generator=g,
                 target_size=input_shape[:2],

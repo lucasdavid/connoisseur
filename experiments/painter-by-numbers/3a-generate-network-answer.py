@@ -37,21 +37,21 @@ def config():
     dropout_p = 0.2
     ckpt_file = './ckpt/pbn_random_299_inception.hdf5'
     results_file_name = './results-pbn_random_299_inception_auc.json'
+    binary_strategy = 'dot'
 
 
-def evaluate(probabilities, y, names, pairs):
+def evaluate(probabilities, y, names, pairs, binary_strategy):
+    from scipy import stats
     from sklearn import metrics
     from connoisseur.datasets import group_by_paintings
 
     print('aggregating patches')
     probabilities, _, names = group_by_paintings(probabilities, y=None, names=names)
 
-    results = {
-        'pairs': pairs,
-        'labels': y.tolist(),
-        'evaluations': [],
-        'names': names.tolist()
-    }
+    results = {'pairs': pairs,
+               'labels': y.tolist(),
+               'evaluations': [],
+               'names': names.tolist()}
 
     print('all done, proceeding to fusion')
     probabilities = probabilities.mean(axis=-2)
@@ -59,18 +59,26 @@ def evaluate(probabilities, y, names, pairs):
     print('generating name map')
     name_indices = {n: i for i, n in enumerate(names)}
 
-    binary_probabilities = []
-    for a, b in pairs:
-        binary_probabilities.append(np.dot(probabilities[name_indices[a]], probabilities[name_indices[b]]))
-    binary_probabilities = np.array(binary_probabilities, copy=False)
-    pred = (binary_probabilities > .5).astype(np.float)
+    if binary_strategy == 'dot':
+        binary_strategy = np.dot
+    elif binary_strategy == 'pearsonr':
+        binary_strategy = lambda _x, _y: stats.pearsonr(_x, _y)[0]
+    else:
+        raise ValueError('unknown binary strategy %s' % binary_strategy)
+
+    binary_probabilities = np.clip([
+        binary_strategy(probabilities[name_indices[a]], probabilities[name_indices[b]])
+        for a, b in pairs
+    ], 0, 1)
+
+    p = (binary_probabilities > .5).astype(np.float)
 
     score = metrics.roc_auc_score(y, binary_probabilities)
     print('roc auc score using mean strategy:', score, '\n',
-          metrics.classification_report(y, pred),
+          metrics.classification_report(y, p),
           '\nConfusion matrix:\n',
-          metrics.confusion_matrix(y, pred))
-    print('samples incorrectly classified:', names[pred != y], '\n')
+          metrics.confusion_matrix(y, p))
+    print('samples incorrectly classified:', names[p != y], '\n')
 
     results['evaluations'].append({
         'strategy': 'mean',
@@ -83,9 +91,9 @@ def evaluate(probabilities, y, names, pairs):
 
 
 @ex.automain
-def run(image_shape, data_dir, submission_info_path, solution_path, data_seed, classes,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling,
-        dense_layers, device, n_classes, dropout_p, ckpt_file, results_file_name):
+def run(image_shape, data_dir, submission_info_path, solution_path, data_seed, classes, architecture,
+        weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers, device, n_classes,
+        dropout_p, ckpt_file, binary_strategy, results_file_name):
     import json
     import os
     from math import ceil
@@ -143,10 +151,7 @@ def run(image_shape, data_dir, submission_info_path, solution_path, data_seed, c
             del model
             K.clear_session()
 
-            layer_results = evaluate(probabilities=probabilities,
-                                     y=y,
-                                     names=data.filenames,
-                                     pairs=pairs)
+            layer_results = evaluate(probabilities, y, data.filenames, pairs, binary_strategy)
             layer_results['phase'] = phase
             results.append(layer_results)
 

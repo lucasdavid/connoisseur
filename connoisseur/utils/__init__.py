@@ -1,15 +1,30 @@
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from keras import backend as K
 
 from . import image
 
 
-def euclidean(vectors):
-    x, y = vectors
-    return K.sqrt(K.sum(K.square(x - y), axis=(1, 2)))
+def euclidean(inputs):
+    x, y = inputs
+    return K.sqrt(
+        K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
+
+
+def l1(inputs):
+    x, y = inputs
+    return K.abs(x - y)
+
+
+def contrastive_loss(y_true, y_pred):
+    """Contrastive loss from Hadsell-et-al.'06
+    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    """
+    margin = 1
+    return K.mean(y_true * K.square(y_pred) +
+                  (1 - y_true) * K.square(K.relu(margin - y_pred)))
+
+
+def contrastive_accuracy(y_true, y_pred):
+    return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
 
 def gram_matrix(x, norm_by_channels=False):
@@ -48,26 +63,15 @@ def gram_matrix(x, norm_by_channels=False):
 
 def get_preprocess_fn(architecture):
     # get appropriate pre-process function
-    if architecture == 'InceptionV3':
-        from keras.applications.inception_v3 import preprocess_input
-    elif architecture == 'Xception':
-        from keras.applications.xception import preprocess_input
-    elif 'densenet' in architecture.lower():
+    if 'densenet' in architecture.lower():
         from keras_contrib.applications.densenet import preprocess_input
     else:
-        from keras.applications.imagenet_utils import preprocess_input
+        from keras.applications.inception_v3 import preprocess_input
 
     return preprocess_input
 
 
-def plot_confusion_matrix(cm, labels, name='cm.jpg', **kwargs):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    cax = ax.matshow(cm, **kwargs)
-    plt.title('Confusion matrix of the classifier')
-    fig.colorbar(cax)
-    ax.set_xticklabels([''] + labels)
-    ax.set_yticklabels([''] + labels)
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    fig.savefig(name)
+siamese_functions = {
+    'euclidean': euclidean,
+    'l1': l1,
+}

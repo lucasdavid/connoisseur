@@ -15,7 +15,7 @@ from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
 from connoisseur.models import build_siamese_model
-from connoisseur.utils.image import PairsDirectoryIterator, ImageDataGenerator
+from connoisseur.utils.image import BalancedDirectoryPairsSequence, ImageDataGenerator
 
 from base import contrastive_loss
 
@@ -85,13 +85,13 @@ def run(batch_size, data_dir, train_dir, valid_dir, balanced_classes,
         rescale=2. / 255.,
         fill_mode='reflect')
     g.mean = 1.
-    train_data = PairsDirectoryIterator(
+    train_data = BalancedDirectoryPairsSequence(
         train_dir,
         image_data_generator=g, target_size=image_shape[:2],
         augmentations=train_augmentations, batch_size=batch_size,
         balanced_classes=balanced_classes, shuffle=train_shuffle,
         seed=train_dataset_seed)
-    valid_data = PairsDirectoryIterator(
+    valid_data = BalancedDirectoryPairsSequence(
         valid_dir,
         image_data_generator=g, target_size=image_shape[:2],
         augmentations=valid_augmentations, batch_size=batch_size,

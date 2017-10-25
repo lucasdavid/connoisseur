@@ -13,19 +13,31 @@ Licence: MIT License 2016 (c)
 """
 
 import os
-from collections import Counter
 from math import ceil
 
 import numpy as np
+import pandas as pd
+import tensorflow as tf
 from PIL import ImageFile
+from keras import callbacks, optimizers, backend as K
+from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, Imputer, OneHotEncoder
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+from connoisseur.models import build_model
+from connoisseur.utils import get_preprocess_fn
 
 ex = Experiment('train-network-multilabel')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
+tf.logging.set_verbosity(tf.logging.ERROR)
+tf_config = tf.ConfigProto(allow_soft_placement=True)
+tf_config.gpu_options.allow_growth = True
+s = tf.Session(config=tf_config)
+K.set_session(s)
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 @ex.config
@@ -33,26 +45,28 @@ def config():
     data_dir = "/datasets/pbn/random_299/"
     batch_size = 64
     image_shape = [299, 299, 3]
+    dataset_train_seed = 12
+    dataset_valid_seed = 98
+    train_shuffle = True
+    valid_shuffle = False
+    train_info = '/datasets/pbn/train_info.csv'
+    classes = None
+
     architecture = 'InceptionV3'
+    tag = 'pbn_%s_multilabel' % architecture.lower()
     weights = 'imagenet'
     last_base_layer = None
     use_gram_matrix = False
     dense_layers = ()
     pooling = 'avg'
-    train_shuffle = True
-    dataset_train_seed = 12
-    valid_shuffle = False
-    dataset_valid_seed = 98
-    device = "/gpu:0"
-    train_info = '/datasets/pbn/train_info.csv'
-
-    classes = None
+    ckpt_file = '%s.hdf5' % tag
     num_classes = 1763
+
+    device = "/gpu:0"
 
     opt_params = {'lr': .001}
     dropout_p = 0.2
-    ckpt_file = './ckpt/pbn,%s,multilabel.hdf5' % architecture.lower()
-    resuming_from_ckpt_file = ckpt_file
+    resuming_from = None
     epochs = 500
     steps_per_epoch = None
     validation_steps = None
@@ -60,44 +74,40 @@ def config():
     use_multiprocessing = False
     initial_epoch = 0
     early_stop_patience = 30
-    tensorboard_file = './logs/2-train-network/pbn,%s,multilabel' % architecture.lower()
+    tensorboard_tag = 'train-multilabel-network-%s' % tag
     first_trainable_layer = None
     first_reset_layer = None
     class_weight = None
 
 
-def get_class_weights(y):
-    counter = Counter(y)
-    majority = max(counter.values())
-    return {cls: float(majority / count) for cls, count in counter.items()}
+def load_labels(train_info_path):
+    info = pd.read_csv(train_info_path, quotechar='"', delimiter=',')
+    y = [info[p].apply(str) for p in ('artist', 'style', 'genre')]
+    encoders = [LabelEncoder().fit(_y) for _y in y]
+    y = [e.transform(_y).reshape(-1, 1) for e, _y in zip(encoders, y)]
+    y = np.concatenate(y, axis=1)
+
+    flow = Pipeline([
+        ('imp', Imputer(strategy='median')),
+        ('ohe', OneHotEncoder(sparse=False))
+    ])
+
+    return flow.fit_transform(y), info['filename'].values, encoders
 
 
 @ex.automain
-def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
+def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
         valid_shuffle, dataset_valid_seed,
         classes, num_classes, train_info,
         architecture, weights, batch_size, last_base_layer, use_gram_matrix,
         pooling, dense_layers,
-        device, opt_params, dropout_p, resuming_from_ckpt_file, ckpt_file,
+        device, opt_params, dropout_p, resuming_from, ckpt_file,
         steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch,
         early_stop_patience,
-        tensorboard_file, first_trainable_layer, first_reset_layer,
+        tensorboard_tag, first_trainable_layer, first_reset_layer,
         class_weight):
-    import tensorflow as tf
-    from keras import callbacks, optimizers, backend as K
-    from keras.preprocessing.image import ImageDataGenerator
-
-    from connoisseur.models import build_model
-    from connoisseur.utils import get_preprocess_fn
-    from connoisseur.datasets.painter_by_numbers import load_labels
-
-    os.makedirs(os.path.dirname(ckpt_file), exist_ok=True)
-    tf.logging.set_verbosity(tf.logging.ERROR)
-    tf_config = tf.ConfigProto(allow_soft_placement=True)
-    tf_config.gpu_options.allow_growth = True
-    s = tf.Session(config=tf_config)
-    K.set_session(s)
+    report_dir = _run.observers[0].dir
 
     y, fs, encoders = load_labels(train_info)
     label_map = dict(zip([os.path.splitext(f)[0] for f in fs], y))
@@ -131,7 +141,6 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
     del y, fs, encoders
 
     if class_weight == 'balanced':
-        # class_weight = get_class_weights(train_data.classes)
         raise ValueError('class_weight is still a little confusing in '
                          'this multi-label problems')
 
@@ -144,7 +153,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
         print('building...')
         model = build_model(image_shape, architecture=architecture,
                             weights=weights, dropout_p=dropout_p,
-                            classes=num_class,
+                            classes=num_classes,
                             last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling,
                             dense_layers=dense_layers,
@@ -168,9 +177,9 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
                       metrics=['accuracy'],
                       loss='binary_crossentropy')
 
-        if resuming_from_ckpt_file:
+        if resuming_from:
             print('re-loading weights...')
-            model.load_weights(resuming_from_ckpt_file)
+            model.load_weights(resuming_from)
 
         if first_reset_layer:
             if first_reset_layer not in layer_names:
@@ -179,7 +188,7 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
             print('first layer to have its weights reset:', first_reset_layer)
             random_model = build_model(image_shape, architecture=architecture,
                                        weights=None, dropout_p=dropout_p,
-                                       classes=num_class,
+                                       classes=num_classes,
                                        last_base_layer=last_base_layer,
                                        use_gram_matrix=use_gram_matrix,
                                        dense_layers=dense_layers,
@@ -206,14 +215,12 @@ def run(image_shape, data_dir, train_shuffle, dataset_train_seed,
                 class_weight=None,
                 workers=workers, use_multiprocessing=use_multiprocessing,
                 callbacks=[
-                    # callbacks.LearningRateScheduler(lambda epoch: .5 ** (epoch // 50) * opt_params['lr']),
-                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(
-                        early_stop_patience // 3)),
+                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
                     callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.TensorBoard(tensorboard_file,
-                                          batch_size=batch_size),
-                    callbacks.ModelCheckpoint(ckpt_file, save_best_only=True,
-                                              verbose=1),
+                    callbacks.TensorBoard(tensorboard_tag, batch_size=batch_size),
+                    callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
+                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
+                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt_file), save_best_only=True, verbose=1),
                 ])
 
         except KeyboardInterrupt:
