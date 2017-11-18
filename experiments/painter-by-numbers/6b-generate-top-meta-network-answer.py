@@ -63,7 +63,7 @@ def config():
     joint = 'multiply'
     ckpt = './ckpt/siamese.hdf5'
 
-    estimator_type = 'score'
+    estimator_type = 'probability'
     results_file = 'results.json'
     submission_file = 'answer-{strategy}.csv'
 
@@ -87,15 +87,17 @@ def evaluate(labels, probabilities, estimator_type):
     probabilities = np.clip(probabilities, 0, 1)
     p = (probabilities > .5).astype(np.float)
 
-    score = metrics.roc_auc_score(labels, probabilities)
-    print('roc auc score using mean strategy:', score, '\n',
-          metrics.classification_report(labels, p),
-          '\nConfusion matrix:\n',
-          metrics.confusion_matrix(labels, p))
+    roc_auc = metrics.roc_auc_score(labels, probabilities)
+    cm = metrics.confusion_matrix(labels, p)
+    cm /= cm.sum(axis=-1).reshape(-1, 1)
+    print('roc auc:', roc_auc, '\n',
+          'accuracy:', metrics.accuracy_score(labels, p, normalize=True), '\n',
+          metrics.classification_report(labels, p), '\n',
+          'Confusion matrix:\n', cm)
 
     results['evaluations'].append({
         'strategy': 'mean',
-        'score': score,
+        'score': roc_auc,
         'binary_probabilities': probabilities.tolist(),
         'p': p.tolist()
     })
@@ -138,7 +140,7 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         model = build_siamese_model(image_shape, architecture, dropout_rate, weights, num_classes, last_base_layer,
                                     use_gram_matrix, dense_layers, pooling, include_base_top=False, include_top=True,
                                     predictions_activation=predictions_activation, limb_weights=limb_weights,
-                                    trainable_limbs=False, embedding_units=embedding_units, joint='multiply')
+                                    trainable_limbs=False, embedding_units=embedding_units, joint=joint)
         model.summary()
         print('loading weights from', ckpt)
         model.load_weights(ckpt)
