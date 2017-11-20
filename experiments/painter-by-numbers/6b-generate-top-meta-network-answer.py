@@ -88,12 +88,10 @@ def evaluate(labels, probabilities, estimator_type):
     p = (probabilities > .5).astype(np.float)
 
     roc_auc = metrics.roc_auc_score(labels, probabilities)
-    cm = metrics.confusion_matrix(labels, p)
-    cm /= cm.sum(axis=-1).reshape(-1, 1)
     print('roc auc:', roc_auc, '\n',
           'accuracy:', metrics.accuracy_score(labels, p, normalize=True), '\n',
           metrics.classification_report(labels, p), '\n',
-          'Confusion matrix:\n', cm)
+          'Confusion matrix:\n', metrics.confusion_matrix(labels, p))
 
     results['evaluations'].append({
         'strategy': 'mean',
