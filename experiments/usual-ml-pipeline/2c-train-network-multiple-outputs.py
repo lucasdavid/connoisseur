@@ -7,33 +7,26 @@ Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
-import matplotlib
-
-from connoisseur.utils.image import MultipleOutputsSequence
-
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 import os
 import re
-from math import ceil
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from PIL import ImageFile
-from keras import callbacks, optimizers, backend as K
-from keras import layers, Model
+from keras import layers, Model, callbacks, optimizers, backend as K
 from keras.preprocessing.image import ImageDataGenerator
-from sacred import Experiment
-from sacred.utils import apply_backspaces_and_linefeeds
+from sacred import Experiment, utils as sacred_utils
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import LabelEncoder, Imputer, OneHotEncoder
+from sklearn.preprocessing import Imputer, OneHotEncoder, LabelEncoder
 
 from connoisseur.models import build_model
 from connoisseur.utils import get_preprocess_fn
+from connoisseur.utils.image import MultipleOutputsDirectorySequence
 
 ex = Experiment('train-network-multiple-predictions')
 
-ex.captured_out_filter = apply_backspaces_and_linefeeds
+ex.captured_out_filter = sacred_utils.apply_backspaces_and_linefeeds
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 tf.logging.set_verbosity(tf.logging.ERROR)
 tf_config = tf.ConfigProto(allow_soft_placement=True)
@@ -47,22 +40,18 @@ def config():
     data_dir = "/datasets/pbn/random_299/"
     batch_size = 64
     image_shape = [299, 299, 3]
-    dataset_train_seed = 12
-    dataset_valid_seed = 98
     train_shuffle = True
     valid_shuffle = False
     train_info = '/datasets/pbn/train_info.csv'
-    classes = None
+    subdirectories = None
 
     architecture = 'InceptionV3'
     tag = 'pbn_%s_multilabel' % architecture.lower()
     weights = 'imagenet'
     last_base_layer = None
     use_gram_matrix = False
-    dense_layers = ()
     pooling = 'avg'
     ckpt_file = '%s.hdf5' % tag
-    num_classes = 1763
 
     device = "/gpu:0"
 
@@ -75,61 +64,55 @@ def config():
     workers = 8
     use_multiprocessing = False
     initial_epoch = 0
-    early_stop_patience = 30
-    tensorboard_tag = 'train-multilabel-network-%s' % tag
+    early_stop_patience = 20
+    tensorboard_tag = 'train-multiple-outputs-network-%s' % tag
     first_trainable_layer = None
-    first_reset_layer = None
+
+
+def to_year(e):
+    year_pattern = r'(?:\w*[\s\.])?(?P<year>\d{3,4})(?:\.0?)?$'
+    try:
+        return e if isinstance(e, float) else re.match(year_pattern, e).group(1)
+    except AttributeError:
+        print('unknown year', e)
+        return np.nan
 
 
 @ex.automain
-def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
-        valid_shuffle, dataset_valid_seed,
-        classes, num_classes, train_info,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix,
-        pooling, dense_layers,
-        device, opt_params, dropout_p, resuming_from, ckpt_file,
-        steps_per_epoch,
-        epochs, validation_steps, workers, use_multiprocessing, initial_epoch,
-        early_stop_patience,
-        tensorboard_tag, first_trainable_layer, first_reset_layer):
+def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shape, train_info, batch_size,
+        architecture, weights, last_base_layer, use_gram_matrix, pooling, dropout_p, device,
+        epochs, steps_per_epoch, validation_steps, initial_epoch, opt_params, resuming_from, ckpt_file,
+        workers, use_multiprocessing, early_stop_patience, first_trainable_layer, tensorboard_tag):
     try:
         report_dir = _run.observers[0].dir
     except IndexError:
         report_dir = './logs/_unlabeled'
 
-    # reading data.
-    print('reading train-info')
-    info = pd.read_csv(train_info, quotechar='"', delimiter=',')
+    print('reading train-info...')
+    y_train = pd.read_csv(train_info, quotechar='"', delimiter=',')
 
-    y = {'names': info['filename'].values}
-    categorical_outputs = ('artist', 'style', 'genre')
+    categorical_output_names = ['artist', 'style', 'genre']
+    output_names = ['artist', 'style', 'genre'] + ['date']
+    outputs = {}
 
-    for p in ('artist', 'style', 'genre', 'date'):
-        y[p] = {}
-        if p in categorical_outputs:
-            p_enc = LabelEncoder()
-            y[p]['encoder'] = p_enc
-            _y = p_enc.fit_transform(info[p].apply(str))
-            flow = make_pipeline(Imputer(strategy='median'),
+    for f in output_names:
+        if f in categorical_output_names:
+            en = LabelEncoder()
+            is_nan = pd.isnull(y_train[f])
+            encoded = en.fit_transform(y_train[f].apply(str).str.lower()).astype('float')
+            encoded[is_nan] = np.nan
+
+            flow = make_pipeline(Imputer(strategy='most_frequent'),
                                  OneHotEncoder(sparse=False))
+
         else:
-            if p == 'date':
-                expression = '.*(\d{4})[\.0]?'
-                _y = []
-                for e in info[p]:
-                    try:
-                        _y += [e if isinstance(e, float) else float(re.match(expression, e).group(1))]
-                    except AttributeError:
-                        _y += [np.nan]
-                _y = np.asarray(_y)
-            else:
-                _y = info[p].apply(float)
+            encoded = y_train[f] if f != 'date' else y_train['date'].apply(to_year)
+            encoded = encoded.values
+            flow = make_pipeline(Imputer(strategy='mean'))
 
-            flow = make_pipeline(Imputer(strategy='median'))
+        outputs[f] = flow.fit_transform(encoded.reshape(-1, 1))
 
-        _y = flow.fit_transform(_y.reshape(-1, 1))
-        y[p]['values'] = _y
-        y[p]['flow'] = flow
+    name_map = {os.path.splitext(n)[0]: i for i, n in enumerate(y_train['filename'])}
 
     g = ImageDataGenerator(
         horizontal_flip=True,
@@ -141,13 +124,16 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
         fill_mode='reflect',
         preprocessing_function=get_preprocess_fn(architecture))
 
-    train_data = MultipleOutputsSequence(
-        os.path.join(data_dir, 'train'), y, g,
-        batch_size=batch_size, target_size=image_shape[:2], classes=classes)
-
-    valid_data = MultipleOutputsSequence(
-        os.path.join(data_dir, 'train'), y, g,
-        batch_size=batch_size, target_size=image_shape[:2], classes=classes)
+    train_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'train'), outputs, name_map, g,
+                                                  batch_size=batch_size, target_size=image_shape[:2],
+                                                  subdirectories=subdirectories,
+                                                  shuffle=train_shuffle)
+    valid_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'valid'), outputs, name_map, g,
+                                                  batch_size=batch_size, target_size=image_shape[:2],
+                                                  subdirectories=subdirectories,
+                                                  shuffle=valid_shuffle)
+    units = {o: outputs[o].shape[1] for o in output_names}
+    del y_train, categorical_output_names, output_names, outputs, name_map, g
 
     if steps_per_epoch is None:
         steps_per_epoch = len(train_data)
@@ -158,15 +144,11 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
         print('building...')
         model = build_model(image_shape, architecture=architecture,
                             weights=weights, dropout_p=dropout_p,
-                            classes=num_classes,
                             last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling,
-                            dense_layers=dense_layers,
-                            predictions_activation='sigmoid')
-        x = model.get_layer(index=-1).output
+                            include_top=False)
 
         layer_names = [l.name for l in model.layers]
-
         if first_trainable_layer:
             if first_trainable_layer not in layer_names:
                 raise ValueError('%s is not a layer in the model: %s'
@@ -178,20 +160,29 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
                 layer.trainable = _trainable
             del _trainable
 
-        y = [layers.Dense(1584, activation='softmax', name='painters')(x),
-             layers.Dense(112, activation='softmax', name='styles')(x),
-             layers.Dense(10, activation='softmax', name='genres')(x),
-             layers.Dense(1, activation='linear', name='years')(x)]
+        x = model.output
+        y = [layers.Dense(units['artist'], activation='softmax', name='artist')(x),
+             layers.Dense(units['style'], activation='softmax', name='style')(x),
+             layers.Dense(units['genre'], activation='softmax', name='genre')(x),
+             layers.Dense(units['date'], activation='relu', name='date')(x)]
 
         model = Model(inputs=model.input, outputs=y)
         model.compile(optimizer=optimizers.Adam(**opt_params),
                       loss={
-                          'painters': 'categorical_crossentropy',
-                          'styles': 'categorical_crossentropy',
-                          'genres': 'categorical_crossentropy',
-                          'years': 'mse'
+                          'artist': 'categorical_crossentropy',
+                          'style': 'categorical_crossentropy',
+                          'genre': 'categorical_crossentropy',
+                          'date': 'mse'
                       },
-                      metrics={'painters': 'accuracy', 'styles': 'accuracy', 'genres': 'accuracy', 'years': 'mse'})
+                      metrics={'artist': 'accuracy',
+                               'style': 'accuracy',
+                               'genre': 'accuracy',
+                               'year': 'mse'},
+                      loss_weights={'artist': 1.,
+                                    'style': 0.8,
+                                    'genre': 0.6,
+                                    'year': 0.4})
+        model.summary()
 
         if resuming_from:
             print('re-loading weights...')
@@ -205,10 +196,9 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
                 initial_epoch=initial_epoch, verbose=1,
                 workers=workers, use_multiprocessing=use_multiprocessing,
                 callbacks=[
-                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
+                    callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.TensorBoard(tensorboard_tag, batch_size=batch_size),
-                    callbacks.ModelCheckpoint(ckpt_file, save_best_only=True, verbose=1),
+                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
                     callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
                     callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt_file), save_best_only=True, verbose=1),
                 ])

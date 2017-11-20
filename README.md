@@ -215,9 +215,6 @@ Confusion matrix:
                     different-painters same-painter
 different-painters            15289495      6339202
       same-painter              170802       116548
-
-samples incorrectly classified: unknown/79032, unknown/82441, unknown/86253, ...,
-                                unknown/37590 and unknown/45863.
 ```
 
 #### Siamese Fine-tuned InceptionV3, Custom Joint
@@ -245,9 +242,6 @@ InceptionV3 and `a` and `b` be paintings in a pair described in
                          different-painters same-painter
      different-painters            21593154        35543
            same-painter              214767        72583
-
-     samples incorrectly classified: unknown/75211, unknown/46811,
-     unknown/66309, ..., unknown/89706, unknown/61690, unknown/55879
      ```
 
    - **Dot Joint** patches probabilities are fused using `mean` strategy,
@@ -263,9 +257,6 @@ InceptionV3 and `a` and `b` be paintings in a pair described in
                          different-painters same-painter
      different-painters            21627458         1239
            same-painter              261844        25506
-
-     samples incorrectly classified: unknown/154, unknown/12888, unknown/39773,
-     ..., 'unknown/82178, unknown/38576 and unknown/35422.
      ```
 
    - **Pearsonr Joint** patches probabilities are fused using `mean` strategy,
@@ -281,9 +272,6 @@ InceptionV3 and `a` and `b` be paintings in a pair described in
                          different-painters   same-painter
      different-painters     21588252 (100%)    40445  (0%)
            same-painter       207041  (72%)    80309 (28%)
-
-     samples incorrectly classified: unknown/79067, unknown/3898, unknown/89191, ...,
-                                     unknown/74578, unknown/58718 and unknown/594.
      ```
 
 #### Siamese Fine-tuned InceptionV3, Embedding Dense Layers, l^2 Joint
@@ -294,12 +282,17 @@ bellow:
 
 ![Diagram of Siamese Fine-tuned InceptionV3, l^2 Joint](assets/pbn-siamese-inception-1584-l2-contrastive.png)
 
+```
+roc auc: 0.831494094656
+accuracy normalized by class-frequency: 73.5%
 
-##### Multi-label Limbs
+Confusion matrix:
 
-![Diagram of Siamese Fine-tuned Multi-label InceptionV3, l^2 Joint](assets/pbn-siamese-inception-multilabel-1763-l2-contrastive.png)
+                    different-painters   same-painter
+different-painters      17787310 (82%)  3841387 (18%)
+      same-painter         99936 (35%)   187414 (65%)
+```
 
-Needs limb training.
 
 #### Siamese Fine-tuned InceptionV3, Embedding Dense Layers, Sigmoid Joint
 
@@ -310,18 +303,34 @@ bellow:
 ![Diagram of Siamese Fine-tuned InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-1584-sigmoid.png)
 
 
-##### Multi-label Limbs
+```
+roc auc using mean strategy: 0.865582232769
+accuracy normalized by class-frequency: 78%
 
-![Diagram of Siamese Fine-tuned Multi-label InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-multilabel-1763-sigmoid.png)
+Confusion matrix:
+
+                    different-painters   same-painter
+different-painters      16418044 (76%)  5210653 (24%)
+      same-painter         56919 (20%)   230431 (80%)
+```
+
+
+##### Siamese Multi-label Fine-tuned InceptionV3, Embedding Dense Layers, Sigmoid Joint
+
+![Diagram of Siamese Multi-label Fine-tuned Multi-label InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-multilabel-1763-sigmoid.png)
 
 ```
 roc auc score using mean strategy: 0.913406464881
+accuracy normalized by class-frequency: 80%
 
 Confusion matrix:
 
                     different-painters   same-painter
 different-painters      20069328 (93%)  1559369  (7%)
       same-painter         95072 (33%)   192278 (67%)
-
-samples incorrectly classified: ?
 ```
+
+
+##### Siamese Multi-branch Fine-tuned InceptionV3, Embedding Dense Layers, Sigmoid Joints
+
+![Diagram of Siamese Multi-branch Fine-tuned Multi-label InceptionV3, Sigmoid Joint](assets/pbn-siamese-inception-multiple-outputs.png)

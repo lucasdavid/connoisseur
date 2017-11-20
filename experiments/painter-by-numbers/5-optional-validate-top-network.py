@@ -69,10 +69,7 @@ def run(image_shape, data_dir, valid_pairs, classes,
     if isinstance(classes, int):
         classes = sorted(os.listdir(os.path.join(data_dir, 'train')))[:classes]
 
-    g = ImageDataGenerator(horizontal_flip=True, vertical_flip=True, zoom_range=.2, rotation_range=.2,
-                           height_shift_range=.2, width_shift_range=.2,
-                           fill_mode='reflect', preprocessing_function=utils.get_preprocess_fn(architecture))
-
+    g = ImageDataGenerator(preprocessing_function=utils.get_preprocess_fn(architecture))
     valid_data = BalancedDirectoryPairsSequence(os.path.join(data_dir, 'valid'), g, target_size=image_shape[:2],
                                                 pairs=valid_pairs, classes=classes, batch_size=batch_size)
     if validation_steps is None:

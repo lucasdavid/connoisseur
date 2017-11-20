@@ -87,8 +87,6 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         tensorboard_tag, first_trainable_layer, first_reset_layer, class_weight):
     report_dir = _run.observers[0].dir
 
-    preprocess_input = get_preprocess_fn(architecture)
-
     g = ImageDataGenerator(
         horizontal_flip=True,
         vertical_flip=True,
@@ -97,7 +95,7 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         height_shift_range=.2,
         width_shift_range=.2,
         fill_mode='reflect',
-        preprocessing_function=preprocess_input)
+        preprocessing_function=get_preprocess_fn(architecture))
 
     train_data = g.flow_from_directory(
         os.path.join(data_dir, 'train'),

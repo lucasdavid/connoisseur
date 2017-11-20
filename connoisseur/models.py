@@ -91,7 +91,7 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='ima
         x = layers.Dense(1, activation='sigmoid', name='binary_predictions')(x)
     else:
         if isinstance(joint, str):
-            joint = siamese_functions(joint)
+            joint = siamese_functions[joint]
         x = layers.Lambda(joint, lambda _x: (_x[0][0], 1),
                           name='binary_predictions')([ya, yb])
 

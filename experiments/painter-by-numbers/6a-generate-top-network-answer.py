@@ -98,7 +98,7 @@ def evaluate(labels, probabilities, estimator_type):
     return results
 
 
-class DirectoryPairsGenerator(Sequence):
+class DirectoryPairsSequence(Sequence):
     def __init__(self, x, y, image_data_generator, target_size, batch_size: int, patches: int, base_dir: str):
         self.x, self.y = x, y
         self.image_data_generator = image_data_generator
@@ -161,8 +161,8 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
 
         print('\n# test evaluation')
         g = ImageDataGenerator(preprocessing_function=utils.get_preprocess_fn(architecture))
-        data = DirectoryPairsGenerator(pairs, labels, image_data_generator=g, target_size=image_shape,
-                                       batch_size=batch_size, patches=patches, base_dir=data_dir + 'test/unknown/')
+        data = DirectoryPairsSequence(pairs, labels, image_data_generator=g, target_size=image_shape,
+                                      batch_size=batch_size, patches=patches, base_dir=data_dir + 'test/unknown/')
         probabilities = model.predict_generator(data, steps=len(data), verbose=1,
                                                 use_multiprocessing=use_multiprocessing,
                                                 workers=workers).reshape(-1, patches)

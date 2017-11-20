@@ -88,10 +88,11 @@ def evaluate(labels, probabilities, estimator_type):
     p = (probabilities > .5).astype(np.float)
 
     roc_auc = metrics.roc_auc_score(labels, probabilities)
-    print('roc auc:', roc_auc, '\n',
-          'accuracy:', metrics.accuracy_score(labels, p, normalize=True), '\n',
+    print('roc auc: ', roc_auc, '\n',
+          'accuracy: ', metrics.accuracy_score(labels, p, normalize=True), '\n',
           metrics.classification_report(labels, p), '\n',
-          'Confusion matrix:\n', metrics.confusion_matrix(labels, p))
+          'confusion matrix:\n', metrics.confusion_matrix(labels, p),
+          sep='')
 
     results['evaluations'].append({
         'strategy': 'mean',
@@ -103,7 +104,7 @@ def evaluate(labels, probabilities, estimator_type):
     return results
 
 
-class TestPairsSequence(Sequence):
+class ArrayPairsSequence(Sequence):
     def __init__(self, samples, names, pairs, labels, batch_size):
         self.pairs = pairs
         self.labels = labels
@@ -174,9 +175,9 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         print('test data shape:', samples.shape)
 
         print('\n# test evaluation')
-        g = TestPairsSequence(samples, names, pairs, labels, batch_size)
+        test_data = ArrayPairsSequence(samples, names, pairs, labels, batch_size)
         probabilities = model.predict_generator(
-            g, steps=len(g), use_multiprocessing=use_multiprocessing,
+            test_data, steps=len(test_data), use_multiprocessing=use_multiprocessing,
             workers=workers, verbose=1).reshape(-1, patches)
         del model
         K.clear_session()
