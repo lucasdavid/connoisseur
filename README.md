@@ -109,7 +109,7 @@ reports results. Best values are shown bellow:
    nvg 39    3
     vg  0   25
 
-   samples incorrectly classified: nvg/nvg_10658644, nvg/nvg_10500055 and nvg/nvg_18195595.
+   samples incorrectly classified: nvg_10658644, nvg_10500055 and nvg_18195595.
    ```
 
 #### DenseNet264, PCA and SVM
@@ -143,8 +143,8 @@ reports results. Best values are shown bellow:
    nvg  39    3
     vg   2   23
 
-   samples incorrectly classified: nvg/nvg_10658644, nvg/nvg_9780042, nvg/nvg_6860814,
-                                   vg/vg_17177301 and vg/vg_33566806.
+   samples incorrectly classified: nvg_10658644, nvg_9780042, nvg_6860814,
+                                   vg_17177301 and vg_33566806.
    ```
 
 4. `4a-embed-patches.py` is executed. Using DenseNet264 architecture trained
@@ -173,9 +173,79 @@ reports results. Best values are shown bellow:
     nvg   39    3
     vg     3   22
 
-   samples incorrectly classified: vg/vg_33566806, nvg/nvg_10658644, vg/vg_17177301, vg/vg_9463608,
-                                   nvg/nvg_6860814 and nvg/nvg_9780042.
+   samples incorrectly classified: vg_33566806, nvg_10658644, vg_17177301, vg_9463608,
+                                   nvg_6860814 and nvg_9780042.
    ```
+
+#### Testing on Recaptures
+
+The previous classifiers performed well when applied to the test paintings.
+How well would they perform on recaptures of those same paintings?
+
+Things to go over, first:
+
+* Although the recaptures look similar to vgdb_2016 test and their host
+  websites say they are indeed the same, small differences are noticeable
+  (e.g. the shape of a door, that's more round in one of them than the others;
+  patterns that are blurred in an image and very detailed in others). At
+  first, I though they were replicas but now I'm not so sure: paintings go
+  through revitalization sometimes, which could also explain these
+  differences. A specialist might required to validate this?
+
+* When gathering the recaptures dataset, I reached for larger resolutions
+  whenever available. Unfortunately, while the vgdb_2016 contains huge files,
+  recaptures were hardly bigger than (2000px, 2000px).
+
+  ```
+  general statistics on test paintings in vgdb_2016:
+    min sizes: (1016 px 1044 px)
+    avg sizes: (3115 px 2805 px)
+    max sizes: (7172 px 7243 px)
+    min  area: 1419840 px^2
+    avg  area: 10047495 px^2
+    max  area: 45355666 px^2
+  ```
+
+##### Patch Extraction Directly from Recaptures
+
+Patches were extracted from the recaptures (as they were), following the previous
+pipelines. Results are quite discouraging:
+
+```
+Confusion matrix:
+
+               nvg       vg
+    nvg    0 (na%)  0 (na%)
+     vg   27 (47%) 30 (na%)
+
+samples incorrectly classified: vg_9387502-1, vg_151874-3, vg_9103139-2, vg_9378884-0,
+                                vg_9413420-0, vg_9506505-0, vg_9100648-1, vg_9421984-0,
+                                vg_9387502-3, vg_9414279-2, vg_9414279-0, vg_9463012-0,
+                                vg_9110201-1, vg_9436384-0, vg_9103139-1, vg_9106795-1,
+                                vg_9103139-0, vg_9378884-3, vg_9110201-0, vg_9413420-1,
+                                vg_9506505-1, vg_9103139-3, vg_9414279-1, vg_22263227-0,
+                                vg_9386980-0, vg_9100648-0, vg_9386980-1.
+```
+
+##### Resizing and Extraction from the Recaptures
+
+Recaptures are re-sized to match their respective vgdb_2016's test painting's
+width, while maintaining aspect ratio. The patches are extracted following the
+previous pipelines.
+
+```
+Confusion matrix:
+
+               nvg       vg
+    nvg    0 (na%)  0 (na%)
+     vg   19 (33%) 38 (67%)
+
+samples incorrectly classified: vg_9387502-3, vg_9436384-0, vg_9110201-1, vg_9463012-0,
+                                vg_9413420-1, vg_9386980-1, vg_9103139-2, vg_9421984-0,
+                                vg_9387502-1, vg_9103139-0, vg_9414279-2, vg_9103139-1,
+                                vg_9106795-1, vg_9414279-1, vg_9386980-0, vg_9378884-3,
+                                vg_9413420-0, vg_9103139-3, vg_9414279-0.
+```
 
 ---
 
@@ -283,14 +353,14 @@ bellow:
 ![Diagram of Siamese Fine-tuned InceptionV3, l^2 Joint](assets/pbn-siamese-inception-1584-l2-contrastive.png)
 
 ```
-roc auc: 0.831494094656
+roc auc: 0.831379516462
 accuracy normalized by class-frequency: 73.5%
 
 Confusion matrix:
 
                     different-painters   same-painter
-different-painters      17787310 (82%)  3841387 (18%)
-      same-painter         99936 (35%)   187414 (65%)
+different-painters      17965397 (83%)  3663300 (17%)
+      same-painter        103340 (36%)   184010 (64%)
 ```
 
 

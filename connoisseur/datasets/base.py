@@ -21,8 +21,8 @@ from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from keras.preprocessing.image import img_to_array
-from ..utils.image import load_img, PaintingEnhancer
+from keras.preprocessing.image import img_to_array, load_img
+from ..utils.image import PaintingEnhancer
 
 
 def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
@@ -44,7 +44,7 @@ def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
             elif c > 0:
                 print('skipping', file_name)
             else:
-                raise ValueError('%s data cannot be found.' % p)
+                raise ValueError('%s data cannot be found at %s.' % (p, data_dir))
 
         _layers = layers or data[p]['data'][0].keys()
 

@@ -25,7 +25,7 @@ def config():
     architecture = 'InceptionV3'
     prediction_units = 1000
     weights = 'imagenet'
-    image_shape = (224, 224, 3)
+    image_shape = (299, 299, 3)
     device = "/gpu:0"
     data_dir = "/datasets/vangogh"
     output_dir = data_dir
@@ -38,7 +38,7 @@ def config():
     last_base_layer = None
     use_gram_matrix = False
     embedded_files_max_size = 20 * 1024 ** 3
-    output_layers = ['avg_pool']
+    output_layers = ['global_average_pooling2d_1']
 
 
 @ex.automain
@@ -75,8 +75,8 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
             print('loading weights from:', ckpt_file)
             model.load_weights(ckpt_file)
 
-        available_layers = {l.name for l in model.layers}
-        if set(output_layers) - available_layers:
+        available_layers = [l.name for l in model.layers]
+        if set(output_layers) - set(available_layers):
             print('available layers:', available_layers)
             raise ValueError('selection contains unknown layers: %s' % output_layers)
 

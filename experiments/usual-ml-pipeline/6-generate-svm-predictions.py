@@ -6,8 +6,10 @@ Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
+
 import json
 
+import matplotlib
 import numpy as np
 import tensorflow as tf
 from sacred import Experiment
@@ -16,7 +18,9 @@ from sklearn.externals import joblib
 
 from connoisseur.datasets import group_by_paintings
 from connoisseur.fusion import Fusion, strategies
-from connoisseur.utils import plot_confusion_matrix
+
+matplotlib.use('agg')
+from matplotlib import pyplot as plt
 
 ex = Experiment('generate-svm-predictions')
 
@@ -25,12 +29,25 @@ ex = Experiment('generate-svm-predictions')
 def config():
     ex_tag = 'min_299_inception_pca:0.99_svm'
     data_dir = '/datasets/vangogh_preprocessed/random_299/inception/'
-    ckpt_file_name = '/work/vangogh/models/min-gradient-svm.pkl'
+    ckpt = '/work/vangogh/models/min-gradient-svm.pkl'
     results_file_name = './results-%s.json' % ex_tag
     group_patches = True
     phases = ['train', 'test']
     classes = None
     layer = 'avg_pool'
+
+
+def plot_confusion_matrix(cm, labels, name='cm.jpg', **kwargs):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(cm, **kwargs)
+    plt.title('Confusion matrix of the classifier')
+    fig.colorbar(cax)
+    ax.set_xticklabels([''] + labels)
+    ax.set_yticklabels([''] + labels)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    fig.savefig(name)
 
 
 def evaluate(model, x, y, names, tag, group_patches, phase):
@@ -96,13 +113,13 @@ def evaluate(model, x, y, names, tag, group_patches, phase):
 
 
 @ex.automain
-def run(ex_tag, data_dir, phases, classes, layer, ckpt_file_name,
+def run(ex_tag, data_dir, phases, classes, layer, ckpt,
         results_file_name, group_patches):
     from connoisseur.datasets import load_pickle_data
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
     print('loading model...', end=' ')
-    model = joblib.load(ckpt_file_name)
+    model = joblib.load(ckpt)
     print('done.')
 
     print('loading data...', end=' ')

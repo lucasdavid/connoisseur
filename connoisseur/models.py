@@ -23,37 +23,45 @@ def get_base_model(architecture):
 def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                 classes=1000, last_base_layer=None, use_gram_matrix=False,
                 dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
-                predictions_activation='softmax', model_name=None):
+                predictions_activation='softmax', predictions_name='predictions', model_name=None):
     base_model = get_base_model(architecture)(include_top=include_base_top, weights=weights,
                                               input_shape=image_shape, pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
          if last_base_layer
          else base_model.output)
 
-    summary = 'architecture:'
-    summary += ' input --> %s ' % architecture
+    summary = '%s ' % architecture
 
     if use_gram_matrix:
         sizes = K.get_variable_shape(x)
         k = sizes[-1]
         x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
-        summary += '--> gram() '
+        summary += '-> gram() '
 
     if include_top:
         if K.ndim(x) > 2:
             x = layers.Flatten(name='flatten')(x)
-            summary += '--> flatten() '
+            summary += '-> flatten() '
 
         for l_id, n_units in enumerate(dense_layers):
             x = layers.Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
             x = layers.Dropout(dropout_p)(x)
-            summary += '--> dropout(relu(dense(%i))) ' % n_units
+            summary += '-> dropout(relu(dense(%i))) ' % n_units
 
-        x = layers.Dense(classes, activation=predictions_activation, name='predictions')(x)
-        summary += '--> dense(%i, activation=%s, name=\'predictions\')' % (classes, predictions_activation)
+        if not isinstance(classes, (list, tuple)):
+            classes, predictions_activation, predictions_name = ([classes],
+                                                                 [predictions_activation],
+                                                                 [predictions_name])
+
+        outputs = []
+        for units, activation, name in zip(classes, predictions_activation, predictions_name):
+            outputs += [layers.Dense(units, activation=activation, name=name)(x)]
+            summary += '\n  -> dense(%i, activation=%s, name=%s)' % (units, activation, name)
+    else:
+        outputs = [x]
 
     print('model summary:', summary)
-    return Model(inputs=base_model.input, outputs=x, name=model_name)
+    return Model(inputs=base_model.input, outputs=outputs, name=model_name)
 
 
 def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='imagenet',

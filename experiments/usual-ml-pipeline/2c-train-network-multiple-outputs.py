@@ -14,11 +14,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from PIL import ImageFile
-from keras import layers, Model, callbacks, optimizers, backend as K
+from keras import callbacks, optimizers, backend as K
 from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment, utils as sacred_utils
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import Imputer, OneHotEncoder, LabelEncoder
+from sklearn.preprocessing import Imputer, OneHotEncoder, LabelEncoder, StandardScaler
 
 from connoisseur.models import build_model
 from connoisseur.utils import get_preprocess_fn
@@ -67,10 +67,16 @@ def config():
     early_stop_patience = 20
     tensorboard_tag = 'train-multiple-outputs-network-%s' % tag
     first_trainable_layer = None
+    outputs_meta = [
+        {'name': 'artist', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
+        {'name': 'style', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
+        {'name': 'genre', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
+        {'name': 'date', 'activation': 'relu', 'loss': 'mse', 'metric': 'mse', 'weight': .1},
+    ]
 
 
 def to_year(e):
-    year_pattern = r'(?:\w*[\s\.])?(?P<year>\d{3,4})(?:\.0?)?$'
+    year_pattern = r'(?:\w*[\s\.])?(\d{3,4})(?:\.0?)?$'
     try:
         return e if isinstance(e, float) else re.match(year_pattern, e).group(1)
     except AttributeError:
@@ -82,7 +88,8 @@ def to_year(e):
 def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shape, train_info, batch_size,
         architecture, weights, last_base_layer, use_gram_matrix, pooling, dropout_p, device,
         epochs, steps_per_epoch, validation_steps, initial_epoch, opt_params, resuming_from, ckpt_file,
-        workers, use_multiprocessing, early_stop_patience, first_trainable_layer, tensorboard_tag):
+        workers, use_multiprocessing, early_stop_patience, first_trainable_layer, tensorboard_tag,
+        outputs_meta):
     try:
         report_dir = _run.observers[0].dir
     except IndexError:
@@ -91,8 +98,8 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
     print('reading train-info...')
     y_train = pd.read_csv(train_info, quotechar='"', delimiter=',')
 
+    output_names = [o['name'] for o in outputs_meta]
     categorical_output_names = ['artist', 'style', 'genre']
-    output_names = ['artist', 'style', 'genre'] + ['date']
     outputs = {}
 
     for f in output_names:
@@ -108,7 +115,8 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
         else:
             encoded = y_train[f] if f != 'date' else y_train['date'].apply(to_year)
             encoded = encoded.values
-            flow = make_pipeline(Imputer(strategy='mean'))
+            flow = make_pipeline(Imputer(strategy='mean'),
+                                 StandardScaler())
 
         outputs[f] = flow.fit_transform(encoded.reshape(-1, 1))
 
@@ -128,12 +136,13 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                                                   batch_size=batch_size, target_size=image_shape[:2],
                                                   subdirectories=subdirectories,
                                                   shuffle=train_shuffle)
-    valid_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'valid'), outputs, name_map, g,
+    valid_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'train'), outputs, name_map, g,
                                                   batch_size=batch_size, target_size=image_shape[:2],
                                                   subdirectories=subdirectories,
                                                   shuffle=valid_shuffle)
-    units = {o: outputs[o].shape[1] for o in output_names}
-    del y_train, categorical_output_names, output_names, outputs, name_map, g
+    for o in outputs_meta:
+        o['units'] = outputs[o['name']].shape[1]
+    del y_train, categorical_output_names, outputs, name_map, g
 
     if steps_per_epoch is None:
         steps_per_epoch = len(train_data)
@@ -146,7 +155,10 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                             weights=weights, dropout_p=dropout_p,
                             last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling,
-                            include_top=False)
+                            include_top=True,
+                            classes=[o['units'] for o in outputs_meta],
+                            predictions_name=output_names,
+                            predictions_activation=[o['activation'] for o in outputs_meta])
 
         layer_names = [l.name for l in model.layers]
         if first_trainable_layer:
@@ -160,28 +172,10 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                 layer.trainable = _trainable
             del _trainable
 
-        x = model.output
-        y = [layers.Dense(units['artist'], activation='softmax', name='artist')(x),
-             layers.Dense(units['style'], activation='softmax', name='style')(x),
-             layers.Dense(units['genre'], activation='softmax', name='genre')(x),
-             layers.Dense(units['date'], activation='relu', name='date')(x)]
-
-        model = Model(inputs=model.input, outputs=y)
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      loss={
-                          'artist': 'categorical_crossentropy',
-                          'style': 'categorical_crossentropy',
-                          'genre': 'categorical_crossentropy',
-                          'date': 'mse'
-                      },
-                      metrics={'artist': 'accuracy',
-                               'style': 'accuracy',
-                               'genre': 'accuracy',
-                               'year': 'mse'},
-                      loss_weights={'artist': 1.,
-                                    'style': 0.8,
-                                    'genre': 0.6,
-                                    'year': 0.4})
+                      loss=dict((o['name'], o['loss']) for o in outputs_meta),
+                      metrics=dict((o['name'], o['metric']) for o in outputs_meta),
+                      loss_weights=dict((o['name'], o['weight']) for o in outputs_meta))
         model.summary()
 
         if resuming_from:
