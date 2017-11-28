@@ -10,10 +10,15 @@ import json
 import os
 from math import ceil
 
+import matplotlib
 import numpy as np
 from PIL import ImageFile
 from sacred import Experiment
 from sklearn import metrics
+
+matplotlib.use('agg')
+
+from matplotlib import pyplot as plt
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -43,10 +48,22 @@ def config():
     device = "/gpu:0"
 
 
+def plot_confusion_matrix(cm, labels, name='cm.jpg', **kwargs):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(cm, **kwargs)
+    plt.title('Confusion matrix of the classifier')
+    fig.colorbar(cax)
+    ax.set_xticklabels([''] + labels)
+    ax.set_yticklabels([''] + labels)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    fig.savefig(name)
+
+
 def evaluate(probabilities, y, names, tag, group_patches, phase):
     from connoisseur.datasets import group_by_paintings
     from connoisseur.fusion import Fusion, strategies
-    from connoisseur.utils import plot_confusion_matrix
 
     p = np.argmax(probabilities, axis=-1)
     score = metrics.accuracy_score(y, p)
@@ -71,7 +88,7 @@ def evaluate(probabilities, y, names, tag, group_patches, phase):
 
     if group_patches:
         probabilities, y, names = group_by_paintings(probabilities, y, names)
-        for strategy_tag in ('sum', 'mean', 'farthest', 'most_frequent'):
+        for strategy_tag in ('mean', 'farthest', 'most_frequent'):
             strategy = getattr(strategies, strategy_tag)
 
             p = Fusion(strategy=strategy).predict(probabilities)
@@ -111,7 +128,10 @@ def run(tag, data_dir, n_classes, phases, classes, data_seed,
 
     preprocess_input = get_preprocess_fn(architecture)
 
-    g = ImageDataGenerator(preprocessing_function=preprocess_input)
+    g = ImageDataGenerator(
+        samplewise_center=True,
+        samplewise_std_normalization=True,
+        preprocessing_function=None)
 
     with tf.device(device):
         print('building...')

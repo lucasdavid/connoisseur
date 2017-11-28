@@ -90,12 +90,14 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
     g = ImageDataGenerator(
         horizontal_flip=True,
         vertical_flip=True,
+        samplewise_center=True,
+        samplewise_std_normalization=True,
         zoom_range=.2,
         rotation_range=.2,
         height_shift_range=.2,
         width_shift_range=.2,
         fill_mode='reflect',
-        preprocessing_function=get_preprocess_fn(architecture))
+        preprocessing_function=None)
 
     train_data = g.flow_from_directory(
         os.path.join(data_dir, 'train'),
@@ -118,7 +120,7 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
     with tf.device(device):
         print('building...')
         model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
-                            classes=train_data.num_class, last_base_layer=last_base_layer,
+                            classes=train_data.num_classes, last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling, dense_layers=dense_layers)
 
         layer_names = [l.name for l in model.layers]

@@ -4,18 +4,17 @@ from keras.engine import Model
 from .utils import siamese_functions, gram_matrix
 
 
-# from keras_contrib.applications import densenet
-
-
 def get_base_model(architecture):
     """Finds an network inside one of the modules."""
-    for a in (applications,  # densenet
-              ):
-        if hasattr(a, architecture):
-            return getattr(a, architecture)
-
     if architecture in globals():
         return globals()[architecture]
+
+    if hasattr(applications, architecture):
+        return getattr(applications, architecture)
+
+    from keras_contrib.applications import densenet
+    if hasattr(densenet, architecture):
+        return getattr(densenet, architecture)
 
     raise ValueError('unknown architecture ' + architecture)
 
