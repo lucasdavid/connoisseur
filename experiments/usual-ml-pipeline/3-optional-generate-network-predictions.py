@@ -28,23 +28,23 @@ ex = Experiment('generate-network-predictions')
 @ex.config
 def config():
     tag = 'random_299_inception_pca:0.99_svm'
-    data_dir = '/datasets/vangogh/random_32/'
+    data_dir = '/datasets/vangogh-test-recaptures/patches/vangogh-museum-random-299/'
     n_classes = 2
     classes = None
-    phases = ['train', 'valid', 'test']
+    phases = ['test']
     data_seed = 19
     results_file_name = './results-%s.json' % tag
     group_patches = True
     batch_size = 64
     image_shape = [299, 299, 3]
-    architecture = 'InceptionV3'
+    architecture = 'DenseNet'
     last_base_layer = None
     use_gram_matrix = False
     dense_layers = ()
     pooling = 'avg'
     weights = 'imagenet'
     dropout_p = 0.2
-    ckpt_file = './ckpt/pbn,all-classes-,all-patches,inception.hdf5'
+    ckpt_file = '/work/vangogh/models/vangogh_densenet.hdf5'
     device = "/gpu:0"
 
 

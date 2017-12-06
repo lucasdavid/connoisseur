@@ -139,7 +139,7 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         model = build_siamese_model(image_shape, architecture, dropout_rate, weights, num_classes, last_base_layer,
                                     use_gram_matrix, dense_layers, pooling, include_base_top=False, include_top=True,
                                     predictions_activation=predictions_activation, limb_weights=limb_weights,
-                                    trainable_limbs=False, embedding_units=embedding_units, joint=joint)
+                                    trainable_limbs=False, embedding_units=embedding_units, joints=joint)
         model.summary()
         print('loading weights from', ckpt)
         model.load_weights(ckpt)

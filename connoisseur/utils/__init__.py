@@ -3,7 +3,7 @@ from keras import backend as K
 from . import image
 
 
-def euclidean(inputs):
+def l2(inputs):
     x, y = inputs
     return K.sqrt(
         K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
@@ -72,6 +72,6 @@ def get_preprocess_fn(architecture):
 
 
 siamese_functions = {
-    'euclidean': euclidean,
     'l1': l1,
+    'l2': l2,
 }

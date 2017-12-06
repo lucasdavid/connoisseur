@@ -69,26 +69,24 @@ class BalancedDirectoryPairsSequence(Sequence):
     """
 
     def __init__(self, directory, image_data_generator, batch_size=32,
-                 pairs=50, target_size=None, classes=None):
+                 pairs=50, target_size=None, classes=None, shuffle=True):
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.batch_size = batch_size
         self.target_size = target_size
         self.classes = np.asarray(classes or sorted(os.listdir(directory)))
+        self.shuffle = shuffle
 
         if not directory.endswith('/'):
             directory += '/'
 
         _id = 0
         samples = {}
-        classes = []
         for c in self.classes:
             files = os.listdir(directory + c)
             if files:
                 samples[_id] = list(map(lambda _f: directory + c + '/' + _f, files))
-                classes.append(c)
                 _id += 1
-        self.classes = np.asarray(classes)
 
         x, y = [], []
 
@@ -101,8 +99,88 @@ class BalancedDirectoryPairsSequence(Sequence):
             y += int(pairs / 2) * [0.0]
 
         p = np.arange(len(x))
-        np.random.shuffle(p)
+        if self.shuffle:
+            np.random.shuffle(p)
         self.x, self.y = [np.asarray(e)[p] for e in (x, y)]
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_files = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        batch_x = [[], []]
+        # build batch of image data
+        for a, b in batch_files:
+            for i, n in enumerate((a, b)):
+                x = ki.img_to_array(ki.load_img(n, target_size=self.target_size))
+                x = self.image_data_generator.random_transform(x)
+                x = self.image_data_generator.standardize(x)
+                batch_x[i] += [x]
+
+        batch_x = [np.asarray(_x) for _x in batch_x]
+        return batch_x, np.array(batch_y)
+
+
+class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
+    """Iterator capable of creating pairs of images.
+
+    :param batch_size: size of the batch yielded each next(self) call.
+    """
+
+    def __init__(self, directory,
+                 outputs: dict,
+                 name_map: dict,
+                 image_data_generator: ImageDataGenerator,
+                 batch_size: int = 32,
+                 target_size=None,
+                 subdirectories=None,
+                 shuffle: bool = True,
+                 pairs=50):
+        self.directory = directory
+        self.outputs = outputs
+        self.name_map = name_map
+        self.image_data_generator = image_data_generator
+        self.batch_size = batch_size
+        self.target_size = target_size
+        self.shuffle = shuffle
+
+        if not directory.endswith('/'):
+            directory += '/'
+        self.subdirectories = np.asarray(subdirectories or sorted(os.listdir(directory)))
+
+        _id = 0
+        samples = {}
+        for c in self.subdirectories:
+            files = os.listdir(directory + c)
+            if files:
+                samples[_id] = list(map(lambda _f: directory + c + '/' + _f, files))
+                _id += 1
+
+        x = []
+        for c1 in range(len(self.subdirectories)):
+            x += np.random.choice(samples[c1], pairs).reshape(int(pairs / 2), 2).tolist()
+            others = (np.random.randint(1, len(self.subdirectories), size=int(pairs / 2))
+                      + c1) % len(self.subdirectories)
+            x += zip(np.random.choice(samples[c1], int(pairs / 2)), (np.random.choice(samples[c2]) for c2 in others))
+        p = np.arange(len(x))
+
+        if self.shuffle:
+            np.random.shuffle(p)
+        self.x = np.asarray(x)[p]
+
+        y = {o: [] for o in outputs}
+        indices = [[self.name_map[os.path.basename(f).split('-')[0]] for f in p]
+                   for p in self.x]
+        for o in outputs:
+            _y = outputs[o][indices]
+            if o == 'date':
+                _y = np.abs(_y[:, 0, :] - _y[:, 1, :])
+            else:
+                _y = (_y[:, 0, :] == _y[:, 1, :]).astype('float')
+            y[o] += _y
+        self.y = y
 
     def __len__(self):
         return math.ceil(len(self.x) / self.batch_size)

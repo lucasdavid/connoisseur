@@ -5,11 +5,55 @@ Licence: MIT License 2016 (c)
 
 """
 import os
+import re
 import shutil
 
+import numpy as np
 import pandas as pd
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import LabelEncoder, Imputer, OneHotEncoder, StandardScaler
 
 from .base import DataSet
+
+
+def load_multiple_outputs(train_info, outputs_meta, encode='onehot'):
+    assert encode in ('onehot', 'sparse'), 'unknown encode %s' % encode
+
+    def to_year(e):
+        year_pattern = r'(?:\w*[\s\.])?(\d{3,4})(?:\.0?)?$'
+        try:
+            return e if isinstance(e, float) else float(re.match(year_pattern, e).group(1))
+        except (AttributeError, ValueError):
+            print('unknown year', e)
+            return np.nan
+
+    y_train = pd.read_csv(train_info, quotechar='"', delimiter=',')
+
+    categorical_output_names = ['artist', 'style', 'genre']
+    outputs = {}
+
+    for meta in outputs_meta:
+        n = meta['n']
+        if n in categorical_output_names:
+            en = LabelEncoder()
+            is_nan = pd.isnull(y_train[n])
+            encoded = en.fit_transform(y_train[n].apply(str).str.lower()).astype('float')
+            encoded[is_nan] = np.nan
+
+            flow = make_pipeline(Imputer(strategy='most_frequent'),
+                                 OneHotEncoder(sparse=False) if encode == 'onehot' else None)
+        else:
+            encoded = y_train[n] if n != 'date' else y_train['date'].apply(to_year)
+            encoded = encoded.values
+            flow = make_pipeline(Imputer(strategy='mean'),
+                                 StandardScaler())
+
+        outputs[n] = flow.fit_transform(encoded.reshape(-1, 1))
+        meta['f'] = flow
+        meta['u'] = outputs[n].shape[1]
+
+    name_map = {os.path.splitext(n)[0]: i for i, n in enumerate(y_train['filename'])}
+    return outputs, name_map
 
 
 class PainterByNumbers(DataSet):

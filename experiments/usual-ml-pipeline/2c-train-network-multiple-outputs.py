@@ -8,20 +8,17 @@ Licence: MIT License 2016 (c)
 
 """
 import os
-import re
 
-import numpy as np
-import pandas as pd
 import tensorflow as tf
 from PIL import ImageFile
-from keras import callbacks, optimizers, backend as K
+from keras import optimizers, backend as K
+from keras.callbacks import TerminateOnNaN, EarlyStopping, ReduceLROnPlateau, TensorBoard, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment, utils as sacred_utils
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import Imputer, OneHotEncoder, LabelEncoder, StandardScaler
 
+from connoisseur import get_preprocess_fn
+from connoisseur.datasets.painter_by_numbers import load_multiple_outputs
 from connoisseur.models import build_model
-from connoisseur.utils import get_preprocess_fn
 from connoisseur.utils.image import MultipleOutputsDirectorySequence
 
 ex = Experiment('train-network-multiple-predictions')
@@ -60,7 +57,6 @@ def config():
     resuming_from = None
     epochs = 500
     steps_per_epoch = None
-    validation_steps = None
     workers = 8
     use_multiprocessing = False
     initial_epoch = 0
@@ -68,26 +64,17 @@ def config():
     tensorboard_tag = 'train-multiple-outputs-network-%s' % tag
     first_trainable_layer = None
     outputs_meta = [
-        {'name': 'artist', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
-        {'name': 'style', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
-        {'name': 'genre', 'activation': 'softmax', 'loss': 'categorical_crossentropy', 'metric': 'accuracy', 'weight': .3},
-        {'name': 'date', 'activation': 'relu', 'loss': 'mse', 'metric': 'mse', 'weight': .1},
+        {'n': 'artist', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .4},
+        {'n': 'style', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
+        {'n': 'genre', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
+        # {'n': 'date', 'a': 'linear', 'l': 'mse', 'm': 'mse', 'w': .1}
     ]
-
-
-def to_year(e):
-    year_pattern = r'(?:\w*[\s\.])?(\d{3,4})(?:\.0?)?$'
-    try:
-        return e if isinstance(e, float) else re.match(year_pattern, e).group(1)
-    except AttributeError:
-        print('unknown year', e)
-        return np.nan
 
 
 @ex.automain
 def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shape, train_info, batch_size,
         architecture, weights, last_base_layer, use_gram_matrix, pooling, dropout_p, device,
-        epochs, steps_per_epoch, validation_steps, initial_epoch, opt_params, resuming_from, ckpt_file,
+        epochs, steps_per_epoch, initial_epoch, opt_params, resuming_from, ckpt_file,
         workers, use_multiprocessing, early_stop_patience, first_trainable_layer, tensorboard_tag,
         outputs_meta):
     try:
@@ -96,31 +83,7 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
         report_dir = './logs/_unlabeled'
 
     print('reading train-info...')
-    y_train = pd.read_csv(train_info, quotechar='"', delimiter=',')
-
-    output_names = [o['name'] for o in outputs_meta]
-    categorical_output_names = ['artist', 'style', 'genre']
-    outputs = {}
-
-    for f in output_names:
-        if f in categorical_output_names:
-            en = LabelEncoder()
-            is_nan = pd.isnull(y_train[f])
-            encoded = en.fit_transform(y_train[f].apply(str).str.lower()).astype('float')
-            encoded[is_nan] = np.nan
-
-            flow = make_pipeline(Imputer(strategy='most_frequent'),
-                                 OneHotEncoder(sparse=False))
-
-        else:
-            encoded = y_train[f] if f != 'date' else y_train['date'].apply(to_year)
-            encoded = encoded.values
-            flow = make_pipeline(Imputer(strategy='mean'),
-                                 StandardScaler())
-
-        outputs[f] = flow.fit_transform(encoded.reshape(-1, 1))
-
-    name_map = {os.path.splitext(n)[0]: i for i, n in enumerate(y_train['filename'])}
+    outputs, name_map = load_multiple_outputs(train_info, outputs_meta)
 
     g = ImageDataGenerator(
         horizontal_flip=True,
@@ -136,18 +99,10 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                                                   batch_size=batch_size, target_size=image_shape[:2],
                                                   subdirectories=subdirectories,
                                                   shuffle=train_shuffle)
-    valid_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'train'), outputs, name_map, g,
+    valid_data = MultipleOutputsDirectorySequence(os.path.join(data_dir, 'valid'), outputs, name_map, g,
                                                   batch_size=batch_size, target_size=image_shape[:2],
                                                   subdirectories=subdirectories,
                                                   shuffle=valid_shuffle)
-    for o in outputs_meta:
-        o['units'] = outputs[o['name']].shape[1]
-    del y_train, categorical_output_names, outputs, name_map, g
-
-    if steps_per_epoch is None:
-        steps_per_epoch = len(train_data)
-    if validation_steps is None:
-        validation_steps = len(valid_data)
 
     with tf.device(device):
         print('building...')
@@ -156,9 +111,9 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                             last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling,
                             include_top=True,
-                            classes=[o['units'] for o in outputs_meta],
-                            predictions_name=output_names,
-                            predictions_activation=[o['activation'] for o in outputs_meta])
+                            classes=[o['u'] for o in outputs_meta],
+                            predictions_name=[o['n'] for o in outputs_meta],
+                            predictions_activation=[o['a'] for o in outputs_meta])
 
         layer_names = [l.name for l in model.layers]
         if first_trainable_layer:
@@ -173,29 +128,30 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
             del _trainable
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      loss=dict((o['name'], o['loss']) for o in outputs_meta),
-                      metrics=dict((o['name'], o['metric']) for o in outputs_meta),
-                      loss_weights=dict((o['name'], o['weight']) for o in outputs_meta))
+                      loss=dict((o['n'], o['l']) for o in outputs_meta),
+                      metrics=dict((o['n'], o['m']) for o in outputs_meta),
+                      loss_weights=dict((o['n'], o['w']) for o in outputs_meta))
         model.summary()
 
         if resuming_from:
             print('re-loading weights...')
             model.load_weights(resuming_from)
 
-        print('training from epoch %i...' % initial_epoch)
         try:
-            model.fit_generator(
-                train_data, steps_per_epoch=steps_per_epoch, epochs=epochs,
-                validation_data=valid_data, validation_steps=validation_steps,
-                initial_epoch=initial_epoch, verbose=1,
-                workers=workers, use_multiprocessing=use_multiprocessing,
-                callbacks=[
-                    callbacks.TerminateOnNaN(),
-                    callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
-                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
-                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt_file), save_best_only=True, verbose=1),
-                ])
+            print('training from epoch %i...' % initial_epoch)
+            model.fit_generator(train_data,
+                                steps_per_epoch=steps_per_epoch,
+                                epochs=epochs,
+                                validation_data=valid_data,
+                                initial_epoch=initial_epoch, verbose=1,
+                                workers=workers, use_multiprocessing=use_multiprocessing,
+                                callbacks=[
+                                    TerminateOnNaN(),
+                                    EarlyStopping(patience=early_stop_patience),
+                                    ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
+                                    TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
+                                    ModelCheckpoint(os.path.join(report_dir, ckpt_file), save_best_only=True, verbose=1)
+                                ])
 
         except KeyboardInterrupt:
             print('interrupted by user')

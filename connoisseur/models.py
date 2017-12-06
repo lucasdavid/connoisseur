@@ -1,5 +1,6 @@
 from keras import applications, layers, models, regularizers, backend as K, Input
 from keras.engine import Model
+from keras.layers import Dropout, Dense, Lambda, Flatten, multiply
 
 from .utils import siamese_functions, gram_matrix
 
@@ -34,17 +35,17 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
     if use_gram_matrix:
         sizes = K.get_variable_shape(x)
         k = sizes[-1]
-        x = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
+        x = Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
         summary += '-> gram() '
 
     if include_top:
         if K.ndim(x) > 2:
-            x = layers.Flatten(name='flatten')(x)
+            x = Flatten(name='flatten')(x)
             summary += '-> flatten() '
 
         for l_id, n_units in enumerate(dense_layers):
-            x = layers.Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
-            x = layers.Dropout(dropout_p)(x)
+            x = Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
+            x = Dropout(dropout_p)(x)
             summary += '-> dropout(relu(dense(%i))) ' % n_units
 
         if not isinstance(classes, (list, tuple)):
@@ -53,9 +54,9 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                                                                  [predictions_name])
 
         outputs = []
-        for units, activation, name in zip(classes, predictions_activation, predictions_name):
-            outputs += [layers.Dense(units, activation=activation, name=name)(x)]
-            summary += '\n  -> dense(%i, activation=%s, name=%s)' % (units, activation, name)
+        for u, a, n in zip(classes, predictions_activation, predictions_name):
+            outputs += [Dense(u, activation=a, name=n)(x)]
+            summary += '\n  -> dense(%i, activation=%s, name=%s)' % (u, a, n)
     else:
         outputs = [x]
 
@@ -65,44 +66,53 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
 
 def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='imagenet',
                         classes=1000, last_base_layer=None, use_gram_matrix=False,
-                        dense_layers=(), pooling='avg', include_base_top=False,
-                        include_top=True, limb_weights=None, predictions_activation='softmax',
-                        trainable_limbs=True, embedding_units=1024, joint='multiply'):
-    base_model = build_model(image_shape, architecture, dropout_rate, weights,
-                             classes, last_base_layer, use_gram_matrix,
-                             dense_layers, pooling, include_base_top,
-                             include_top, predictions_activation)
+                        dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
+                        predictions_activation='softmax', predictions_name='predictions', model_name=None,
+                        limb_weights=None, trainable_limbs=True, embedding_units=1024, joints='multiply'):
+    limb = build_model(image_shape, architecture, dropout_rate, weights, classes, last_base_layer,
+                       use_gram_matrix, dense_layers, pooling, include_base_top, include_top,
+                       predictions_activation, predictions_name, model_name)
     if limb_weights:
         print('loading weights from', limb_weights)
-        base_model.load_weights(limb_weights)
+        limb.load_weights(limb_weights)
 
     if not trainable_limbs:
-        for l in base_model.layers:
+        for l in limb.layers:
             l.trainable = False
 
-    if embedding_units:
-        x = base_model.output
-        x = layers.Dense(embedding_units, activation='relu')(x)
-        x = layers.Dropout(dropout_rate)(x)
-        x = layers.Dense(embedding_units, activation='relu')(x)
-        x = layers.Dropout(dropout_rate)(x)
-        x = layers.Dense(embedding_units, activation='relu')(x)
-        base_model = Model(inputs=base_model.inputs, outputs=x)
+    if not isinstance(embedding_units, (list, tuple)):
+        embedding_units = len(limb.outputs) * [embedding_units]
+
+    outputs = []
+    for u, x in zip(embedding_units, limb.outputs):
+        if u:
+            x = Dense(u, activation='relu')(x)
+            x = Dropout(dropout_rate)(x)
+            x = Dense(u, activation='relu')(x)
+            x = Dropout(dropout_rate)(x)
+            x = Dense(u, activation='relu')(x)
+        outputs += [x]
+    limb = Model(inputs=limb.inputs, outputs=outputs)
 
     ia, ib = Input(shape=image_shape), Input(shape=image_shape)
-    ya = base_model(ia)
-    yb = base_model(ib)
+    ya = limb(ia)
+    yb = limb(ib)
 
-    if joint == 'multiply':
-        x = layers.multiply([ya, yb])
-        x = layers.Dense(1, activation='sigmoid', name='binary_predictions')(x)
-    else:
-        if isinstance(joint, str):
-            joint = siamese_functions[joint]
-        x = layers.Lambda(joint, lambda _x: (_x[0][0], 1),
-                          name='binary_predictions')([ya, yb])
+    if not isinstance(joints, (list, tuple)):
+        joints = [joints]
 
-    return Model([ia, ib], x)
+    outputs = []
+    for n, j, _ya, _yb in zip(predictions_name, joints, ya, yb):
+        if j == 'multiply':
+            x = multiply([_ya, _yb])
+            x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
+        else:
+            if isinstance(j, str):
+                j = siamese_functions[j]
+            x = Lambda(j, lambda _x: (_x[0][0], 1), name='%s_binary_predictions' % n)([_yb, _yb])
+        outputs += [x]
+
+    return Model(inputs=[ia, ib], outputs=outputs)
 
 
 def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):

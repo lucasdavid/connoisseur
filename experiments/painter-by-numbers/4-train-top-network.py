@@ -47,7 +47,7 @@ def config():
     use_gram_matrix = False
     dense_layers = ()
     embedding_units = 1024
-    joint = 'multiply'
+    joints = 'multiply'
     trainable_limbs = False
     pooling = 'avg'
 
@@ -71,7 +71,7 @@ def config():
 @ex.automain
 def run(_run, image_shape, data_dir, train_pairs, valid_pairs, classes,
         num_classes, architecture, weights, batch_size, last_base_layer, pooling, device, predictions_activation,
-        opt_params, dropout_rate, resuming_ckpt, ckpt, steps_per_epoch, epochs, validation_steps, joint,
+        opt_params, dropout_rate, resuming_ckpt, ckpt, steps_per_epoch, epochs, validation_steps, joints,
         workers, use_multiprocessing, initial_epoch, early_stop_patience, use_gram_matrix, dense_layers,
         embedding_units, limb_weights, trainable_limbs, tensorboard_tag):
     report_dir = _run.observers[0].dir
@@ -97,15 +97,15 @@ def run(_run, image_shape, data_dir, train_pairs, valid_pairs, classes,
         model = build_siamese_model(image_shape, architecture, dropout_rate, weights, num_classes, last_base_layer,
                                     use_gram_matrix, dense_layers, pooling, include_base_top=False, include_top=True,
                                     predictions_activation=predictions_activation, limb_weights=limb_weights,
-                                    trainable_limbs=trainable_limbs, embedding_units=embedding_units, joint=joint)
+                                    trainable_limbs=trainable_limbs, embedding_units=embedding_units, joints=joints)
         print('siamese model summary:')
         model.summary()
         if resuming_ckpt:
             print('loading weights...')
             model.load_weights(resuming_ckpt)
 
-        model.compile(loss=utils.contrastive_loss,
-                      metrics=[utils.contrastive_accuracy],
+        model.compile(loss='binary_crossentropy',
+                      metrics=['accuracy'],
                       optimizer=optimizers.Adam(**opt_params))
 
         print('training from epoch %i...' % initial_epoch)
