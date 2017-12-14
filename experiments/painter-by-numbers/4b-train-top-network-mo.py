@@ -13,14 +13,11 @@ from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
-from connoisseur import utils, get_preprocess_fn
+from connoisseur import get_preprocess_fn
 from connoisseur.datasets.painter_by_numbers import load_multiple_outputs
 from connoisseur.models import build_siamese_model
 from connoisseur.utils.image import BalancedDirectoryPairsMultipleOutputsSequence
 
-import matplotlib
-
-matplotlib.use('agg')
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -56,11 +53,11 @@ def config():
     trainable_limbs = False
     pooling = 'avg'
 
-    limb_weights = '/work/painter-by-numbers/ckpt/limb_weights.hdf5'
+    limb_weights = '/work/painter-by-numbers/wlogs/train-multiple-outputs/5/weights.hdf5'
 
     opt_params = {'lr': .001}
-    dropout_rate = 0.2
-    ckpt = 'top-network.hdf5'
+    dropout_rate = .5
+    ckpt = 'weights.hdf5'
     resuming_ckpt = None
     epochs = 100
     steps_per_epoch = None
@@ -69,13 +66,13 @@ def config():
     workers = 1
     initial_epoch = 0
     early_stop_patience = 30
-    tensorboard_tag = 'train-top-network/'
+    tensorboard_tag = 'training/'
 
     outputs_meta = [
-        {'n': 'artist', 'e': 1024, 'j': 'multiply', 'a': 'softmax', 'l': 'binary_crossentropy', 'm': 'accuracy', 'w': 1.},
-        {'n': 'style', 'e': 256, 'j': 'multiply', 'a': 'softmax', 'l': 'binary_crossentropy', 'm': 'accuracy', 'w': 1.},
-        {'n': 'genre', 'e': 256, 'j': 'multiply', 'a': 'softmax', 'l': 'binary_crossentropy', 'm': 'accuracy', 'w': 1.},
-        {'n': 'date', 'e': 256, 'j': 'l2', 'a': 'linear', 'l': utils.contrastive_loss, 'm': utils.contrastive_accuracy, 'w': 1.}
+        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='style', u=135, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        # dict(n='date', u=1, e=256, j='l2', a='linear', l=utils.contrastive_loss, m=utils.contrastive_accuracy)
     ]
 
 
@@ -101,6 +98,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
         fill_mode='reflect',
         preprocessing_function=get_preprocess_fn(architecture))
 
+    print('loading train meta-data...')
     train_data = BalancedDirectoryPairsMultipleOutputsSequence(
         os.path.join(data_dir, 'train'), outputs, name_map, g,
         batch_size=batch_size, target_size=image_shape[:2],
@@ -108,6 +106,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
         shuffle=train_shuffle,
         pairs=train_pairs)
 
+    print('loading valid meta-data...')
     valid_data = BalancedDirectoryPairsMultipleOutputsSequence(
         os.path.join(data_dir, 'valid'), outputs, name_map, g,
         batch_size=batch_size, target_size=image_shape[:2],
@@ -136,9 +135,8 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
             model.load_weights(resuming_ckpt)
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      loss=dict((o['n'], o['l']) for o in outputs_meta),
-                      metrics=dict((o['n'], o['m']) for o in outputs_meta),
-                      loss_weights=dict((o['n'], o['w']) for o in outputs_meta))
+                      loss=dict((o['n'] + '_binary_predictions', o['l']) for o in outputs_meta),
+                      metrics=dict((o['n'] + '_binary_predictions', o['m']) for o in outputs_meta))
 
         print('training from epoch %i...' % initial_epoch)
         try:
@@ -154,8 +152,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
                     callbacks.EarlyStopping(patience=early_stop_patience),
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
                     callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
-                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True,
-                                              save_weights_only=True, verbose=1),
+                    callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True, verbose=1),
                 ])
         except KeyboardInterrupt:
             print('interrupted by user')

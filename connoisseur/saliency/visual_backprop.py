@@ -1,9 +1,11 @@
-from saliency import SaliencyMask
-import numpy as np
 import keras.backend as K
+import numpy as np
+from keras.initializers import Ones, Zeros
 from keras.layers import Input, Conv2DTranspose
 from keras.models import Model
-from keras.initializers import Ones, Zeros
+
+from .saliency import SaliencyMask
+
 
 class VisualBackprop(SaliencyMask):
     """A SaliencyMask class that computes saliency masks with VisualBackprop (https://arxiv.org/abs/1611.05418).

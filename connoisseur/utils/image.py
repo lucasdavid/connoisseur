@@ -91,10 +91,10 @@ class BalancedDirectoryPairsSequence(Sequence):
         x, y = [], []
 
         for c1 in range(len(self.classes)):
-            x += np.random.choice(samples[c1], pairs).reshape(int(pairs / 2), 2).tolist()
+            x += np.random.choice(samples[c1], size=(int(pairs / 2), 2)).tolist()
             y += int(pairs / 2) * [1.0]
 
-            others = (np.random.randint(1, len(self.classes), size=int(pairs / 2)) + c1) % len(self.classes)
+            others = (np.random.randint(1, len(samples), size=int(pairs / 2)) + c1) % len(samples)
             x += zip(np.random.choice(samples[c1], int(pairs / 2)), (np.random.choice(samples[c2]) for c2 in others))
             y += int(pairs / 2) * [0.0]
 
@@ -159,10 +159,10 @@ class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
                 _id += 1
 
         x = []
-        for c1 in range(len(self.subdirectories)):
-            x += np.random.choice(samples[c1], pairs).reshape(int(pairs / 2), 2).tolist()
-            others = (np.random.randint(1, len(self.subdirectories), size=int(pairs / 2))
-                      + c1) % len(self.subdirectories)
+        for c1 in samples:
+            x += np.random.choice(samples[c1], size=(int(pairs / 2), 2)).tolist()
+
+            others = (c1 + np.random.randint(1, len(samples), size=int(pairs / 2))) % len(samples)
             x += zip(np.random.choice(samples[c1], int(pairs / 2)), (np.random.choice(samples[c2]) for c2 in others))
         p = np.arange(len(x))
 
@@ -170,36 +170,39 @@ class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
             np.random.shuffle(p)
         self.x = np.asarray(x)[p]
 
-        y = {o: [] for o in outputs}
-        indices = [[self.name_map[os.path.basename(f).split('-')[0]] for f in p]
-                   for p in self.x]
+        y = {}
+        indices = np.asarray([[self.name_map[os.path.basename(f).split('-')[0]]
+                               for f in p]
+                              for p in self.x])
         for o in outputs:
-            _y = outputs[o][indices]
+            _y = outputs[o]
+            _y = _y[indices]
             if o == 'date':
                 _y = np.abs(_y[:, 0, :] - _y[:, 1, :])
             else:
                 _y = (_y[:, 0, :] == _y[:, 1, :]).astype('float')
-            y[o] += _y
+            y[o] = _y
         self.y = y
 
     def __len__(self):
         return math.ceil(len(self.x) / self.batch_size)
 
     def __getitem__(self, idx):
-        batch_files = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
-        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+        f_batch = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        y_batch = {o + '_binary_predictions': y[idx * self.batch_size:(idx + 1) * self.batch_size]
+                   for o, y in self.y.items()}
 
-        batch_x = [[], []]
+        x_batch = [[], []]
         # build batch of image data
-        for a, b in batch_files:
+        for a, b in f_batch:
             for i, n in enumerate((a, b)):
                 x = ki.img_to_array(ki.load_img(n, target_size=self.target_size))
                 x = self.image_data_generator.random_transform(x)
                 x = self.image_data_generator.standardize(x)
-                batch_x[i] += [x]
+                x_batch[i] += [x]
 
-        batch_x = [np.asarray(_x) for _x in batch_x]
-        return batch_x, np.array(batch_y)
+        x_batch = [np.asarray(_x) for _x in x_batch]
+        return x_batch, y_batch
 
 
 class PaintingEnhancer:

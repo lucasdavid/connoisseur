@@ -123,9 +123,6 @@ class ArrayPairsSequence(Sequence):
         yb = np.repeat(yb, self.patches)
         return list(zb), yb
 
-    def on_epoch_end(self):
-        pass
-
 
 @ex.automain
 def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, solution, architecture, weights,
@@ -177,7 +174,8 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         print('\n# test evaluation')
         test_data = ArrayPairsSequence(samples, names, pairs, labels, batch_size)
         probabilities = model.predict_generator(
-            test_data, steps=len(test_data), use_multiprocessing=use_multiprocessing,
+            test_data,
+            use_multiprocessing=use_multiprocessing,
             workers=workers, verbose=1).reshape(-1, patches)
         del model
         K.clear_session()

@@ -1,4 +1,5 @@
-from keras import applications, layers, models, regularizers, backend as K, Input
+from keras import applications, layers, models, regularizers, backend as K, \
+    Input
 from keras.engine import Model
 from keras.layers import Dropout, Dense, Lambda, Flatten, multiply
 
@@ -22,20 +23,25 @@ def get_base_model(architecture):
 
 def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                 classes=1000, last_base_layer=None, use_gram_matrix=False,
-                dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
-                predictions_activation='softmax', predictions_name='predictions', model_name=None):
-    base_model = get_base_model(architecture)(include_top=include_base_top, weights=weights,
-                                              input_shape=image_shape, pooling=pooling)
+                dense_layers=(), pooling='avg', include_base_top=False,
+                include_top=True,
+                predictions_activation='softmax',
+                predictions_name='predictions', model_name=None):
+    base_model = get_base_model(architecture)(include_top=include_base_top,
+                                              weights=weights,
+                                              input_shape=image_shape,
+                                              pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
-         if last_base_layer
-         else base_model.output)
+    if last_base_layer
+    else base_model.output)
 
     summary = '%s ' % architecture
 
     if use_gram_matrix:
         sizes = K.get_variable_shape(x)
         k = sizes[-1]
-        x = Lambda(gram_matrix, arguments=dict(norm_by_channels=False), output_shape=[k, k])(x)
+        x = Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
+                   output_shape=[k, k])(x)
         summary += '-> gram() '
 
     if include_top:
@@ -50,8 +56,10 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
 
         if not isinstance(classes, (list, tuple)):
             classes, predictions_activation, predictions_name = ([classes],
-                                                                 [predictions_activation],
-                                                                 [predictions_name])
+                                                                 [
+                                                                     predictions_activation],
+                                                                 [
+                                                                     predictions_name])
 
         outputs = []
         for u, a, n in zip(classes, predictions_activation, predictions_name):
@@ -64,13 +72,20 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
     return Model(inputs=base_model.input, outputs=outputs, name=model_name)
 
 
-def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='imagenet',
-                        classes=1000, last_base_layer=None, use_gram_matrix=False,
-                        dense_layers=(), pooling='avg', include_base_top=False, include_top=True,
-                        predictions_activation='softmax', predictions_name='predictions', model_name=None,
-                        limb_weights=None, trainable_limbs=True, embedding_units=1024, joints='multiply'):
-    limb = build_model(image_shape, architecture, dropout_rate, weights, classes, last_base_layer,
-                       use_gram_matrix, dense_layers, pooling, include_base_top, include_top,
+def build_siamese_model(image_shape, architecture, dropout_rate=.5,
+                        weights='imagenet',
+                        classes=1000, last_base_layer=None,
+                        use_gram_matrix=False,
+                        dense_layers=(), pooling='avg', include_base_top=False,
+                        include_top=True,
+                        predictions_activation='softmax',
+                        predictions_name='predictions', model_name=None,
+                        limb_weights=None, trainable_limbs=True,
+                        embedding_units=1024, joints='multiply'):
+    limb = build_model(image_shape, architecture, dropout_rate, weights,
+                       classes, last_base_layer,
+                       use_gram_matrix, dense_layers, pooling,
+                       include_base_top, include_top,
                        predictions_activation, predictions_name, model_name)
     if limb_weights:
         print('loading weights from', limb_weights)
@@ -105,17 +120,61 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5, weights='ima
     for n, j, _ya, _yb in zip(predictions_name, joints, ya, yb):
         if j == 'multiply':
             x = multiply([_ya, _yb])
-            x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
+            x = Dense(1, activation='sigmoid',
+                      name='%s_binary_predictions' % n)(x)
         else:
             if isinstance(j, str):
                 j = siamese_functions[j]
-            x = Lambda(j, lambda _x: (_x[0][0], 1), name='%s_binary_predictions' % n)([_yb, _yb])
+            x = Lambda(j, lambda _x: (_x[0][0], 1),
+                       name='%s_binary_predictions' % n)([_yb, _yb])
         outputs += [x]
 
     return Model(inputs=[ia, ib], outputs=outputs)
 
 
-def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3), dropout_p=.5, pooling=None):
+def build_siamese_mo_model(image_shape, architecture, outputs_meta,
+                           dropout_rate=.5,
+                           weights='imagenet',
+                           last_base_layer=None, use_gram_matrix=False,
+                           limb_dense_layers=(), pooling='avg',
+                           model_name=None,
+                           limb_weights=None, trainable_limbs=True,
+                           joint_weights=None, trainable_joints=True,
+                           dense_layers=()):
+    model = build_siamese_model(image_shape, architecture, dropout_rate,
+                                weights,
+                                last_base_layer=last_base_layer,
+                                use_gram_matrix=use_gram_matrix,
+                                dense_layers=limb_dense_layers, pooling=pooling,
+                                include_base_top=False, include_top=True,
+                                limb_weights=limb_weights, trainable_limbs=trainable_limbs,
+                                predictions_activation=[o['a'] for o in outputs_meta],
+                                predictions_name=[o['n'] for o in outputs_meta],
+                                classes=[o['u'] for o in outputs_meta],
+                                embedding_units=[o['e'] for o in outputs_meta],
+                                joints=[o['j'] for o in outputs_meta])
+    if not trainable_joints:
+        for l in model.layers:
+            l.trainable = False
+
+    if joint_weights:
+        print('loading weights from', joint_weights)
+        model.load_weights(joint_weights)
+
+    top_model_name = model_name + '_top' if model_name else None
+
+    y = model.outputs
+    y = layers.concatenate(y)
+    for units in dense_layers:
+        y = Dropout(dropout_rate)(y)
+        y = Dense(units, activation='relu')(y)
+    y = Dropout(dropout_rate)(y)
+    y = Dense(1, activation='sigmoid', name='binary_predictions')(y)
+    return Model(input=model.inputs, outputs=y, name=top_model_name)
+
+
+def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3),
+          dropout_p=.5, pooling=None):
     weights_init_fn = 'he_normal'
 
     model = models.Sequential()
@@ -189,7 +248,8 @@ def _convolutional_layer(nb_filter, input_shape=None):
 
 
 def _first_convolutional_layer(nb_filter, input_shape,
-                               l2_regularizer=.003, weights_init_fn='he_normal'):
+                               l2_regularizer=.003,
+                               weights_init_fn='he_normal'):
     return layers.Conv2D(
         nb_filter=nb_filter, nb_row=3, nb_col=3, input_shape=input_shape,
         border_mode='same', init=weights_init_fn,

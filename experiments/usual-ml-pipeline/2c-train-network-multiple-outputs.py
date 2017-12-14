@@ -64,10 +64,10 @@ def config():
     tensorboard_tag = 'train-multiple-outputs-network-%s' % tag
     first_trainable_layer = None
     outputs_meta = [
-        {'n': 'artist', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .4},
-        {'n': 'style', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
-        {'n': 'genre', 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
-        # {'n': 'date', 'a': 'linear', 'l': 'mse', 'm': 'mse', 'w': .1}
+        {'n': 'artist', 'u': 1584, 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .4},
+        {'n': 'style', 'u': 135, 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
+        {'n': 'genre', 'u': 42, 'a': 'softmax', 'l': 'categorical_crossentropy', 'm': 'accuracy', 'w': .3},
+        # {'n': 'date', 'u': 1, 'a': 'linear', 'l': 'mse', 'm': 'mse', 'w': .1}
     ]
 
 

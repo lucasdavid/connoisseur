@@ -50,7 +50,6 @@ def load_multiple_outputs(train_info, outputs_meta, encode='onehot'):
 
         outputs[n] = flow.fit_transform(encoded.reshape(-1, 1))
         meta['f'] = flow
-        meta['u'] = outputs[n].shape[1]
 
     name_map = {os.path.splitext(n)[0]: i for i, n in enumerate(y_train['filename'])}
     return outputs, name_map

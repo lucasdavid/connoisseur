@@ -14,11 +14,13 @@
 
 """Utilites to computed GuidedBackprop SaliencyMasks"""
 
-from saliency import SaliencyMask
+import keras.backend as K
 import numpy as np
 import tensorflow as tf
-import keras.backend as K
 from keras.models import load_model
+
+from .saliency import SaliencyMask
+
 
 class GuidedBackprop(SaliencyMask):
     """A SaliencyMask class that computes saliency masks with GuidedBackProp.
