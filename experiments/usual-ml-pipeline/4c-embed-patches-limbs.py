@@ -21,7 +21,7 @@ from keras.engine import Model
 from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 
-from connoisseur.models import build_model
+from connoisseur.models import build_model, build_siamese_model
 from connoisseur.utils import gram_matrix, get_preprocess_fn
 
 ex = Experiment('embed-patches')
@@ -43,7 +43,8 @@ def config():
     data_dir = "/datasets/vangogh"
     output_dir = data_dir
     phases = ['train', 'valid', 'test']
-    ckpt_file = './ckpt/params.h5'
+    limb_weights = '/work/painter-by-numbers/ckpt/limb_weights.hdf5'
+    joint_weights = '/work/painter-by-numbers/ckpt/joint_weights.hdf5'
     pooling = 'avg'
     dense_layers = []
     override = False
@@ -62,26 +63,29 @@ def config():
 @ex.automain
 def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
         phases, architecture,
-        o_meta, ckpt_file, weights, pooling,
+        o_meta, limb_weights, joint_weights, weights, pooling,
         dense_layers, use_gram_matrix, last_base_layer, override,
         embedded_files_max_size, selected_layers):
     os.makedirs(output_dir, exist_ok=True)
 
     with tf.device(device):
         print('building model...')
-        model = build_model(image_shape, architecture=architecture,
-                            weights=weights, dropout_p=.0,
-                            pooling=pooling, last_base_layer=last_base_layer,
-                            use_gram_matrix=use_gram_matrix,
-                            dense_layers=dense_layers,
-                            include_top=True,
-                            classes=[o['u'] for o in o_meta],
-                            predictions_name=[o['n'] for o in o_meta],
-                            predictions_activation=[o['a'] for o in o_meta])
-        if ckpt_file:
-            # Restore best parameters.
-            print('loading weights from:', ckpt_file)
-            model.load_weights(ckpt_file)
+        model = build_siamese_model(image_shape, architecture, 0.0, weights,
+                                    last_base_layer=last_base_layer,
+                                    use_gram_matrix=use_gram_matrix,
+                                    dense_layers=dense_layers, pooling=pooling,
+                                    include_base_top=False, include_top=True,
+                                    trainable_limbs=False,
+                                    limb_weights=limb_weights,
+                                    predictions_activation=[o['a'] for o in o_meta],
+                                    predictions_name=[o['n'] for o in o_meta],
+                                    classes=[o['u'] for o in o_meta],
+                                    embedding_units=[o['e'] for o in o_meta],
+                                    joints=[o['j'] for o in o_meta])
+        # Restore best parameters.
+        print('loading weights from:', joint_weights)
+        model.load_weights(joint_weights)
+        model = model.get_layer('model_2')
 
         available_layers = [l.name for l in model.layers]
         if set(selected_layers) - set(available_layers):

@@ -1,4 +1,0 @@
-nose
-nose-parameterized
-coverage
-coveralls

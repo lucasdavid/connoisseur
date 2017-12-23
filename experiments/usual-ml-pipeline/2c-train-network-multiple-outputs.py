@@ -143,7 +143,7 @@ def run(_run, data_dir, subdirectories, train_shuffle, valid_shuffle, image_shap
                                 steps_per_epoch=steps_per_epoch,
                                 epochs=epochs,
                                 validation_data=valid_data,
-                                initial_epoch=initial_epoch, verbose=1,
+                                initial_epoch=initial_epoch, verbose=2,
                                 workers=workers, use_multiprocessing=use_multiprocessing,
                                 callbacks=[
                                     TerminateOnNaN(),

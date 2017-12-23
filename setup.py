@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages
 
-base_requirements = open('dev/requirements-base.txt').readlines()
-dev_requirements = open('dev/requirements-dev.txt').readlines()
+base_requirements = open('dev/requirements.txt').readlines()
 
 setup(
     name='connoisseur',
@@ -17,5 +16,4 @@ setup(
 
     setup_requires=base_requirements,
     install_requires=base_requirements,
-    tests_require=dev_requirements,
 )

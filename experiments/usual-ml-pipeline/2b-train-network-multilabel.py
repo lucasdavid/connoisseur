@@ -209,9 +209,8 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
         try:
             model.fit_generator(
                 train_data, steps_per_epoch=steps_per_epoch, epochs=epochs,
-                verbose=1,
                 validation_data=valid_data, validation_steps=validation_steps,
-                initial_epoch=initial_epoch,
+                initial_epoch=initial_epoch, verbose=2,
                 class_weight=None,
                 workers=workers, use_multiprocessing=use_multiprocessing,
                 callbacks=[

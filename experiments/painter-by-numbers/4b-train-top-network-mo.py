@@ -146,7 +146,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
                 validation_data=valid_data,
                 validation_steps=validation_steps,
                 initial_epoch=initial_epoch,
-                use_multiprocessing=use_multiprocessing, workers=workers, verbose=1,
+                use_multiprocessing=use_multiprocessing, workers=workers, verbose=2,
                 callbacks=[
                     callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),

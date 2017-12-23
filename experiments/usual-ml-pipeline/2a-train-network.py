@@ -169,7 +169,7 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         print('training from epoch %i...' % initial_epoch)
         try:
             model.fit_generator(
-                train_data, steps_per_epoch=steps_per_epoch, epochs=epochs, verbose=1,
+                train_data, steps_per_epoch=steps_per_epoch, epochs=epochs, verbose=2,
                 validation_data=valid_data, validation_steps=validation_steps,
                 initial_epoch=initial_epoch,
                 class_weight=class_weight,

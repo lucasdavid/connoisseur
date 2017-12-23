@@ -6,7 +6,6 @@ from PIL import ImageEnhance
 from keras.preprocessing import image as ki
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils.data_utils import Sequence
-from six.moves import range
 
 
 class MultipleOutputsDirectorySequence(Sequence):
@@ -90,7 +89,7 @@ class BalancedDirectoryPairsSequence(Sequence):
 
         x, y = [], []
 
-        for c1 in range(len(self.classes)):
+        for c1 in samples:
             x += np.random.choice(samples[c1], size=(int(pairs / 2), 2)).tolist()
             y += int(pairs / 2) * [1.0]
 

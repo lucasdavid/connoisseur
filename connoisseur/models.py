@@ -99,13 +99,13 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5,
         embedding_units = len(limb.outputs) * [embedding_units]
 
     outputs = []
-    for u, x in zip(embedding_units, limb.outputs):
+    for n, u, x in zip(predictions_name, embedding_units, limb.outputs):
         if u:
-            x = Dense(u, activation='relu')(x)
-            x = Dropout(dropout_rate)(x)
-            x = Dense(u, activation='relu')(x)
-            x = Dropout(dropout_rate)(x)
-            x = Dense(u, activation='relu')(x)
+            x = Dense(u, activation='relu', name='%s_em1' % n)(x)
+            x = Dropout(dropout_rate, name='%s_emd1' % n)(x)
+            x = Dense(u, activation='relu', name='%s_em2' % n)(x)
+            x = Dropout(dropout_rate, name='%s_emd2' % n)(x)
+            x = Dense(u, activation='relu', name='%s_em3' % n)(x)
         outputs += [x]
     limb = Model(inputs=limb.inputs, outputs=outputs)
 
@@ -164,13 +164,13 @@ def build_siamese_mo_model(image_shape, architecture, outputs_meta,
     top_model_name = model_name + '_top' if model_name else None
 
     y = model.outputs
-    y = layers.concatenate(y)
+    y = layers.concatenate(y, name='concatenate_asg')
     for units in dense_layers:
         y = Dropout(dropout_rate)(y)
         y = Dense(units, activation='relu')(y)
     y = Dropout(dropout_rate)(y)
     y = Dense(1, activation='sigmoid', name='binary_predictions')(y)
-    return Model(input=model.inputs, outputs=y, name=top_model_name)
+    return Model(inputs=model.inputs, outputs=y, name=top_model_name)
 
 
 def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3),

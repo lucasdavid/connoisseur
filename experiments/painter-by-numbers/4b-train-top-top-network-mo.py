@@ -66,13 +66,12 @@ def config():
     initial_epoch = 0
     early_stop_patience = 30
     tensorboard_tag = 'training/'
+    resuming_ckpt = None
 
     outputs_meta = [
         dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        dict(n='style', u=135, e=256, j='multiply', a='softmax',
-             l='binary_crossentropy', m='accuracy'),
-        dict(n='genre', u=42, e=256, j='multiply', a='softmax',
-             l='binary_crossentropy', m='accuracy'),
+        dict(n='style', u=135, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
         # dict(n='date', u=1, e=256, j='l2', a='linear', l=utils.contrastive_loss, m=utils.contrastive_accuracy)
     ]
 
@@ -85,7 +84,7 @@ def run(_run, image_shape, data_dir,
         validation_steps, workers, use_multiprocessing, initial_epoch,
         early_stop_patience, use_gram_matrix, limb_dense_layers,
         limb_weights, trainable_limbs, joint_weights, trainable_joints,
-        dense_layers, tensorboard_tag, outputs_meta):
+        dense_layers, resuming_ckpt, tensorboard_tag, outputs_meta):
     report_dir = _run.observers[0].dir
 
     g = ImageDataGenerator(
@@ -129,6 +128,10 @@ def run(_run, image_shape, data_dir,
             joint_weights=joint_weights,
             dense_layers=dense_layers)
 
+        if resuming_ckpt:
+            print('loading weights from', resuming_ckpt)
+            model.load_weights(resuming_ckpt)
+
         model.compile(optimizer=optimizers.Adam(**opt_params),
                       loss='binary_crossentropy',
                       metrics=['acc'])
@@ -139,9 +142,8 @@ def run(_run, image_shape, data_dir,
                 steps_per_epoch=steps_per_epoch, epochs=epochs,
                 validation_data=valid_data,
                 validation_steps=validation_steps,
-                initial_epoch=initial_epoch,
+                initial_epoch=initial_epoch, verbose=2,
                 use_multiprocessing=use_multiprocessing, workers=workers,
-                verbose=1,
                 callbacks=[
                     callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),
