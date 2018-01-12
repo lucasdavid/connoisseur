@@ -39,10 +39,10 @@ K.set_session(s)
 
 @ex.config
 def config():
-    data_dir = "/datasets/vangogh/"
+    data_dir = "/datasets/vangogh/random_32/"
     batch_size = 64
-    image_shape = [299, 299, 3]
-    architecture = 'InceptionV3'
+    image_shape = [32, 32, 3]
+    architecture = 'DenseNet264'
     weights = 'imagenet'
     last_base_layer = None
     use_gram_matrix = False
@@ -52,14 +52,14 @@ def config():
     dataset_train_seed = 12
     valid_shuffle = False
     dataset_valid_seed = 98
-    device = "/gpu:0"
+    device = "/cpu:0"
 
     classes = None
 
     opt_params = {'lr': .001}
     dropout_p = 0.2
-    ckpt_file = 'vangogh_inception.hdf5'
-    resuming_from_ckpt_file = ckpt_file
+    ckpt_file = 'vangogh_random_32_densenet264.hdf5'
+    resuming_from_ckpt_file = None
     epochs = 500
     steps_per_epoch = None
     validation_steps = None

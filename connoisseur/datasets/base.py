@@ -80,7 +80,8 @@ def group_by_paintings(x, y, names):
     clipped_names = np.array(['-'.join(n.split('-')[:-1]) for n in names])
     for name in set(clipped_names):
         s = clipped_names == name
-        _x.append(x[s])
+        if x is not None:
+            _x.append(x[s])
         if y is not None:
             _y.append(y[s][0])
         _names.append(clipped_names[s][0])

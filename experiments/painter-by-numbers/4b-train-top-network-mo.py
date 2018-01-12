@@ -150,7 +150,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
                 callbacks=[
                     callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),
-                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
+                    callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=early_stop_patience // 3),
                     callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
                     callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True, verbose=1),
                 ])

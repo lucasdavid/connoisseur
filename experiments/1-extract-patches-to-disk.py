@@ -20,11 +20,11 @@ ex = Experiment('extract-patches-to-disk')
 def config():
     dataset_seed = 4
     classes = None
-    image_shape = [299, 299, 3]
+    image_shape = [32, 32, 3]
     n_jobs = 1
     dataset_name = 'VanGogh'
-    data_dir = '/datasets/vangogh-test-recaptures/vangogh-museum/'
-    saving_directory = '/datasets/vangogh-test-recaptures/vangogh-museum-patches/'
+    data_dir = '/datasets/vangogh-test-recaptures/recaptures-google/resized/'
+    saving_directory = '/datasets/vangogh-test-recaptures/recaptures-google/resized/patches/random_32/'
     valid_size = 0
     train_n_patches = 50
     valid_n_patches = 50
@@ -33,7 +33,7 @@ def config():
     extracting = False
     preparing = False
     pool_size = 4
-    patches_saving_mode = 'min-gradient'
+    patches_saving_mode = 'random'
     device = '/cpu:0'
 
 
@@ -41,11 +41,11 @@ def config():
 def run(dataset_name, dataset_seed, classes, image_shape, data_dir, saving_directory,
         downloading, extracting, preparing, train_n_patches, valid_n_patches, test_n_patches,
         patches_saving_mode, valid_size, n_jobs, pool_size, device):
-    from PIL import ImageFile
-
+    from PIL import Image, ImageFile
     import tensorflow as tf
     from connoisseur import datasets
 
+    Image.MAX_IMAGE_PIXELS = None
     ImageFile.LOAD_TRUNCATED_IMAGES = True
 
     dataset_cls = getattr(datasets, dataset_name)

@@ -55,12 +55,8 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
             summary += '-> dropout(relu(dense(%i))) ' % n_units
 
         if not isinstance(classes, (list, tuple)):
-            classes, predictions_activation, predictions_name = ([classes],
-                                                                 [
-                                                                     predictions_activation],
-                                                                 [
-                                                                     predictions_name])
-
+            classes, predictions_activation, predictions_name = (
+                [classes], [predictions_activation], [predictions_name])
         outputs = []
         for u, a, n in zip(classes, predictions_activation, predictions_name):
             outputs += [Dense(u, activation=a, name=n)(x)]

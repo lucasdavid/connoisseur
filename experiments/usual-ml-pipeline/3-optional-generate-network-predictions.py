@@ -27,8 +27,8 @@ ex = Experiment('generate-network-predictions')
 
 @ex.config
 def config():
-    tag = 'random_299_inception_pca:0.99_svm'
-    data_dir = '/datasets/vangogh-test-recaptures/patches/vangogh-museum-random-299/'
+    tag = 'DenseNetImageNet264'
+    data_dir = '/datasets/vangogh-test-recaptures/recaptures-google/resized/patches/random_32/'
     n_classes = 2
     classes = None
     phases = ['test']
@@ -36,15 +36,15 @@ def config():
     results_file_name = './results-%s.json' % tag
     group_patches = True
     batch_size = 64
-    image_shape = [299, 299, 3]
-    architecture = 'DenseNet'
+    image_shape = [32, 32, 3]
+    architecture = 'DenseNetImageNet264'
     last_base_layer = None
     use_gram_matrix = False
     dense_layers = ()
     pooling = 'avg'
-    weights = 'imagenet'
+    weights = None
     dropout_p = 0.2
-    ckpt_file = '/work/vangogh/models/vangogh_densenet.hdf5'
+    ckpt_file = '/work/vangogh/wlogs/2-train-network/vangogh_densenet264/1/vangogh-densenet264.hdf5'
     device = "/gpu:0"
 
 

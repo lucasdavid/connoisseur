@@ -7,7 +7,17 @@ Licence: MIT License 2016 (c)
 
 """
 
+import os
+
+import numpy as np
 from sacred import Experiment
+from sklearn.decomposition import PCA
+from sklearn.externals import joblib
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
+
+from connoisseur.datasets import load_pickle_data
 
 ex = Experiment('train-top-classifier')
 
@@ -15,7 +25,7 @@ ex = Experiment('train-top-classifier')
 @ex.config
 def config():
     data_dir = '/datasets/vangogh/min_inception_flatten'
-    ckpt_file_name = '/work/models/256/random/vgg19-%s-svm,pca:0.99.pkl'
+    ckpt_file_name = 'model.pkl'
     phases = ('train', 'valid')
     nb_samples_used = None
     chunks_loaded = [0, 1]
@@ -34,19 +44,9 @@ def config():
 
 
 @ex.automain
-def run(data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
+def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
         ckpt_file_name, chunks_loaded, classes, layers, patches):
-    import os
-    import numpy as np
-    from sklearn.decomposition import PCA
-    from sklearn.externals import joblib
-    from sklearn.model_selection import GridSearchCV
-    from sklearn.pipeline import Pipeline
-    from sklearn.svm import SVC
-
-    from connoisseur.datasets import load_pickle_data
-
-    os.makedirs(os.path.dirname(ckpt_file_name), exist_ok=True)
+    report_dir = _run.observers[0].dir
 
     print('loading data...')
     data = load_pickle_data(data_dir=data_dir, phases=phases, chunks=chunks_loaded, layers=layers, classes=classes)
@@ -105,5 +105,5 @@ def run(data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_job
               'pca components:', pca.n_components_,
               '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
         print('saving model...', end=' ')
-        joblib.dump(model, ckpt_file_name % layer_tag)
+        joblib.dump(model, os.path.join(report_dir, ckpt_file_name))
         print('done.')

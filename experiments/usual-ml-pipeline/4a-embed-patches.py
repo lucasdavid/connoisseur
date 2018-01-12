@@ -40,28 +40,29 @@ def config():
     weights = 'imagenet'
     image_shape = (299, 299, 3)
     device = "/gpu:0"
-    data_dir = "/datasets/vangogh"
+    data_dir = "/datasets/vangogh-test-recaptures/recaptures-google/resized/patches/random/"
     output_dir = data_dir
-    phases = ['train', 'valid', 'test']
-    ckpt_file = './ckpt/params.h5'
+    phases = ['test']
+    ckpt_file = None
     pooling = 'avg'
     dense_layers = []
     override = False
     last_base_layer = None
     use_gram_matrix = False
+    include_top = False
     embedded_files_max_size = 20 * 1024 ** 3
     o_meta = [
-        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='artist_predictions', m='accuracy'),
+        dict(n='avg_pool', u=1584, e=1024, j='multiply', a='softmax', l='artist_predictions', m='accuracy'),
         dict(n='style', u=135, e=256, j='multiply', a='softmax', l='style_predictions', m='accuracy'),
         dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='genre_predictions', m='accuracy'),
     ]
 
-    selected_layers = ['avg_pool']
+    selected_layers = ['global_average_pooling2d_1']
 
 
 @ex.automain
 def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
-        phases, architecture,
+        phases, architecture, include_top,
         o_meta, ckpt_file, weights, pooling,
         dense_layers, use_gram_matrix, last_base_layer, override,
         embedded_files_max_size, selected_layers):
@@ -74,7 +75,7 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
                             pooling=pooling, last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix,
                             dense_layers=dense_layers,
-                            include_top=True,
+                            include_top=include_top,
                             classes=[o['u'] for o in o_meta],
                             predictions_name=[o['n'] for o in o_meta],
                             predictions_activation=[o['a'] for o in o_meta])
@@ -128,6 +129,9 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
                 _x, _y = next(data)
 
                 outputs = model.predict_on_batch(_x)
+                if not isinstance(outputs, list):
+                    outputs = [outputs]
+
                 chunk_size += sum(o.nbytes for o in outputs)
 
                 for l, o in zip(selected_layers, outputs):
@@ -139,8 +143,8 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
 
                 if chunk_p % 10 == 0:
                     if not displayed_once:
-                        print('\n%i%% (%.2f MB)'
-                              % (chunk_p, chunk_size / 1024 ** 2),
+                        print('\n%i%% (shape=%s, size=%.2f MB)'
+                              % (chunk_p, _x.shape, chunk_size / 1024 ** 2),
                               flush=True, end='')
                         displayed_once = True
                 else:
