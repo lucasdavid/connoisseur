@@ -1,12 +1,8 @@
 import os
 
-import matplotlib
 import numpy as np
 from keras.preprocessing.image import load_img
 from sacred import Experiment
-
-matplotlib.use('agg')
-from matplotlib import pyplot
 
 ex = Experiment('check-dataset')
 
@@ -41,6 +37,3 @@ def main(data_dir):
     print('min  area:', areas.min(axis=0))
     print('avg  area:', areas.mean(axis=0))
     print('max  area:', areas.max(axis=0))
-
-    pyplot.scatter(range(len(areas)), sorted(areas))
-    pyplot.show('./areas.png')

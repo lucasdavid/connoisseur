@@ -90,29 +90,26 @@ def evaluate(model, x, y, names,
             print('score using', strategy_tag, 'strategy:', score, '\n',
                   metrics.classification_report(y, p),
                   '\nConfusion matrix:\n',
-                  metrics.confusion_matrix(y, p))
-            print('samples incorrectly classified:', names[p != y], '\n')
+                  metrics.confusion_matrix(y, p), '\n',
+                  'samples incorrectly classified:', names[p != y])
 
             if group_recaptures:
                 print('combined recaptures score:')
-
-                recapture_names = np.asarray([n.split('-')[0] for n in names])
+                recaptures = np.asarray([n.split('-')[0] for n in names])
 
                 rp = (pd.Series(p, name='p')
-                        .groupby(recapture_names)
+                        .groupby(recaptures)
                         .apply(lambda _x: _x.value_counts().index[0]))
-                ry = pd.Series(y, name='y').groupby(recapture_names).first()
+                ry = pd.Series(y, name='y').groupby(recaptures).first()
                 ryp = pd.concat([rp, ry], axis=1)
-
                 misses = ryp[ryp['y'] != ryp['p']].index.values
 
                 score = metrics.accuracy_score(ry, rp)
                 print('score using', strategy_tag, 'strategy:', score, '\n',
                       metrics.classification_report(ry, rp),
                       '\nConfusion matrix:\n',
-                      metrics.confusion_matrix(ry, rp))
-                print('samples incorrectly classified:', misses,
-                      '\n')
+                      metrics.confusion_matrix(ry, rp), '\n',
+                      'samples incorrectly classified:', misses)
 
             results['evaluations'].append({
                 'strategy': strategy_tag,

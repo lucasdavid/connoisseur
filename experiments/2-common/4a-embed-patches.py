@@ -40,7 +40,7 @@ def config():
     weights = 'imagenet'
     image_shape = (299, 299, 3)
     device = "/gpu:0"
-    data_dir = "/datasets/vangogh-test-recaptures/recaptures-google/resized/patches/random/"
+    data_dir = "/datasets/vangogh-test-recaptures/recaptures-google-vangogh2016/resized/patches/random/"
     output_dir = data_dir
     phases = ['test']
     ckpt_file = None

@@ -14,9 +14,9 @@ ex = Experiment('convert-cross-dataset')
 
 @ex.config
 def my_config():
-    data_dir = '/datasets/vangogh-test-recaptures/vangogh-museum/original/vgdb_2016/test/'
+    data_dir = '/datasets/vangogh-test-recaptures/recaptures-google-vangogh2016/original/vgdb_2016/test/'
     originals_dir = '/datasets/vangogh/vgdb_2016/'
-    output_dir = '/datasets/vangogh-test-recaptures/vangogh-museum/resized/vgdb_2016/test/'
+    output_dir = '/datasets/vangogh-test-recaptures/recaptures-google-vangogh2016/resized/vgdb_2016/test/'
     resize = True
 
 

@@ -24,14 +24,20 @@ test dataset using each strategy (e.g. sum, mean, farthest, most_frequent) and
 reports results. Best values are shown bellow:
 
    ```
-   test score using sum strategy: 0.955223880597
+   score using raw strategy: 90.9971% 
+   Confusion matrix:
+        nvg   vg
+   nvg 1821  279
+    vg   59 1191
+     
+   class-balanced test score using sum strategy: 96.4286%
 
    Confusion matrix:
        nvg  vg
    nvg 39    3
     vg  0   25
 
-   samples incorrectly classified: nvg_10658644, nvg_10500055 and nvg_18195595.
+   samples incorrectly classified: nvg_10658644 nvg_10500055 nvg_18195595
    ```
 
 #### DenseNet264, PCA and SVM
@@ -42,7 +48,7 @@ reports results. Best values are shown bellow:
 3. `3-optional-generate-network-predictions.py` shows the following results:
 
    ```
-   valid patches score using: 0.846538461538
+   valid patches score: 0.846538461538
    Confusion matrix:
         nvg   vg
    nvg 1403  197
@@ -54,7 +60,7 @@ reports results. Best values are shown bellow:
    nvg  32    0
     vg   3   17
 
-   test patches score using: 0.842089552239
+   test patches score: 0.842089552239
    Confusion matrix:
         nvg   vg
    nvg 1746  354
@@ -65,8 +71,8 @@ reports results. Best values are shown bellow:
    nvg  39    3
     vg   2   23
 
-   samples incorrectly classified: nvg_10658644, nvg_9780042, nvg_6860814,
-                                   vg_17177301 and vg_33566806.
+   samples incorrectly classified: nvg_10658644 nvg_9780042 nvg_6860814
+                                   vg_17177301 vg_33566806
    ```
 
 4. `4a-embed-patches.py` is executed. Using DenseNet264 architecture trained
@@ -81,22 +87,22 @@ test dataset using each strategy (e.g. sum, mean, farthest, most_frequent) and
 reports results. Best values are shown bellow:
 
    ```
-   test patches score: 0.870149253731
+   class-balanced test patches score: 86.1943%
 
    Confusion matrix:
          nvg   vg
     nvg 1878  222
      vg  213 1037
 
-   test score using mean strategy: 0.910447761194
+   class-balanced test score using mean strategy: 90.4286%
 
    Confusion matrix:
          nvg   vg
     nvg   39    3
     vg     3   22
 
-   samples incorrectly classified: vg_33566806, nvg_10658644, vg_17177301, vg_9463608,
-                                   nvg_6860814 and nvg_9780042.
+   samples incorrectly classified: nvg_10658644 nvg_9780042 nvg_6860814
+                                   vg_17177301 vg_33566806 vg_9463608
    ```
 
 #### Further Testing
@@ -157,7 +163,7 @@ vangogh museum website.
 | densenet264 | random | resized | 497 53<br>1530 170 | farthest | 10 1<br>26 8 | 57% |
 
 
-##### Recaptures from multiple places
+##### Recaptures from Multiple Places
 
 Recaptures from images in vgdb2016 test set were retrieved from multiple
 placed, found using google image search.
@@ -181,8 +187,8 @@ class-normalized accuracy: 86.68%
 Confusion matrix:
  37 (97%)  1
   6       19 (76%)
-samples incorrectly classified: nvg/nvg_10500055 vg/vg_9103139 vg/vg_9386980 vg/vg_9387502
-                                vg/vg_9414279 vg/vg_9421984 vg/vg_9463012 
+samples incorrectly classified: nvg_10500055 vg_9103139 vg_9386980 vg_9387502
+                                vg_9414279 vg_9421984 vg_9463012 
 ```
 
 Adding the paintings from vangogh2016/test as recaptures:
@@ -192,8 +198,90 @@ class-normalized accuracy: 92.43%
 Confusion matrix:
 39 (93%)  3
  2       23 (92%)
-samples incorrectly classified: nvg/nvg_10500055 nvg/nvg_10658644 nvg/nvg_18195595
-                                vg/vg_9103139 vg/vg_9414279
+samples incorrectly classified: nvg_10500055 nvg_10658644 nvg_18195595
+                                vg_9103139 vg_9414279
+```
+
+#### Training over vgdb2016 + recaptures
+
+Repetitions of the paintings in vgdb2016 train were downloaded from google and the
+InceptionV3+PCA+SVM was used. Bellow are the results over the test sets.
+
+###### vgdb2016 Test
+
+```shell
+score using raw strategy: 91.4086% 
+Confusion matrix:
+1803  297
+  38 1212
+
+Combining patches:
+class-balanced score using sum/mean strategy: 96.429% 
+Confusion matrix:
+39  3
+ 0 25 
+samples incorrectly classified: nvg_18195595 nvg_10658644 nvg_10500055
+```
+
+###### Recaptures from Multiple Places 
+
+```shell
+score using raw strategy: 0.80803 
+Confusion matrix:
+3802  448
+ 915 1935
+
+Combining patches:
+score using sum strategy: 0.85211 
+Confusion matrix:
+81  4
+17 40
+ 
+samples incorrectly classified:  nvg_18195595-0 vg_9463012-0 vg_9386980-1
+                                 vg_9414279-2 vg_9413420-0 vg_9413420-1 vg_9103139-2
+                                 vg_9103139-1 nvg_10500055-0 vg_9110201-1
+                                 vg_9387502-1 vg_9414279-0 vg_9387502-3 vg_9103139-0
+                                 vg_9414279-1 vg_9106795-1 nvg_10500055-1
+                                 vg_9386980-0 nvg_9780042-2 vg_9378884-3 vg_9103139-3 
+
+Combining recaptures:
+score using sum/mean strategy: 0.88889
+Confusion matrix:
+37  1
+ 6 19
+ 
+samples incorrectly classified:  nvg_10500055 vg_9103139 vg_9386980 vg_9387502
+                                 vg_9413420 vg_9414279 vg_9463012 
+```
+
+###### vgdb2016 + Recaptures from Multiple Places
+
+```shell
+score using raw strategy: 0.83875 
+Confusion matrix:
+5619  731
+ 946 3104
+ 
+Combining patches:
+score using farthest strategy: 0.9038461538461539 
+Confusion matrix:
+121   6
+ 14  67 
+
+samples incorrectly classified: vg_9414279-0 nvg_10500055-1 vg_9110201-1
+                                vg_9103139-1 vg_9386980-0 vg_9413420-0
+                                nvg_18195595-3 nvg_9780042-2 vg_9103139-2
+                                vg_9103139-3 vg_9387502-1 vg_9506505-0 vg_9106795-1
+                                nvg_10658644-1 nvg_10500055-0 vg_9414279-2
+                                vg_9387502-3 vg_9378884-3 vg_9414279-1
+                                nvg_10500055-2
+
+Combining recaptures:
+score using farthest strategy: 0.9552238805970149 
+Confusion matrix:
+40  2
+ 1 24
+ samples incorrectly classified: nvg_10500055 nvg_10658644 vg_9414279 
 ```
 
 ---
