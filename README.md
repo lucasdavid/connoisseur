@@ -1,16 +1,13 @@
 # Connoisseur
 
-Machine Learning experiments on paintings.
-
-Results can be seen at [REPORTS.md](docs/REPORTS.md).
-
 ![Battle of Grunwald](assets/intro-battle-of-grunwald.jpg)
 “Battle of Grunwald”, Jan Matejko, 1878. From Public Domain.  
 Available at: [wikiart.org/en/jan-matejko/battle-of-grunwald-1878](https://www.wikiart.org/en/jan-matejko/battle-of-grunwald-1878).
 
+A few machine learning experiments on painting provenance.  
 Check the [INSTALL.md](docs/INSTALL.md) file for instructions on how to
-prepare your environment to run connoisseur.
-
+prepare your environment to run connoisseur.  
+Results can be seen at [REPORTS.md](docs/REPORTS.md).
 
 ## Running Experiments
 
