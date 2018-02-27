@@ -5,6 +5,34 @@
 van Gogh's dataset is composed by 264 train samples and 67 test samples,
 discriminated by the non van Gogh (nvg) and van Gogh (vg) labels.
 
+#### Reducing Number of Patches Used
+
+Hypothesis: scores can be kept high while reducing the number of patches.
+
+| classifier | extracted patches | patches acc. | acc. |
+| --- | --- | --- | --- |
+| vgg19-flatten imagenet svm  | all (~187.13) | - | 94.4286% |
+| vgg19-flatten imagenet svm  | 50 random | 89.7114% | 95.5224% |
+| vgg19-flatten imagenet svm  | 20 random | 88.9540% | 91.0448% |
+
+#### Experimenting on Surpassing Baseline
+
+| classifier | extracted patches | patch acc. | acc. | notes |
+| --- | --- | --- | --- | --- |
+| vgg19-imagenet svm | random 299px | 91.8806% | 95.5224% |
+| histogram 64 bins svm | random 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
+| histogram 64 bins svm | min-gradient 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
+| histogram 64 bins svm | max-gradient 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
+| InceptionV3-mixed4 imagenet svm | min-gradient 299px | 90.7463% | 94.0299% |
+| InceptionV3-mixed7 imagenet svm | min-gradient 299px | 90.4179% | 94.0299% |
+| InceptionV3-global_avg imagenet svm | min-gradient 299px | 88.6866% | 95.5224% |
+| InceptionV3-global_avg imagenet svm | max-gradient 299px | 88.7164% | 92.5373% |
+| fine-tuned inception-global_avg svm  | min-gradient 299px | 90.6866% | 94.0299% |
+| densenet-40 softmax | random 32px | 85.3881% | 91.0448% |
+| densenet-40 svm | random 32px | 86.6343% | 88.0597% |
+| densenet-264 softmax | random 32px | 87.0149% | 91.0448% | only 4 features after PCA |
+
+
 #### InceptionV3, PCA and SVM
 
 So far, the method responsible for best classification accuracy in the test
@@ -300,6 +328,22 @@ artist.
 Score is computed by ROC AUC between an estimated probabilities and the actual
 label (0.0 or 1.0).
 
+#### InceptionV3 Gram-matrix, Softmax
+
+All samples from 100 first painters.
+Process paintings were passed through a pre-trained network,
+the gram matrix was computed at a determined cut-point and fed
+to a softmax classifier.
+						
+| phase/method | vgg19,conv1_block1 | vgg19,conv2_block1 | vgg19,conv3_block1 | inception,predictions |
+| --- | --- | --- | --- | --- |
+| train	| 0.3438 | 0.1524 | 0.0564 | 0.2985 |
+validation | 0.3177 | 0.1381 | 0.0718 | 0.2514 |
+						
+Best results for gram-matrix were given by `vgg199 conv1_block1`, but are
+extremely bellow the results obtained when using the regular feed-forward
+network.
+
 #### Siamese InceptionV3, PCA, SVC, Equal Joint
 
 The 100 first painters (sorted by their hash code) were considered and the
@@ -315,13 +359,19 @@ overfitted the data and missed many samples associated with the label
 ![Confusion matrix for train set](../assets/pbn-100-train-cm.png)
 
 ```
-score using farthest strategy: 0.70295719844
+farthest:
+  score: 0.70295719844
+  confusion-matrix:
+                        different-painters same-painter
+    different-painters            15289495      6339202
+          same-painter              170802       116548
 
-Confusion matrix:
-
-                    different-painters same-painter
-different-painters            15289495      6339202
-      same-painter              170802       116548
+frequent:
+  score: 0.892038742206
+  confusion-matrix:
+                        different-painters same-painter
+    different-painters            19477643      2151054
+          same-painter              215030        72320
 ```
 
 #### Siamese Fine-tuned InceptionV3, Custom Joint
