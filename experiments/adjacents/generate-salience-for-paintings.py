@@ -4,7 +4,9 @@ Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
 
 """
+import itertools
 import os
+from math import floor
 
 import keras.backend as K
 import matplotlib
@@ -20,8 +22,6 @@ from connoisseur.models import build_model
 
 matplotlib.use('agg')
 
-from matplotlib import pylab as plt
-
 ex = Experiment('generate-salience-for-paintings')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
@@ -30,7 +30,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 @ex.config
 def config():
-    image_shape = [299, 299, 3]
+    image_shape = [None, None, 3]
     data_dir = '/datasets/vangogh/vgdb_2016/train/'
     classes = ['vg']
     architecture = 'InceptionV3'
@@ -39,35 +39,14 @@ def config():
     use_gram_matrix = False
     pooling = 'avg'
     dense_layers = ()
-    saliency_method = 'GuidedBackprop'
+    saliency_method = 'IntegratedGradients'
 
     device = '/cpu:0'
     dropout_p = 0.2
     ckpt_file = '/work/painter-by-numbers/ckpt/inception_softmax_auc:90.hdf5'
 
-    output_index = 99  # van Gogh
-
-
-def show_image(image, grayscale=True, ax=None, title=''):
-    if ax is None:
-        plt.figure()
-    plt.axis('off')
-
-    if len(image.shape) == 2 or grayscale:
-        if len(image.shape) == 3:
-            image = np.sum(np.abs(image), axis=2)
-
-        vmax = np.percentile(image, 99)
-        vmin = np.min(image)
-
-        plt.imshow(image, cmap=plt.cm.gray, vmin=vmin, vmax=vmax)
-        plt.title(title)
-    else:
-        image = image + 127.5
-        image = image.astype('uint8')
-
-        plt.imshow(image)
-        plt.title(title)
+    output_index = 102  # van Gogh
+    serialization_method = 'full'
 
 
 @ex.automain
@@ -75,7 +54,7 @@ def run(_run, image_shape, data_dir, classes,
         architecture, weights, last_base_layer,
         use_gram_matrix, pooling, dense_layers,
         saliency_method, device, dropout_p, ckpt_file,
-        output_index):
+        serialization_method, output_index):
     report_dir = _run.observers[0].dir
 
     tf.logging.set_verbosity(tf.logging.ERROR)
@@ -91,12 +70,12 @@ def run(_run, image_shape, data_dir, classes,
 
     with tf.device(device):
         print('building...')
-        model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
+        model = build_model(image_shape, architecture=architecture,
+                            weights=weights, dropout_p=dropout_p,
                             classes=1584, last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix, pooling=pooling,
                             dense_layers=dense_layers)
-        model.compile(loss='categorical_crossentropy',
-                      optimizer='adam')
+        model.compile(loss='categorical_crossentropy', optimizer='adam')
 
         if ckpt_file:
             print('re-loading weights...')
@@ -111,32 +90,44 @@ def run(_run, image_shape, data_dir, classes,
                 os.makedirs(os.path.join(report_dir, label), exist_ok=True)
 
                 for sample in samples:
+                    name, _ = os.path.splitext(sample)
+
                     x = img_to_array(load_img(os.path.join(data_dir, label, sample)))
                     x = preprocess_input(x)
 
-                    # r = np.zeros(x.shape)
-                    # mh, mw = [floor(x.shape[i] / image_shape[i]) * image_shape[i] + 1
-                    #           for i in range(2)]
-                    #
-                    # cuts = itertools.product(range(0, mh, image_shape[0]),
-                    #                          range(0, mw, image_shape[1]))
-                    #
-                    # for h, w in cuts:
-                    #     p = x[h:h + image_shape[0], w:w + image_shape[0], :]
-                    #     if p.shape != image_shape:
-                    #         # Don't process borders. This can be  further
-                    #         # improved by padding the input image.
-                    #         continue
-                    #
-                    #     r[h:h + image_shape[0], w:w + image_shape[0], :] = s.get_mask(p)
-                    r = s.get_mask(x)
+                    print('analyzing', name, 'with shape', x.shape)
 
-                    print(r.min(), r.max())
+                    if serialization_method == 'full':
+                        r = s.get_mask(np.expand_dims(x, 0))[0][0]
+                        print(r.shape)
+                        r = np.abs(r)
+                        r = np.sum(r, axis=2, keepdims=True)
+                    else:
+                        r = np.zeros(x.shape[:2])
+                        mh, mw = [floor(x.shape[i] / image_shape[i]) * image_shape[i] + 1
+                                  for i in range(2)]
 
-                    name, extension = os.path.splitext(sample)
+                        cuts = itertools.product(range(0, mh, image_shape[0]),
+                                                 range(0, mw, image_shape[1]))
 
-                    array_to_img(x).save(os.path.join(report_dir, label, name + '_o' + extension))
-                    array_to_img(r).save(os.path.join(report_dir, label, name + '_s' + extension))
+                        for h, w in cuts:
+                            p = x[h:h + image_shape[0], w:w + image_shape[0], :]
+                            if p.shape != tuple(image_shape):
+                                # Don't process borders. This can be further
+                                # improved by padding the input image.
+                                continue
+
+                            p = np.expand_dims(p, 0)
+                            z = np.abs(s.get_mask(p))[0][0]
+                            z = np.sum(z, axis=2)
+                            r[h:h + image_shape[0], w:w + image_shape[0]] = z
+                        r = np.expand_dims(r, 2)
+
+                    array_to_img(x).save(os.path.join(report_dir, label, name + '_o.jpg'))
+                    array_to_img(r.sum(axis=2, keepdims=True)).save(os.path.join(report_dir, label, name + '_r.jpg'))
+
+                    if input('continue? ') != 'yes':
+                        break
         except KeyboardInterrupt:
             print('interrupted by user')
         else:
