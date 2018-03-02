@@ -5,33 +5,48 @@
 van Gogh's dataset is composed by 264 train samples and 67 test samples,
 discriminated by the non van Gogh (nvg) and van Gogh (vg) labels.
 
-#### Reducing Number of Patches Used
-
-Hypothesis: scores can be kept high while reducing the number of patches.
-
-| classifier | extracted patches | patches acc. | acc. |
-| --- | --- | --- | --- |
-| vgg19-flatten imagenet svm  | all (~187.13) | - | 94.4286% |
-| vgg19-flatten imagenet svm  | 50 random | 89.7114% | 95.5224% |
-| vgg19-flatten imagenet svm  | 20 random | 88.9540% | 91.0448% |
-
-#### Experimenting on Surpassing Baseline
+#### Experimenting on Surpassing the Baseline
 
 | classifier | extracted patches | patch acc. | acc. | notes |
 | --- | --- | --- | --- | --- |
-| vgg19-imagenet svm | random 299px | 91.8806% | 95.5224% |
+| vgg19-flatten imagenet svm (Folego, 2016) | all (~187) | ? | 94.0299% |
+| vgg19-fc2 imagenet svm | random 224px | 89.3134% | 95.5224% |
 | histogram 64 bins svm | random 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
 | histogram 64 bins svm | min-gradient 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
 | histogram 64 bins svm | max-gradient 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
 | InceptionV3-mixed4 imagenet svm | min-gradient 299px | 90.7463% | 94.0299% |
 | InceptionV3-mixed7 imagenet svm | min-gradient 299px | 90.4179% | 94.0299% |
-| InceptionV3-global_avg imagenet svm | min-gradient 299px | 88.6866% | 95.5224% |
+| **InceptionV3-global_avg imagenet svm** | min-gradient 299px | 88.6866% | 95.5224% |
 | InceptionV3-global_avg imagenet svm | max-gradient 299px | 88.7164% | 92.5373% |
+| InceptionV3-global_avg imagenet svm | random 299px | 88.7164% | 95.5224% |
 | fine-tuned inception-global_avg svm  | min-gradient 299px | 90.6866% | 94.0299% |
+| Xception-avg_pool imagenet pca(0.95) svm | random 299px | 89.0299% | 94.0299% |
+| ResNet50-avg_pool imagenet pca(0.99) svm | random 299px | 88.8806% | 91.0448% |
 | densenet-40 softmax | random 32px | 85.3881% | 91.0448% |
 | densenet-40 svm | random 32px | 86.6343% | 88.0597% |
 | densenet-264 softmax | random 32px | 87.0149% | 91.0448% | only 4 features after PCA |
 
+
+#### Experimenting on Reducing the Number of Patches Used
+
+Hypothesis: scores can be kept high while reducing the number of patches.
+
+| classifier | extracted patches | patches valid acc. | patches test acc. | test acc. |
+| --- | --- | --- | --- | --- |
+| vgg19-flatten imagenet svm (Folego, 2016) | all (~187) | - | ? | 94.0299% |
+| vgg19-flatten imagenet svm  | 50 random | -  | 89.7114% | 95.5224% |
+| vgg19-flatten imagenet svm  | 20 random | - | 88.9540% | 91.0448% |
+| vgg19-fc2 imagenet pca(0.95) svm | 50 random | - | 89.3134% | 95.5224% |
+| vgg19-fc2 imagenet pca(0.95) svm | 20 random | - | 87.9104% | 91.0448% |
+| vgg19-fc2 imagenet pca(0.99) svm | 20 random | - | 87.9851% | 92.5373% |
+| inception-avg_pool imagenet pca(0.95) svm | 20 random | - | 89.4030% | 95.5224% |
+| inception-avg_pool imagenet pca(0.99) svm | 50 random | - | 89.0448% | 95.5224% |
+| inception-avg_pool imagenet pca(0.99) svm | 20 random | - | 89.7014% | 95.5224% |
+| densenet softmax | all (~900) | 82.22% | - | - |
+| densenet softmax | 500 random | 82.42% | - | - |
+| densenet softmax | 200 random | 87.08% | 86.6343% | 88.0597% |
+| densenet softmax | 50 random | 87.08% | - | 92.5373% |
+| densenet pca(0.99) svm | 200 random | 87.08% | 85.3880% | 91.0448% |
 
 #### InceptionV3, PCA and SVM
 
@@ -495,6 +510,6 @@ different-painters      20069328 (93%)  1559369  (7%)
 | limb | branches used | embedding units | roc auc | acc | confusion matrix diag. |
 | --- | --- | --- | --- | --- | --- |
 | InceptionV3 softmax | artist, style, genre | 1024, 256, 256 | .898 | .914 | .9176 .6295 |
-| InceptionV3 sigmoid | artist, style, genre | 1024, 256, 256 | ? | ? | ? |
+| InceptionV3 sigmoid | artist, style, genre | 1024, 256, 256 | .884 | .878 | .8802 .6769 |
 | InceptionV3 sigmoid | artist, style, genre | 2048, 256, 128 | ? | ? | ? |
 | InceptionResNetV2 sigmoid | artist, style, genre | 2048, 256, 128 | ? | ? | ? |
