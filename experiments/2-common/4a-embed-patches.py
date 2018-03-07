@@ -52,7 +52,7 @@ def config():
     include_top = False
     embedded_files_max_size = 20 * 1024 ** 3
     o_meta = [
-        dict(n='avg_pool', u=1584, e=1024, j='multiply', a='softmax', l='artist_predictions', m='accuracy'),
+        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='artist_predictions', m='accuracy'),
         dict(n='style', u=135, e=256, j='multiply', a='softmax', l='style_predictions', m='accuracy'),
         dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='genre_predictions', m='accuracy'),
     ]

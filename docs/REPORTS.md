@@ -180,7 +180,7 @@ are considered:
 
 ##### Recaptures from van Gogh Museum
 
-Recaptures from images in vgdb2016 test set were retrieved from the vangogh museum webiste.
+Recaptures from images in vgdb2016 test set were retrieved from the van Gogh museum website.
 
 | clf | extracted patches | transf. | patch confusion m. | best | confusion m. | acc. |
 | --- | --- | --- | --- | --- | --- | --- |
