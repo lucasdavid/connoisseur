@@ -40,11 +40,13 @@ def config():
     phases = ['test']
     classes = None
     layer = 'global_average_pooling2d_1'
+    limit_patches = None
 
 
 def evaluate(model, x, y, names,
              group_patches=False,
-             group_recaptures=False):
+             group_recaptures=False,
+             limit_patches=None):
     labels = model.predict(x)
     score = metrics.accuracy_score(y, labels)
     cm = metrics.confusion_matrix(y, labels)
@@ -64,6 +66,9 @@ def evaluate(model, x, y, names,
 
     if group_patches:
         x, y, names = group_by_paintings(x, y, names)
+
+        if limit_patches:
+            x = x[:, :limit_patches, :]
 
         samples, patches, features = x.shape
 
@@ -114,7 +119,8 @@ def evaluate(model, x, y, names,
             results['evaluations'].append({
                 'strategy': strategy_tag,
                 'score': score,
-                'p': p.tolist()
+                'p': p.tolist(),
+                'patches': patches
             })
 
     return results
@@ -122,7 +128,8 @@ def evaluate(model, x, y, names,
 
 @ex.automain
 def run(_run, data_dir, phases, classes, layer, ckpt,
-        results_file_name, group_patches, group_recaptures):
+        results_file_name, group_patches, group_recaptures,
+        limit_patches):
     report_dir = _run.observers[0].dir
 
     print('loading model...', end=' ')
@@ -143,7 +150,8 @@ def run(_run, data_dir, phases, classes, layer, ckpt,
 
         layer_results = evaluate(model, x, y, names,
                                  group_patches=group_patches,
-                                 group_recaptures=group_recaptures)
+                                 group_recaptures=group_recaptures,
+                                 limit_patches=limit_patches)
         layer_results['phase'] = p
         layer_results['layer'] = layer
         results.append(layer_results)
