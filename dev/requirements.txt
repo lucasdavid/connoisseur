@@ -4,7 +4,6 @@ scikit-learn
 scikit-image
 h5py
 keras
-h5py
 image
 sacred
 opencv-python
