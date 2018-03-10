@@ -73,18 +73,23 @@ def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
     return data
 
 
-def group_by_paintings(x, y, names):
+def group_by_paintings(x, y, names, max_patches=None):
     # Aggregate test patches by their respective paintings.
     _x, _y, _names = [], [], []
     # Remove patches indices, leaving just the painting name.
     clipped_names = np.array(['-'.join(n.split('-')[:-1]) for n in names])
     for name in set(clipped_names):
         s = clipped_names == name
+
+        indices, = np.where(s)
+        if max_patches and len(indices) > max_patches:
+            indices = indices[:max_patches]
+
         if x is not None:
-            _x.append(x[s])
+            _x.append(x[indices])
         if y is not None:
-            _y.append(y[s][0])
-        _names.append(clipped_names[s][0])
+            _y.append(y[indices][0])
+        _names.append(clipped_names[indices][0])
 
     return (np.asarray(_x),
             np.asarray(_y) if _y else None,

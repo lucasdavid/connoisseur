@@ -17,7 +17,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
-from connoisseur.datasets import load_pickle_data
+from connoisseur.datasets import load_pickle_data, group_by_paintings
 
 ex = Experiment('train-top-classifier')
 
@@ -39,71 +39,76 @@ def config():
     cv = None
     n_jobs = 4
     classes = None
-    patches = None
-    layers = ['block%i_conv1' % i for i in range(1, 6)]
+    max_patches = None
+    layer = 'avg_pool'
 
 
 @ex.automain
 def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
-        ckpt_file_name, chunks_loaded, classes, layers, patches):
+        ckpt_file_name, chunks_loaded, classes, layer, max_patches):
     report_dir = _run.observers[0].dir
 
     print('loading data...')
-    data = load_pickle_data(data_dir=data_dir, phases=phases, chunks=chunks_loaded, layers=layers, classes=classes)
-    Xs, y, _ = data['train']
+    data = load_pickle_data(data_dir=data_dir, phases=phases,
+                            chunks=chunks_loaded,
+                            layers=[layer], classes=classes)
+    x, y, names = data['train']
+    x = x[layer]
 
     if 'valid' in data:
         # Merge train and valid data, as K-fold
         # cross-validation will be performed afterwards.
-        X_valid, y_valid, _ = data['valid']
+        x_valid, y_valid, names_valid = data['valid']
+        x_valid = x_valid[layer]
 
-        for layer in Xs:
-            Xs[layer] = np.concatenate((Xs[layer], X_valid[layer]))
+        x = np.concatenate((x, x_valid))
         y = np.concatenate((y, y_valid))
-        del X_valid, y_valid
+        names = np.concatenate((names, names_valid))
+        del x_valid, y_valid, names_valid
     del data
+
+    x, y, names = group_by_paintings(x, y, names, max_patches=max_patches)
+    y = np.repeat(y, max_patches or x.shape[1])
+    x = x.reshape(-1, *x.shape[2:])
 
     if nb_samples_used:
         # Training set is too bing. Sub-sample it.
-        samples = np.arange(Xs.shape[0])
+        samples = np.arange(x.shape[0])
         np.random.shuffle(samples)
         samples = samples[:nb_samples_used]
-        Xs = Xs[samples]
+        x = x[samples]
         y = y[samples]
 
-    for layer, data in Xs.items():
-        print('%s output shape: %s' % (layer, data.shape))
+    print('%s output shape: %s' % (layer, x.shape))
     print('y shape:', y.shape)
 
     uniques, counts = np.unique(y, return_counts=True)
     print('occurrences:', dict(zip(uniques, counts)))
 
-    for layer_tag, X in Xs.items():
-        print('using %s as input' % layer_tag)
-        # Flat the features, which are 3-rank tensors
-        # at the end of InceptionV3's convolutions.
-        X = X.reshape(X.shape[0], -1)
+    # Flat the features, which are 3-rank tensors
+    # at the end of InceptionV3's convolutions.
+    x = x.reshape(x.shape[0], -1)
 
-        model = Pipeline([
-            ('pca', PCA(n_components=.99, random_state=7)),
-            ('svc', SVC(kernel='rbf', C=1000.0, class_weight='balanced', random_state=13, max_iter=10000000)),
-        ])
+    model = Pipeline([
+        ('pca', PCA(n_components=.99, random_state=7)),
+        ('svc', SVC(kernel='rbf', C=1000.0, class_weight='balanced', max_iter=10000000)),
+    ])
 
-        if grid_searching:
-            print('grid searching...', end=' ')
-            grid = GridSearchCV(model, param_grid=param_grid, cv=cv, n_jobs=n_jobs, verbose=10, refit=True)
-            grid.fit(X, y)
-            model = grid.best_estimator_
-            print('best parameters found:', grid.best_params_)
-        else:
-            print('training...', end=' ')
-            model.fit(X, y)
+    if grid_searching:
+        print('grid searching...', end=' ')
+        grid = GridSearchCV(model, param_grid=param_grid, cv=cv, n_jobs=n_jobs, verbose=10, refit=True)
+        grid.fit(x, y)
+        model = grid.best_estimator_
+        print('best parameters found:', grid.best_params_)
+    else:
+        print('training...', end=' ')
+        model.fit(x, y)
 
-        pca = model.steps[0][1]
+    pca = model.steps[0][1]
 
-        print('done -- training score:', model.score(X, y),
-              'pca components:', pca.n_components_,
-              '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
-        print('saving model...', end=' ')
-        joblib.dump(model, os.path.join(report_dir, ckpt_file_name))
-        print('done.')
+    print('done -- training score:', model.score(x, y),
+          'pca components:', pca.n_components_,
+          '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
+    print('saving model...', end=' ')
+    joblib.dump(model, os.path.join(report_dir, ckpt_file_name))
+    print('done.')
