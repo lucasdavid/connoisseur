@@ -40,7 +40,7 @@ def config():
     weights = 'imagenet'
     image_shape = (299, 299, 3)
     device = "/gpu:0"
-    data_dir = "/datasets/vangogh-test-recaptures/recaptures-google-vangogh2016/resized/patches/random/"
+    data_dir = "/datasets/vangogh/vgdb_2016"
     output_dir = data_dir
     phases = ['test']
     ckpt_file = None
@@ -49,12 +49,13 @@ def config():
     override = False
     last_base_layer = None
     use_gram_matrix = False
+    include_base_top = False
     include_top = False
     embedded_files_max_size = 20 * 1024 ** 3
     o_meta = [
-        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='artist_predictions', m='accuracy'),
-        dict(n='style', u=135, e=256, j='multiply', a='softmax', l='style_predictions', m='accuracy'),
-        dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='genre_predictions', m='accuracy'),
+        dict(n='artist', u=1584, a='softmax'),
+        dict(n='style', u=135, a='softmax'),
+        dict(n='genre', u=42, a='softmax'),
     ]
 
     selected_layers = ['global_average_pooling2d_1']
@@ -62,7 +63,7 @@ def config():
 
 @ex.automain
 def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
-        phases, architecture, include_top,
+        phases, architecture, include_base_top, include_top,
         o_meta, ckpt_file, weights, pooling,
         dense_layers, use_gram_matrix, last_base_layer, override,
         embedded_files_max_size, selected_layers):
@@ -75,6 +76,7 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
                             pooling=pooling, last_base_layer=last_base_layer,
                             use_gram_matrix=use_gram_matrix,
                             dense_layers=dense_layers,
+                            include_base_top=include_base_top,
                             include_top=include_top,
                             classes=[o['u'] for o in o_meta],
                             predictions_name=[o['n'] for o in o_meta],

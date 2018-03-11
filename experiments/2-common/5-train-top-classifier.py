@@ -31,10 +31,10 @@ def config():
     chunks_loaded = [0, 1]
     grid_searching = True
     param_grid = {
-        'pca__n_components': [.99],
+        'pca__n_components': [.95, .99],
         'svc__C': [0.1, 1.0, 10, 100, 1000],
         'svc__kernel': ['linear', 'rbf'],
-        'svc__class_weight': ['balanced'],
+        'svc__class_weight': [None, 'balanced'],
     }
     cv = None
     n_jobs = 4

@@ -39,9 +39,13 @@ Hypothesis: scores can be kept high while reducing the number of patches.
 | vgg19-fc2 imagenet pca(0.95) svm | 50 random | - | 89.3134% | 95.5224% |
 | vgg19-fc2 imagenet pca(0.95) svm | 20 random | - | 87.9104% | 91.0448% |
 | vgg19-fc2 imagenet pca(0.99) svm | 20 random | - | 87.9851% | 92.5373% |
-| inception-avg_pool imagenet pca(0.95) svm | 20 random | - | 89.4030% | 95.5224% |
 | inception-avg_pool imagenet pca(0.99) svm | 50 random | - | 89.0448% | 95.5224% |
 | inception-avg_pool imagenet pca(0.99) svm | 20 random | - | 89.7014% | 95.5224% |
+| inception-avg_pool imagenet pca(0.95) svm | 20 random | - | 90.1493% | 97.0149% |
+| inception-avg_pool imagenet pca(0.99) svm | 10 random | - | 88.9552% | 94.0299% |
+| inception-avg_pool imagenet pca(0.95) svm |  5 random | - | 88.8955% | 92.5373% |
+| inception-avg_pool imagenet pca(0.95) svm |  2 random | - | 86.9850% | 91.0448% |
+| inception-avg_pool imagenet pca(0.99) svm |  1 random | - | 86.4776% | 83.5821% |
 | densenet softmax | all (~900) | 82.22% | - | - |
 | densenet softmax | 500 random | 82.42% | - | - |
 | densenet softmax | 200 random | 87.08% | 86.6343% | 88.0597% |
