@@ -41,11 +41,12 @@ def config():
     classes = None
     max_patches = None
     layer = 'avg_pool'
+    using_pca = False
 
 
 @ex.automain
 def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv, n_jobs,
-        ckpt_file_name, chunks_loaded, classes, layer, max_patches):
+        ckpt_file_name, chunks_loaded, classes, layer, max_patches, using_pca):
     report_dir = _run.observers[0].dir
 
     print('loading data...')
@@ -89,10 +90,13 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
     # at the end of InceptionV3's convolutions.
     x = x.reshape(x.shape[0], -1)
 
-    model = Pipeline([
-        ('pca', PCA(n_components=.99, random_state=7)),
-        ('svc', SVC(kernel='rbf', C=1000.0, class_weight='balanced', max_iter=10000000)),
-    ])
+    steps = []
+
+    if using_pca:
+        steps.append(('pca', PCA(n_components=.99, random_state=7)))
+
+    steps.append(('svc', SVC(kernel='linear', C=2e-9)))
+    model = Pipeline(steps)
 
     if grid_searching:
         print('grid searching...', end=' ')
@@ -104,11 +108,12 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
         print('training...', end=' ')
         model.fit(x, y)
 
-    pca = model.steps[0][1]
+    if using_pca:
+        pca = model.steps[0][1]
+        print('done -- training score:', model.score(x, y),
+              'pca components:', pca.n_components_,
+              '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
 
-    print('done -- training score:', model.score(x, y),
-          'pca components:', pca.n_components_,
-          '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
     print('saving model...', end=' ')
     joblib.dump(model, os.path.join(report_dir, ckpt_file_name))
     print('done.')
