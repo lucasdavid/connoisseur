@@ -47,7 +47,17 @@ def evaluate(model, x, y, names,
              group_patches=False,
              group_recaptures=False,
              max_patches=None):
-    labels = model.predict(x)
+    try:
+        probabilities = model.predict_proba(x)
+        labels = np.argmax(probabilities, axis=-1)
+        hyperplane_distance = None
+        multi_class = True
+    except AttributeError:
+        probabilities = None
+        labels = model.predict(x)
+        hyperplane_distance = model.decision_function(x)
+        multi_class = len(model.classes_) > 2
+
     score = metrics.accuracy_score(y, labels)
     cm = metrics.confusion_matrix(y, labels)
     print('score using raw strategy:', score, '\n',
@@ -65,30 +75,18 @@ def evaluate(model, x, y, names,
     }
 
     if group_patches:
-        x, y, names = group_by_paintings(x, y, names, max_patches=max_patches)
+        p = probabilities if probabilities is not None else hyperplane_distance
+        p, y, names = group_by_paintings(p, y, names, max_patches=max_patches)
 
-        samples, patches, features = x.shape
-        print('x shape:', x.shape)
-
-        try:
-            probabilities = model.predict_proba(x.reshape(-1, features)).reshape(samples, patches, -1)
-            labels = None
-            hyperplane_distance = None
-            multi_class = True
-        except AttributeError:
-            probabilities = None
-            labels = model.predict(x.reshape(-1, features)).reshape(samples, patches)
-            hyperplane_distance = model.decision_function(x.reshape(-1, features)).reshape(samples, patches, -1)
-            multi_class = len(model.classes_) > 2
-            if not multi_class:
-                hyperplane_distance = np.squeeze(hyperplane_distance, axis=-1)
+        patches = p.shape[1] if len(p.shape) > 1 else 'all'
 
         for strategy_tag in ('sum', 'mean', 'farthest', 'most_frequent'):
             strategy = getattr(strategies, strategy_tag)
 
             p = (Fusion(strategy=strategy, multi_class=multi_class)
-                 .predict(probabilities=probabilities, labels=labels,
-                          hyperplane_distance=hyperplane_distance))
+                 .predict(probabilities=p if probabilities is not None else None,
+                          hyperplane_distance=p if hyperplane_distance is not None else None,
+                          labels=labels))
             score = metrics.accuracy_score(y, p)
             print('score using', strategy_tag, 'strategy:', score, '\n',
                   metrics.classification_report(y, p),
