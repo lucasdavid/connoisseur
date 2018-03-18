@@ -9,7 +9,7 @@ discriminated by the non van Gogh (nvg) and van Gogh (vg) labels.
 
 | classifier | extracted patches | patch acc. | acc. | notes |
 | --- | --- | --- | --- | --- |
-| vgg19-flatten imagenet svm (Folego, 2016) | all (~187) | ? | 94.0299% |
+| vgg19-fc2 imagenet svm (Folego, 2016) | all (~187) 224px | ? | 94.0299% |
 | vgg19-fc2 imagenet svm | random 224px | 89.3134% | 95.5224% |
 | histogram 64 bins svm | random 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
 | histogram 64 bins svm | min-gradient 299px | 62.6866% | 62.6866% | over-fitting to all vangogh's |
@@ -33,7 +33,7 @@ Hypothesis: scores can be kept high while reducing the number of patches.
 
 | classifier | extracted patches | patches valid acc. | patches test acc. | test acc. |
 | --- | --- | --- | --- | --- |
-| vgg19-flatten imagenet svm (Folego, 2016) | all (~187) | - | ? | 94.0299% |
+| vgg19-fc2 imagenet svm (Folego, 2016) | all (~187) | - | ? | 94.0299% |
 | vgg19-flatten imagenet svm  | 50 random | -  | 89.7114% | 95.5224% |
 | vgg19-flatten imagenet svm  | 20 random | - | 88.9540% | 91.0448% |
 | vgg19-fc2 imagenet pca(0.95) svm | 50 random | - | 89.3134% | 95.5224% |
@@ -186,8 +186,9 @@ are considered:
 
 Recaptures from images in vgdb2016 test set were retrieved from the van Gogh museum website.
 
-| clf | extracted patches | transf. | patch confusion m. | best | confusion m. | acc. |
+| clf | extracted patches | processing | patch confusion m. | best | confusion m. | acc. |
 | --- | --- | --- | --- | --- | --- | --- |
+| folego's | all | none | 0 0<br>1095 136 | farthest | 0 0<br>6 2 | **25%** |
 | svm | random | none | 0 0<br>288 112 | frequent | 0 0<br>6 2 | **25%** |
 | svm | random | resized | 0 0<br>302 98 | mean, farthest, frequent | 0 0<br>7 1 | 13% |
 | svm | min-grad | none | 0 0<br>293 107 | mean, farthest, frequent | 0 0<br>7 1 | 13% |
@@ -202,6 +203,7 @@ vangogh museum website.
 
 | clf | extracted patches | transf. | patch confusion m. | best | confusion m. | acc. |
 | --- | --- | --- | --- | --- | --- | --- |
+| folego's | all | none | 1782  289<br>5239 1413 | farthest | 9  2<br>24 10 | 56% |
 | svm | random | none | 474 76<br>941 759 | mean, farthest | 10 1<br>20 14 | 66% |
 | svm | random | resized | 469 81<br>979 721 | frequent | 11 0<br>19 15 | **72%** |
 | svm | min-grad | none | 466 84<br>941 759 | farthest | 11 0<br>20 14 | 71% |
@@ -217,6 +219,7 @@ placed, found using google image search.
 
 | clf | extracted patches | transf. | patch confusion m. | best | confusion m. | acc. |
 | --- | --- | --- | --- | --- | --- | --- |
+| folego's | all | none | 13967 3503<br>6189 7768 | farthest | 79 6<br>21 36 | 78% |
 | svm | random | none | 3883 367<br>969 1881 | frequent | 82 3<br>19 38 | **82%** |
 | svm | random | resized | 3697 553<br>921 1929 | farthest | 78 7<br>19 38 | 79% |
 | svm | min-grad | none | 3836 414<br>927 1923 | mean, frequent | 82 3<br>19 38 | **82%** |

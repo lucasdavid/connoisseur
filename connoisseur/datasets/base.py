@@ -17,11 +17,11 @@ from urllib import request
 import numpy as np
 import tensorflow as tf
 from PIL import ImageOps
+from keras.preprocessing.image import img_to_array, load_img
 from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
-from keras.preprocessing.image import img_to_array, load_img
 from ..utils.image import PaintingEnhancer
 
 
@@ -73,9 +73,12 @@ def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
     return data
 
 
-def group_by_paintings(x, y, names, max_patches=None):
+def group_by_paintings(*arrays,
+                       names: np.ndarray,
+                       max_patches: int = None):
     # Aggregate test patches by their respective paintings.
     _x, _y, _names = [], [], []
+    outputs = [[] for _ in arrays]
     # Remove patches indices, leaving just the painting name.
     clipped_names = np.array(['-'.join(n.split('-')[:-1]) for n in names])
     for name in set(clipped_names):
@@ -85,15 +88,12 @@ def group_by_paintings(x, y, names, max_patches=None):
         if max_patches and len(indices) > max_patches:
             indices = indices[:max_patches]
 
-        if x is not None:
-            _x.append(x[indices])
-        if y is not None:
-            _y.append(y[indices][0])
+        for input, output in zip(arrays, outputs):
+            output.append(input[indices])
+
         _names.append(clipped_names[indices][0])
 
-    return (np.asarray(_x),
-            np.asarray(_y) if _y else None,
-            np.asarray(_names))
+    return [np.asarray(o) for o in outputs] + [np.asarray(_names)]
 
 
 def _load_patch_coroutine(options):
@@ -171,16 +171,16 @@ def _save_image_patches_coroutine(options):
         ).astype(np.int)
 
     elif mode == 'all':
-        d_widths = list(range(0, image.width, patch_size[0]))
-        d_heights = list(range(0, image.height, patch_size[1]))
+        d_widths = list(range(0, image.width - patch_size[0] + 1, patch_size[0]))
+        d_heights = list(range(0, image.height - patch_size[1] + 1, patch_size[1]))
         starting_points = itertools.product(d_widths, d_heights)
     else:
         raise ValueError('unknown mode %s' % mode)
 
     for patch_id, (s_w, s_h) in enumerate(starting_points):
         (image
-         .crop((s_w, s_h, s_w + patch_size[0], s_h + patch_size[1]))
-         .save(os.path.join(patches_path, '%s-%i.jpg' % (painting_name, patch_id))))
+            .crop((s_w, s_h, s_w + patch_size[0], s_h + patch_size[1]))
+            .save(os.path.join(patches_path, '%s-%i.jpg' % (painting_name, patch_id))))
 
 
 class DataSet:
@@ -254,8 +254,8 @@ class DataSet:
     @property
     def full_data_path(self):
         return (os.path.join(self.base_dir, self.EXTRACTED_FOLDER)
-                if self.EXTRACTED_FOLDER
-                else self.base_dir)
+        if self.EXTRACTED_FOLDER
+        else self.base_dir)
 
     def download(self, override=False):
         os.makedirs(self.base_dir, exist_ok=True)
@@ -331,7 +331,7 @@ class DataSet:
         self.random_state.shuffle(files)
 
         faction = (fraction if isinstance(fraction, int) else
-                   int(files.shape[0] * fraction))
+        int(files.shape[0] * fraction))
 
         print('%i/%i files will be used for %s.' % (
             faction, files.shape[0], phase))
@@ -439,7 +439,7 @@ class DataSet:
                     sample_patches_names = list(filter(lambda x: sample in x,
                                                        patches_names))
                     if (n_patches is not None and
-                                len(sample_patches_names) < n_patches):
+                        len(sample_patches_names) < n_patches):
                         sample_patches_names = r.choice(sample_patches_names,
                                                         n_patches)
                     else:

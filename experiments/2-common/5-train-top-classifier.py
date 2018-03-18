@@ -15,7 +15,7 @@ from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 from connoisseur.datasets import load_pickle_data, group_by_paintings
 
@@ -24,23 +24,23 @@ ex = Experiment('train-top-classifier')
 
 @ex.config
 def config():
-    data_dir = '/datasets/vangogh/min_inception_flatten'
+    data_dir = '/datasets/vangogh/random_224'
     ckpt_file_name = 'model.pkl'
-    phases = ('train', 'valid')
+    phases = ('train',)
     nb_samples_used = None
     chunks_loaded = [0, 1]
     grid_searching = True
     param_grid = {
-        'pca__n_components': [.95, .99],
+        # 'pca__n_components': [.95, .99],
         'svc__C': [0.1, 1.0, 10, 100, 1000],
-        'svc__kernel': ['linear', 'rbf'],
+        # 'svc__kernel': ['linear', 'rbf'],
         'svc__class_weight': [None, 'balanced'],
     }
     cv = None
-    n_jobs = 4
+    n_jobs = 2
     classes = None
     max_patches = None
-    layer = 'avg_pool'
+    layer = 'fc2'
     using_pca = False
 
 
@@ -68,9 +68,8 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
         del x_valid, y_valid, names_valid
     del data
 
-    x, y, names = group_by_paintings(x, y, names, max_patches=max_patches)
-    y = np.repeat(y, max_patches or x.shape[1])
-    x = x.reshape(-1, *x.shape[2:])
+    x, y, names = group_by_paintings(x, y, names=names, max_patches=max_patches)
+    x, y = map(np.concatenate, (x, y))
 
     if nb_samples_used:
         # Training set is too bing. Sub-sample it.
@@ -81,10 +80,7 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
         y = y[samples]
 
     print('%s output shape: %s' % (layer, x.shape))
-    print('y shape:', y.shape)
-
-    uniques, counts = np.unique(y, return_counts=True)
-    print('occurrences:', dict(zip(uniques, counts)))
+    print('occurrences:', dict(zip(*np.unique(y, return_counts=True))))
 
     # Flat the features, which are 3-rank tensors
     # at the end of InceptionV3's convolutions.
@@ -95,7 +91,7 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
     if using_pca:
         steps.append(('pca', PCA(n_components=.99, random_state=7)))
 
-    steps.append(('svc', SVC(kernel='linear', C=2e-9)))
+    steps.append(('svc', LinearSVC(dual=False)))
     model = Pipeline(steps)
 
     if grid_searching:

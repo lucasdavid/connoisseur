@@ -166,7 +166,7 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         d, names = d['test']
         samples = d['predictions']
         del d
-        samples, _, names = group_by_paintings(samples, None, names)
+        samples, names = group_by_paintings(samples, names=names)
         names = np.asarray([n.split('/')[1] + '.jpg' for n in names])
 
         print('test data shape:', samples.shape)

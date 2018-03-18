@@ -32,11 +32,11 @@ ex = Experiment('generate-svm-predictions')
 
 @ex.config
 def config():
-    data_dir = '/datasets/vangogh-test-recaptures/recaptures-google-vangogh2016/original/patches/random/'
-    ckpt = '/work/vangogh/wlogs/train-top-svm/2/model.pkl'
+    data_dir = '/datasets/vangogh-test-recaptures/recaptures-vangogh-museum-lower-quality/original/patches/random_299'
+    ckpt = '/work/vangogh/ckpt/min-gradient-svm.pkl'
     results_file_name = 'report.json'
     group_patches = True
-    group_recaptures = True
+    group_recaptures = False
     phases = ['test']
     classes = None
     layer = 'global_average_pooling2d_1'
@@ -58,6 +58,8 @@ def evaluate(model, x, y, names,
         hyperplane_distance = model.decision_function(x)
         multi_class = len(model.classes_) > 2
 
+    p = probabilities if probabilities is not None else hyperplane_distance
+
     score = metrics.accuracy_score(y, labels)
     cm = metrics.confusion_matrix(y, labels)
     print('score using raw strategy:', score, '\n',
@@ -75,32 +77,32 @@ def evaluate(model, x, y, names,
     }
 
     if group_patches:
-        p = probabilities if probabilities is not None else hyperplane_distance
-        p, y, names = group_by_paintings(p, y, names, max_patches=max_patches)
+        labels, p, y, names = group_by_paintings(labels, p, y, names=names, max_patches=max_patches)
+        y = np.asarray([_y[0] for _y in y])
 
         patches = p.shape[1] if len(p.shape) > 1 else 'all'
 
         for strategy_tag in ('sum', 'mean', 'farthest', 'most_frequent'):
             strategy = getattr(strategies, strategy_tag)
 
-            p = (Fusion(strategy=strategy, multi_class=multi_class)
-                 .predict(probabilities=p if probabilities is not None else None,
-                          hyperplane_distance=p if hyperplane_distance is not None else None,
-                          labels=labels))
-            score = metrics.accuracy_score(y, p)
+            p_ = (Fusion(strategy=strategy, multi_class=multi_class)
+                  .predict(probabilities=p if probabilities is not None else None,
+                           hyperplane_distance=p if hyperplane_distance is not None else None,
+                           labels=labels))
+            score = metrics.accuracy_score(y, p_)
             print('score using', strategy_tag, 'strategy:', score, '\n',
-                  metrics.classification_report(y, p),
+                  metrics.classification_report(y, p_),
                   '\nConfusion matrix:\n',
-                  metrics.confusion_matrix(y, p), '\n',
-                  'samples incorrectly classified:', names[p != y])
+                  metrics.confusion_matrix(y, p_), '\n',
+                  'samples incorrectly classified:', names[p_ != y])
 
             if group_recaptures:
                 print('combined recaptures score:')
-                recaptures = np.asarray([n.split('-')[0] for n in names])
+                recaptures = np.asarray(['-'.join(n.split('-')[:-1]) for n in names])
 
-                rp = (pd.Series(p, name='p')
-                        .groupby(recaptures)
-                        .apply(lambda _x: _x.value_counts().index[0]))
+                rp = (pd.Series(p_, name='p')
+                      .groupby(recaptures)
+                      .apply(lambda _x: _x.value_counts().index[0]))
                 ry = pd.Series(y, name='y').groupby(recaptures).first()
                 ryp = pd.concat([rp, ry], axis=1)
                 misses = ryp[ryp['y'] != ryp['p']].index.values
@@ -115,7 +117,7 @@ def evaluate(model, x, y, names,
             results['evaluations'].append({
                 'strategy': strategy_tag,
                 'score': score,
-                'p': p.tolist(),
+                'p': p_.tolist(),
                 'patches': patches
             })
 

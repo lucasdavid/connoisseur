@@ -1,7 +1,7 @@
 from keras import applications, layers, models, regularizers, backend as K, \
     Input
 from keras.engine import Model
-from keras.layers import Dropout, Dense, Lambda, Flatten, multiply
+from keras.layers import Dropout, Dense, Lambda, Flatten, multiply, BatchNormalization, Activation, Conv2D
 
 from .utils import siamese_functions, gram_matrix
 
@@ -29,11 +29,11 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                 predictions_name='predictions', model_name=None):
     base_model = get_base_model(architecture)(include_top=include_base_top,
                                               weights=weights,
-                                              input_shape=image_shape,
+                                              input_shape=tuple(image_shape),
                                               pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
-    if last_base_layer
-    else base_model.output)
+         if last_base_layer
+         else base_model.output)
 
     summary = '%s ' % architecture
 
@@ -66,6 +66,56 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
 
     print('model summary:', summary)
     return Model(inputs=base_model.input, outputs=outputs, name=model_name)
+
+
+def build_top(limb_outputs_meta,
+              dropout_rate=.5,
+              name=None):
+
+    # Build heads.
+    inputs, outputs = [], []
+
+    for o in limb_outputs_meta:
+        n, u, e = (o.get(i) for i in 'nue')
+
+        y = Input(shape=[u], name='%s_input' % o['n'])
+        inputs += [y]
+
+        if e:
+            y = Dense(e, name='%s_em1' % n, use_bias=False)(y)
+            y = BatchNormalization(name='%s_bn1' % n)(y)
+            y = Activation('relu', name='%s_ac1' % n)(y)
+            y = Dropout(dropout_rate, name='%s_d1' % n)(y)
+            y = Dense(e, name='%s_em2' % n, use_bias=False)(y)
+            y = BatchNormalization(name='%s_bn2' % n)(y)
+            y = Activation('relu', name='%s_ac2' % n)(y)
+
+        outputs += [y]
+
+    model = Model(inputs=inputs, outputs=outputs)
+
+    # Build legs.
+    inputs, outputs = [], []
+
+    for limb in 'ab':
+        x = [Input(shape=[o['u']], name='%s_%s' % (o['n'], limb)) for o in limb_outputs_meta]
+        y = model(x)
+
+        inputs += x
+        outputs += [y]
+
+    # Join everything in one model.
+    head_outputs = list(zip(*outputs))
+    outputs = []
+
+    for meta, output in zip(limb_outputs_meta, head_outputs):
+        n, j = (meta[e] for e in 'nj')
+        y = (multiply(list(output)) if j == 'multiply' else
+             Lambda(siamese_functions[j])(list(output)))
+        y = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(y)
+        outputs += [y]
+
+    return Model(inputs=inputs, outputs=outputs, name=name)
 
 
 def build_siamese_model(image_shape, architecture, dropout_rate=.5,

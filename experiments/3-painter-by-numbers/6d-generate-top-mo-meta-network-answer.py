@@ -15,7 +15,6 @@ Licence: MIT License 2016 (c)
 """
 import json
 import os
-from math import ceil
 
 import numpy as np
 import pandas as pd
@@ -23,12 +22,12 @@ import tensorflow as tf
 from PIL import ImageFile
 from keras import Input, backend as K
 from keras.engine import Model
-from keras.utils import Sequence
 from sacred import Experiment
 from sklearn import metrics
 
 from connoisseur.datasets import load_pickle_data, group_by_paintings
 from connoisseur.models import build_siamese_mo_model
+from connoisseur.utils.image import ArrayPairsSequence
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -108,36 +107,6 @@ def evaluate(labels, probabilities, estimator_type):
     return results
 
 
-class ArrayPairsSequence(Sequence):
-    def __init__(self, samples, names, pairs, labels, batch_size):
-        self.pairs = pairs
-        self.labels = labels
-        self.samples_map = dict(zip(names, samples))
-        self.batch_size = batch_size
-        self.samples, self.patches, self.layers = samples.shape
-
-    def __len__(self):
-        return int(ceil(len(self.pairs) / self.batch_size))
-
-    def __getitem__(self, idx):
-        xb = self.pairs[idx * self.batch_size:(idx + 1) * self.batch_size]
-        yb = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
-
-        zb = [[] for _ in range(self.layers * 2)]
-        for na, nb in xb:
-            # transform (2, patches, inputs, ?) to (patches, 2 * inputs, ?)
-            a, b = self.samples_map[na], self.samples_map[nb]
-
-            for _a, _b in zip(a, b):
-                for i in range(len(_a)):
-                    zb[2 * i] += [_a[i]]
-                    zb[2 * i + 1] += [_b[i]]
-
-        zb = [np.asarray(_x) for _x in zb]
-        yb = np.repeat(yb, self.patches)
-        return zb, yb
-
-
 @ex.automain
 def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, solution, architecture, weights,
         batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers, device,
@@ -192,7 +161,7 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         d = load_pickle_data(data_dir, phases=['test'], keys=['data', 'names'])
         samples, names = d['test']
         samples = np.asarray(list(zip(*(samples['%s_em3' % o['n']] for o in outputs_meta))))
-        samples, _, names = group_by_paintings(samples, None, names)
+        samples, names = group_by_paintings(samples, names=names)
         names = np.asarray([n.split('/')[1] + '.jpg' for n in names])
 
         print('test data shape:', samples.shape)

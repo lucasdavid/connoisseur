@@ -35,12 +35,12 @@ K.set_session(s)
 @ex.config
 def config():
     dataset_seed = 4
-    batch_size = 128
-    architecture = 'InceptionV3'
+    batch_size = 64
+    architecture = 'VGG19'
     weights = 'imagenet'
-    image_shape = (299, 299, 3)
+    image_shape = (224, 224, 3)
     device = "/gpu:0"
-    data_dir = "/datasets/vangogh/vgdb_2016"
+    data_dir = "/datasets/vangogh-test-recaptures/recaptures-vangogh-museum-lower-quality/original/patches/random_224"
     output_dir = data_dir
     phases = ['test']
     ckpt_file = None
@@ -49,7 +49,7 @@ def config():
     override = False
     last_base_layer = None
     use_gram_matrix = False
-    include_base_top = False
+    include_base_top = True
     include_top = False
     embedded_files_max_size = 20 * 1024 ** 3
     o_meta = [
@@ -58,7 +58,7 @@ def config():
         dict(n='genre', u=42, a='softmax'),
     ]
 
-    selected_layers = ['global_average_pooling2d_1']
+    selected_layers = ['fc2']
 
 
 @ex.automain

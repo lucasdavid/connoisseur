@@ -31,4 +31,7 @@ def farthest(labels, distances, multi_class=True, t=0.0):
 
 
 def most_frequent(labels, distances, multi_class=True, t=0.0):
-    return np.asarray([np.argmax(np.bincount(patch_labels)) for patch_labels in labels])
+    try:
+        return np.asarray([np.argmax(np.bincount(patch_labels)) for patch_labels in labels])
+    except:
+        raise

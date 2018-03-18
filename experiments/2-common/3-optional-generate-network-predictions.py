@@ -87,7 +87,9 @@ def evaluate(probabilities, y, names, tag, group_patches, phase):
     }
 
     if group_patches:
-        probabilities, y, names = group_by_paintings(probabilities, y, names)
+        probabilities, y, names = group_by_paintings(probabilities, y, names=names)
+        y = np.asarray([_y[0] for _y in y])
+
         for strategy_tag in ('mean', 'farthest', 'most_frequent'):
             strategy = getattr(strategies, strategy_tag)
 

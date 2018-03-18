@@ -10,7 +10,6 @@ This file shows a few steps I'm yet to perform.
 
 - Reduce quality of images in van gogh's museum van gogh test recaptures and
   retest. Check if this improves the current low accurate predictions.
-  - compress with jpeg
   - try 2 or 3 different resolutions
 - Combine patches and recaptures using Folego's approach.
 

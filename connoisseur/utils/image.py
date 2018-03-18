@@ -1,5 +1,6 @@
 import math
 import os
+from math import ceil
 
 import numpy as np
 from PIL import ImageEnhance
@@ -202,6 +203,36 @@ class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
 
         x_batch = [np.asarray(_x) for _x in x_batch]
         return x_batch, y_batch
+
+
+class ArrayPairsSequence(Sequence):
+    def __init__(self, samples, names, pairs, labels, batch_size):
+        self.pairs = pairs
+        self.labels = labels
+        self.samples_map = dict(zip(names, samples))
+        self.batch_size = batch_size
+        self.samples, self.patches, self.layers = samples.shape
+
+    def __len__(self):
+        return int(ceil(len(self.pairs) / self.batch_size))
+
+    def __getitem__(self, idx):
+        xb = self.pairs[idx * self.batch_size:(idx + 1) * self.batch_size]
+        yb = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        zb = [[] for _ in range(self.layers * 2)]
+        for na, nb in xb:
+            # transform (2, patches, inputs, ?) to (patches, 2 * inputs, ?)
+            a, b = self.samples_map[na], self.samples_map[nb]
+
+            for _a, _b in zip(a, b):
+                for i in range(len(_a)):
+                    zb[2 * i] += [_a[i]]
+                    zb[2 * i + 1] += [_b[i]]
+
+        zb = [np.asarray(_x) for _x in zb]
+        yb = np.repeat(yb, self.patches)
+        return zb, yb
 
 
 class PaintingEnhancer:

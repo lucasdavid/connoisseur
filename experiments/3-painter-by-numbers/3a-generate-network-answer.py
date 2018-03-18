@@ -46,7 +46,7 @@ def evaluate(probabilities, y, names, pairs, binary_strategy):
     from connoisseur.datasets import group_by_paintings
 
     print('aggregating patches')
-    probabilities, _, names = group_by_paintings(probabilities, y=None, names=names)
+    probabilities, names = group_by_paintings(probabilities, names=names)
 
     results = {'pairs': pairs,
                'labels': y.tolist(),

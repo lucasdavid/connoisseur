@@ -57,7 +57,7 @@ def plot_confusion_matrix(cm, labels, name='cm.jpg', **kwargs):
 
 def evaluate(model, x, y, names, pairs, tag):
     results = {'samples': pairs, 'labels': y.tolist(), 'evaluations': []}
-    x, _, names = group_by_paintings(x, None, names)
+    x, names = group_by_paintings(x, names=names)
     samples, patches, features = x.shape
     name_indices = {n: i for i, n in enumerate(names)}
     pair_indices = np.array([[name_indices[a], name_indices[b]] for a, b in pairs]).T
