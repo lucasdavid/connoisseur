@@ -178,9 +178,9 @@ class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
             _y = outputs[o]
             _y = _y[indices]
             if o == 'date':
-                _y = np.abs(_y[:, 0, :] - _y[:, 1, :])
+                _y = np.linalg.norm(_y[:, 0, :] - _y[:, 1, :])
             else:
-                _y = (_y[:, 0, :] == _y[:, 1, :]).astype('float')
+                _y = (_y[:, 0, :] == _y[:, 1, :]).astype(float)
             y[o] = _y
         self.y = y
 
