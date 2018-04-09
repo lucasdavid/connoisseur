@@ -35,30 +35,31 @@ K.set_session(s)
 @ex.config
 def config():
     dataset_seed = 4
-    batch_size = 64
-    architecture = 'VGG19'
+    batch_size = 128
+    architecture = 'InceptionV3'
     weights = 'imagenet'
-    image_shape = (224, 224, 3)
+    image_shape = (299, 299, 3)
     device = "/gpu:0"
-    data_dir = "/datasets/vangogh-test-recaptures/recaptures-vangogh-museum-lower-quality/original/patches/random_224"
+    data_dir = "/datasets/pbn/patches/random299"
     output_dir = data_dir
     phases = ['test']
-    ckpt_file = None
+    ckpt_file = '/work/pbn/irn-mo-balanced/22/weights.hdf5'
     pooling = 'avg'
     dense_layers = []
     override = False
     last_base_layer = None
     use_gram_matrix = False
-    include_base_top = True
-    include_top = False
-    embedded_files_max_size = 20 * 1024 ** 3
+    include_base_top = False
+    include_top = True
+    embedded_files_max_size = 5 * 1024 ** 3
     o_meta = [
-        dict(n='artist', u=1584, a='softmax'),
-        dict(n='style', u=135, a='softmax'),
-        dict(n='genre', u=42, a='softmax'),
+        dict(n='artist', u=1584, a='sigmoid'),
+        dict(n='style', u=135, a='sigmoid'),
+        dict(n='genre', u=42, a='sigmoid'),
+        dict(n='date', u=1, a='linear')
     ]
 
-    selected_layers = ['fc2']
+    selected_layers = ['artist', 'style', 'genre', 'date']
 
 
 @ex.automain

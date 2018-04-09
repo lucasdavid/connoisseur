@@ -58,21 +58,20 @@ def config():
     opt_params = {'lr': .001}
     dropout_rate = .5
     ckpt = 'weights.hdf5'
-    epochs = 100
+    epochs = 300
     steps_per_epoch = None
     validation_steps = None
-    use_multiprocessing = False
-    workers = 1
+    use_multiprocessing = True
+    workers = 12
     initial_epoch = 0
-    early_stop_patience = 30
-    tensorboard_tag = 'training/'
+    early_stop_patience = 100
     resuming_ckpt = None
 
     outputs_meta = [
         dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
         dict(n='style', u=135, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
         dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        # dict(n='date', u=1, e=256, j='l2', a='linear', l=utils.contrastive_loss, m=utils.contrastive_accuracy)
+        dict(n='date', u=1, e=256, j='l2', a='linear', l='mse', m='mae')
     ]
 
 
@@ -84,7 +83,7 @@ def run(_run, image_shape, data_dir,
         validation_steps, workers, use_multiprocessing, initial_epoch,
         early_stop_patience, use_gram_matrix, limb_dense_layers,
         limb_weights, trainable_limbs, joint_weights, trainable_joints,
-        dense_layers, resuming_ckpt, tensorboard_tag, outputs_meta):
+        dense_layers, resuming_ckpt, outputs_meta):
     report_dir = _run.observers[0].dir
 
     g = ImageDataGenerator(
@@ -148,7 +147,7 @@ def run(_run, image_shape, data_dir,
                     callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=int(early_stop_patience // 3)),
-                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
+                    callbacks.TensorBoard(report_dir, batch_size=batch_size),
                     callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True, verbose=1),
                 ])
         except KeyboardInterrupt:

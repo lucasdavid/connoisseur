@@ -15,21 +15,19 @@ Licence: MIT License 2016 (c)
 """
 import json
 import os
+from math import ceil
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from PIL import ImageFile
-from keras import Input, backend as K
-from keras.engine import Model
+from keras import backend as K
+from keras.utils import Sequence
 from sacred import Experiment
 from sklearn import metrics
 
 from connoisseur.datasets import load_pickle_data, group_by_paintings
-from connoisseur.models import build_siamese_mo_model
-from connoisseur.utils.image import ArrayPairsSequence
+from connoisseur.models import build_siamese_top_meta
 
-ImageFile.LOAD_TRUNCATED_IMAGES = True
 tf.logging.set_verbosity(tf.logging.ERROR)
 tf_config = tf.ConfigProto(allow_soft_placement=True)
 tf_config.gpu_options.allow_growth = True
@@ -41,36 +39,30 @@ ex = Experiment('generate-top-network-answer-for-painter-by-numbers')
 
 @ex.config
 def config():
-    image_shape = [299, 299, 3]
-    data_dir = '/datasets/pbn/random_299/'
+    data_dir = '/work/datasets/pbn/random_299/'
     submission_info = '/datasets/pbn/submission_info.csv'
     solution = '/datasets/pbn/solution_painter.csv'
-    architecture = 'InceptionV3'
-    weights = 'imagenet'
-    limb_weights = '/work/painter-by-numbers/ckpt/pbn_inception_mo.hdf5'
-    limb_dense_layers = ()
-    joint_weights = '/work/painter-by-numbers/ckpt/joint_weights.hdf5'
+    chunks = [0, 1]
+    joint_weights = '/work/painter-by-numbers/ckpt/joint.hdf5'
     patches = 50
-    batch_size = 2  # seriously
-    last_base_layer = None
-    use_gram_matrix = False
-    pooling = 'avg'
-    dense_layers = (32,)
+    batch_size = 10240  # seriously
+    dense_layers = ()
     device = "/gpu:0"
-    dropout_rate = 0.2
-    ckpt = '/work/painter-by-numbers/wlogs/train-top-top-mo/5/weights.hdf5'
-    results_file = 'top-mo.json'
+    joint = 'multiply'
+    ckpt = './ckpt/siamese.hdf5'
+
+    estimator_type = 'probability'
+    results_file = 'results.json'
     submission_file = 'answer-{strategy}.csv'
-    estimator_type = 'score'
 
     use_multiprocessing = False
     workers = 1
 
     outputs_meta = [
-        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='artist', u=1584, e=2048, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
         dict(n='style', u=135, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        # dict(n='date', u=1, e=256, j='l2', a='linear', l=utils.contrastive_loss, m=utils.contrastive_accuracy)
+        dict(n='genre', u=42, e=128, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='date', u=1, e=32, j='l2', a='linear', l='mse', m='mae')
     ]
 
 
@@ -107,72 +99,79 @@ def evaluate(labels, probabilities, estimator_type):
     return results
 
 
+class ArrayPairsSequence(Sequence):
+    def __init__(self, inputs, names, pairs, labels, batch_size):
+        self.pairs = pairs
+        self.labels = labels
+        self.batch_size = batch_size
+        self.inputs = inputs
+
+        self.samples, self.patches = next(iter(inputs.values())).shape[:2]
+        self.samples_map = dict(zip(names, list(range(self.samples))))
+
+    def __len__(self):
+        return int(ceil(len(self.pairs) / self.batch_size))
+
+    def __getitem__(self, idx):
+        xb = self.pairs[idx * self.batch_size:(idx + 1) * self.batch_size]
+        yb = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        zb = {
+            '%s_%s' % (o, limb): np.concatenate([_x[self.samples_map[ix]] for ix in e])
+            for limb, e in zip('ab', (xb[:, 0], xb[:, 1]))
+            for o, _x in self.inputs.items()
+        }
+
+        yb = np.repeat(yb, self.patches)
+        return zb, yb
+
+
 @ex.automain
-def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, solution, architecture, weights,
-        batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers, device,
-        limb_weights, dropout_rate, ckpt, results_file, submission_file,
-        use_multiprocessing, workers, outputs_meta, limb_dense_layers, joint_weights):
+def run(_run, data_dir, patches, estimator_type, submission_info, solution,
+        batch_size, dense_layers, device, ckpt,
+        results_file, submission_file, use_multiprocessing, workers,
+        joint_weights, outputs_meta, chunks):
     report_dir = _run.observers[0].dir
 
     with tf.device(device):
         print('building...')
-        model = build_siamese_mo_model(
-            image_shape, architecture, outputs_meta,
-            dropout_rate, weights,
-            last_base_layer=last_base_layer,
-            use_gram_matrix=use_gram_matrix,
-            limb_dense_layers=limb_dense_layers,
-            pooling=pooling,
-            trainable_limbs=False,
-            limb_weights=limb_weights,
-            trainable_joints=False,
-            joint_weights=joint_weights,
-            dense_layers=dense_layers)
-
+        model = build_siamese_top_meta(outputs_meta,
+                                       joint_weights=joint_weights,
+                                       dense_layers=dense_layers)
+        model.summary()
         print('loading weights from', ckpt)
         model.load_weights(ckpt)
-
-        x = []
-        for m in outputs_meta:
-            name = m['n']
-            shape = [m['e']]
-            x += [Input(shape, name='%s_ia' % name), Input(shape, name='%s_ib' % name)]
-
-        o = []
-        for i, m in enumerate(outputs_meta):
-            name = m['n']
-            y = [x[2 * i], x[2 * i + 1]]
-            y = model.get_layer('multiply_%i' % (i + 1))(y)
-            y = model.get_layer('%s_binary_predictions' % name)(y)
-            o += [y]
-
-        rest = model.layers.index(model.get_layer('concatenate_asg'))
-        for l in model.layers[rest:]:
-            o = l(o)
-
-        meta_model = Model(inputs=x, outputs=o)
-        del model
 
         print('loading submission and solution...')
         pairs = pd.read_csv(submission_info, quotechar='"', delimiter=',').values[:, 1:]
         labels = pd.read_csv(solution, quotechar='"', delimiter=',').values[:, 1:].flatten()
 
         print('loading sequential predictions...')
-        d = load_pickle_data(data_dir, phases=['test'], keys=['data', 'names'])
-        samples, names = d['test']
-        samples = np.asarray(list(zip(*(samples['%s_em3' % o['n']] for o in outputs_meta))))
-        samples, names = group_by_paintings(samples, names=names)
+        d = load_pickle_data(data_dir,
+                             phases=['test'], keys=['data', 'names'],
+                             chunks=chunks)
+        d, names = d['test']
+
+        print('signal names:', d.keys())
+
+        inputs = [d[e['n']] for e in outputs_meta]
+        del d
+        *inputs, names = group_by_paintings(*inputs, names=names)
+        inputs = {o['n']: inputs[ix] for ix, o in enumerate(outputs_meta)}
+
         names = np.asarray([n.split('/')[1] + '.jpg' for n in names])
 
-        print('test data shape:', samples.shape)
+        # All outputs should have the same amount of patches.
+        assert [i.shape[1] for i in inputs.values()]
+        print('test data inputs shape:', [s.shape for s in inputs.values()])
 
         print('\n# test evaluation')
-        test_data = ArrayPairsSequence(samples, names, pairs, labels, batch_size)
-        probabilities = meta_model.predict_generator(
+        test_data = ArrayPairsSequence(inputs, names, pairs, labels, batch_size)
+        probabilities = model.predict_generator(
             test_data,
             use_multiprocessing=use_multiprocessing,
             workers=workers, verbose=1).reshape(-1, patches)
-        del meta_model
+        del model
         K.clear_session()
 
     layer_results = evaluate(labels, probabilities, estimator_type)
@@ -188,6 +187,6 @@ def run(_run, image_shape, data_dir, patches, estimator_type, submission_info, s
         predictions_field = 'binary_probabilities' if 'binary_probabilities' in v else 'p'
         p = v[predictions_field]
 
-        with open(os.path.join(report_dir, submission_file.format(strategy=v['strategy'])), 'w') as f:
+        with open(submission_file.format(strategy=v['strategy']), 'w') as f:
             f.write('index,sameArtist\n')
             f.writelines(['%i,%f\n' % (i, _p) for i, _p in enumerate(p)])

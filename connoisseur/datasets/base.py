@@ -88,8 +88,8 @@ def group_by_paintings(*arrays,
         if max_patches and len(indices) > max_patches:
             indices = indices[:max_patches]
 
-        for input, output in zip(arrays, outputs):
-            output.append(input[indices])
+        for _i, _o in zip(arrays, outputs):
+            _o.append(_i[indices])
 
         _names.append(clipped_names[indices][0])
 

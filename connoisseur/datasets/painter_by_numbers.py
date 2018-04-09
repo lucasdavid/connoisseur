@@ -42,13 +42,16 @@ def load_multiple_outputs(train_info, outputs_meta, encode='onehot'):
 
             flow = make_pipeline(Imputer(strategy='most_frequent'),
                                  OneHotEncoder(sparse=False) if encode == 'onehot' else None)
+            encoded = flow.fit_transform(encoded.reshape(-1, 1))
         else:
             encoded = y_train[n] if n != 'date' else y_train['date'].apply(to_year)
             encoded = encoded.values
             flow = make_pipeline(Imputer(strategy='mean'),
                                  StandardScaler())
 
-        outputs[n] = flow.fit_transform(encoded.reshape(-1, 1))
+            encoded = flow.fit_transform(encoded.reshape(-1, 1))
+
+        outputs[n] = encoded
         meta['f'] = flow
 
     name_map = {os.path.splitext(n)[0]: i for i, n in enumerate(y_train['filename'])}

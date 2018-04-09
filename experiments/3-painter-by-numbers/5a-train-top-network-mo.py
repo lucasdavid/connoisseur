@@ -36,14 +36,14 @@ def config():
     device = "/gpu:0"
 
     train_info = '/datasets/pbn/train_info.csv'
-    data_dir = "/datasets/pbn/random_299/"
+    data_dir = '/datasets/pbn/patches/random299/'
     subdirectories = None
     train_pairs = 1584
     valid_pairs = 1584
     train_shuffle = True
     valid_shuffle = True
 
-    batch_size = 128
+    batch_size = 64
     image_shape = [299, 299, 3]
     architecture = 'InceptionV3'
     weights = 'imagenet'
@@ -53,26 +53,25 @@ def config():
     trainable_limbs = False
     pooling = 'avg'
 
-    limb_weights = '/work/painter-by-numbers/wlogs/train-multiple-outputs/5/weights.hdf5'
+    limb_weights = '/work/pbn/irn-mo-balanced/22/weights.hdf5'
 
-    opt_params = {'lr': .001}
+    opt_params = {'lr': .005}
     dropout_rate = .5
     ckpt = 'weights.hdf5'
     resuming_ckpt = None
-    epochs = 100
+    epochs = 300
     steps_per_epoch = None
     validation_steps = None
-    use_multiprocessing = False
-    workers = 1
+    use_multiprocessing = True
+    workers = 8
     initial_epoch = 0
-    early_stop_patience = 30
-    tensorboard_tag = 'training/'
+    early_stop_patience = 100
 
     outputs_meta = [
-        dict(n='artist', u=1584, e=1024, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        dict(n='style', u=135, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        dict(n='genre', u=42, e=256, j='multiply', a='softmax', l='binary_crossentropy', m='accuracy'),
-        # dict(n='date', u=1, e=256, j='l2', a='linear', l='l2', m='mse')
+        dict(n='artist', u=1584, e=2048, j='squared_diferences', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='style', u=135, e=256, j='squared_diferences', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='genre', u=42, e=128, j='squared_diferences', a='softmax', l='binary_crossentropy', m='accuracy'),
+        dict(n='date', u=1, e=64, j='l2', a='linear', l='mse', m='mae')
     ]
 
 
@@ -82,7 +81,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
         opt_params, dropout_rate, resuming_ckpt, ckpt, steps_per_epoch, epochs,
         validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience, use_gram_matrix,
         dense_layers,
-        limb_weights, trainable_limbs, tensorboard_tag, outputs_meta):
+        limb_weights, trainable_limbs, outputs_meta):
     report_dir = _run.observers[0].dir
 
     print('reading train-info...')
@@ -151,7 +150,7 @@ def run(_run, image_shape, train_info, data_dir, train_pairs, valid_pairs, train
                     callbacks.TerminateOnNaN(),
                     callbacks.EarlyStopping(patience=early_stop_patience),
                     callbacks.ReduceLROnPlateau(min_lr=1e-10, patience=early_stop_patience // 3),
-                    callbacks.TensorBoard(os.path.join(report_dir, tensorboard_tag), batch_size=batch_size),
+                    callbacks.TensorBoard(report_dir, batch_size=batch_size),
                     callbacks.ModelCheckpoint(os.path.join(report_dir, ckpt), save_best_only=True, verbose=1),
                 ])
         except KeyboardInterrupt:

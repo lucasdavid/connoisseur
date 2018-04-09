@@ -33,7 +33,11 @@ class MultipleOutputsDirectorySequence(Sequence):
         samples = []
         if not directory.endswith('/'):
             directory += '/'
-        self.subdirectories = np.asarray(subdirectories or sorted(os.listdir(directory)))
+
+        if isinstance(subdirectories, int) or subdirectories is None:
+            subdirectories = sorted(os.listdir(directory))[:subdirectories]
+
+        self.subdirectories = subdirectories
         for c in self.subdirectories:
             samples += [directory + c + '/' + f for f in os.listdir(directory + c)]
 
@@ -43,6 +47,8 @@ class MultipleOutputsDirectorySequence(Sequence):
         files_base = [os.path.basename(f).split('-')[0] for f in samples]
         self.samples = np.asarray(samples)
         self.classes = np.array([name_map[f] for f in files_base])
+
+        print(len(samples), 'images found, belonging to', len(self.subdirectories), 'subdirectories')
 
     def __len__(self):
         return math.ceil(len(self.samples) / self.batch_size)
@@ -175,12 +181,19 @@ class BalancedDirectoryPairsMultipleOutputsSequence(Sequence):
                                for f in p]
                               for p in self.x])
         for o in outputs:
+            print('processing', o)
+
             _y = outputs[o]
             _y = _y[indices]
+
+            print(_y.shape)
+
             if o == 'date':
-                _y = np.linalg.norm(_y[:, 0, :] - _y[:, 1, :])
+                _y = np.linalg.norm(_y[:, 0] - _y[:, 1],
+                                    axis=1,
+                                    keepdims=True)
             else:
-                _y = (_y[:, 0, :] == _y[:, 1, :]).astype(float)
+                _y = (_y[:, 0] == _y[:, 1]).astype(float)
             y[o] = _y
         self.y = y
 
@@ -254,3 +267,43 @@ class PaintingEnhancer:
             enhance = ImageEnhance.Contrast(patch)
             patch = enhance.enhance(self.variability * np.random.randn() + 1)
         return patch
+
+
+def create_pairs(x, y, pairs, classes, shuffle=True):
+    indices = []
+
+    for c in classes:
+        _indices = np.where(y['artist'] == c)[0]
+        if len(_indices) > 0:
+            indices += [_indices]
+
+    z = []
+    for c1 in range(len(indices)):
+        z += np.random.choice(indices[c1], size=(pairs // 2, 2)).tolist()
+
+        others = (c1 + np.random.randint(1, len(indices), size=int(pairs / 2))) % len(indices)
+        z += zip(np.random.choice(indices[c1], int(pairs / 2)), (np.random.choice(indices[c2]) for c2 in others))
+    p = np.arange(len(z))
+
+    if shuffle:
+        np.random.shuffle(p)
+
+    z = np.asarray(z)[p]
+
+    x_ = {'%s_%s' % (tag, limb): v[z[:, ix]]
+          for tag, v in x.items()
+          for ix, limb in enumerate('ab')}
+
+    y_ = {}
+
+    for o in y:
+        _y = y[o][z]
+
+        if o == 'date':
+            _y = np.linalg.norm(_y[:, 0, :] - _y[:, 1, :], axis=1, keepdims=True)
+        else:
+            _y = (_y[:, 0, :] == _y[:, 1, :]).astype(float)
+
+        y_['%s_binary_predictions' % o] = _y
+
+    return x_, y_

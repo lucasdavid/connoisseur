@@ -1,7 +1,7 @@
 from keras import applications, layers, models, regularizers, backend as K, \
     Input
 from keras.engine import Model
-from keras.layers import Dropout, Dense, Lambda, Flatten, multiply, BatchNormalization, Activation, Conv2D
+from keras.layers import Dropout, Dense, Lambda, Flatten, multiply
 
 from .utils import siamese_functions, gram_matrix
 
@@ -32,8 +32,8 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                                               input_shape=tuple(image_shape),
                                               pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
-         if last_base_layer
-         else base_model.output)
+    if last_base_layer
+    else base_model.output)
 
     summary = '%s ' % architecture
 
@@ -68,10 +68,43 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
     return Model(inputs=base_model.input, outputs=outputs, name=model_name)
 
 
-def build_top(limb_outputs_meta,
-              dropout_rate=.5,
-              name=None):
+def build_meta_limb(shape, dropout_p=.5,
+                    classes=1000, use_gram_matrix=False,
+                    dense_layers=(),
+                    include_top=True,
+                    predictions_activation='softmax',
+                    predictions_name='predictions', model_name=None):
+    x = Input(shape=shape)
 
+    if use_gram_matrix:
+        sizes = K.get_variable_shape(x)
+        k = sizes[-1]
+        x = Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
+                   name='gram', output_shape=[k, k])(x)
+
+    if include_top:
+        if K.ndim(x) > 2:
+            x = Flatten(name='flatten')(x)
+
+        for l_id, n_units in enumerate(dense_layers):
+            x = Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
+            x = Dropout(dropout_p)(x)
+
+        if not isinstance(classes, (list, tuple)):
+            classes, predictions_activation, predictions_name = (
+                [classes], [predictions_activation], [predictions_name])
+        outputs = []
+        for u, a, n in zip(classes, predictions_activation, predictions_name):
+            outputs += [Dense(u, activation=a, name=n)(x)]
+    else:
+        outputs = [x]
+
+    return Model(inputs=x, outputs=outputs, name=model_name)
+
+
+def build_siamese_meta(limb_outputs_meta,
+                       dropout_rate=.5,
+                       name=None):
     # Build heads.
     inputs, outputs = [], []
 
@@ -82,13 +115,13 @@ def build_top(limb_outputs_meta,
         inputs += [y]
 
         if e:
-            y = Dense(e, name='%s_em1' % n, use_bias=False)(y)
-            y = BatchNormalization(name='%s_bn1' % n)(y)
-            y = Activation('relu', name='%s_ac1' % n)(y)
+            y = Dense(e, name='%s_em0' % n, activation='relu')(y)
+            # y = BatchNormalization(name='%s_bn1' % n)(y)
+            # y = Activation('relu', name='%s_ac0' % n)(y)
             y = Dropout(dropout_rate, name='%s_d1' % n)(y)
-            y = Dense(e, name='%s_em2' % n, use_bias=False)(y)
-            y = BatchNormalization(name='%s_bn2' % n)(y)
-            y = Activation('relu', name='%s_ac2' % n)(y)
+            y = Dense(e, name='%s_em1' % n, activation='relu')(y)
+            # y = BatchNormalization(name='%s_bn2' % n)(y)
+            # y = Activation('relu', name='%s_ac1' % n)(y)
 
         outputs += [y]
 
@@ -116,6 +149,32 @@ def build_top(limb_outputs_meta,
         outputs += [y]
 
     return Model(inputs=inputs, outputs=outputs, name=name)
+
+
+def build_siamese_top_meta(limb_outputs_meta,
+                           dropout_rate=.5,
+                           name=None,
+                           joint_weights=None, trainable_joints=True,
+                           dense_layers=()):
+    model = build_siamese_meta(limb_outputs_meta, dropout_rate, name)
+    if not trainable_joints:
+        for l in model.layers:
+            l.trainable = False
+
+    if joint_weights:
+        print('loading weights from', joint_weights)
+        model.load_weights(joint_weights)
+
+    top_model_name = name + '_top' if name else None
+
+    y = model.outputs
+    y = layers.concatenate(y, name='concatenate_asg')
+    for units in dense_layers:
+        y = Dropout(dropout_rate)(y)
+        y = Dense(units, activation='relu')(y)
+    y = Dropout(dropout_rate)(y)
+    y = Dense(1, activation='sigmoid', name='binary_predictions')(y)
+    return Model(inputs=model.inputs, outputs=y, name=top_model_name)
 
 
 def build_siamese_model(image_shape, architecture, dropout_rate=.5,
@@ -148,10 +207,9 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5,
     for n, u, x in zip(predictions_name, embedding_units, limb.outputs):
         if u:
             x = Dense(u, activation='relu', name='%s_em1' % n)(x)
-            x = Dropout(dropout_rate, name='%s_emd1' % n)(x)
+            x = Dropout(dropout_rate, name='%s_dr1' % n)(x)
             x = Dense(u, activation='relu', name='%s_em2' % n)(x)
-            x = Dropout(dropout_rate, name='%s_emd2' % n)(x)
-            x = Dense(u, activation='relu', name='%s_em3' % n)(x)
+            x = Dropout(dropout_rate, name='%s_dr2' % n)(x)
         outputs += [x]
     limb = Model(inputs=limb.inputs, outputs=outputs)
 
@@ -165,14 +223,13 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5,
     outputs = []
     for n, j, _ya, _yb in zip(predictions_name, joints, ya, yb):
         if j == 'multiply':
-            x = multiply([_ya, _yb])
-            x = Dense(1, activation='sigmoid',
-                      name='%s_binary_predictions' % n)(x)
+            x = multiply([_ya, _yb], name='%s_merge' % n)
         else:
             if isinstance(j, str):
                 j = siamese_functions[j]
-            x = Lambda(j, lambda _x: (_x[0][0], 1),
-                       name='%s_binary_predictions' % n)([_yb, _yb])
+            x = Lambda(j, name='%s_merge' % n)([_yb, _yb])
+
+        x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
         outputs += [x]
 
     return Model(inputs=[ia, ib], outputs=outputs)

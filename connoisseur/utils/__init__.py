@@ -14,6 +14,11 @@ def l1(inputs):
     return K.abs(x - y)
 
 
+def squared_diferences(inputs):
+    x, y = inputs
+    return K.square(x - y)
+
+
 def contrastive_loss(y_true, y_pred):
     """Contrastive loss from Hadsell-et-al.'06
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
@@ -74,4 +79,5 @@ def get_preprocess_fn(architecture):
 siamese_functions = {
     'l1': l1,
     'l2': l2,
+    'squared_diferences': squared_diferences
 }
