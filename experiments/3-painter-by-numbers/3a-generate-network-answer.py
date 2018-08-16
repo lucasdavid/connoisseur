@@ -5,7 +5,7 @@ Painter-by-numbers is not a classification task.
 
 This script takes a one-leg network, encodes each test paintings'
 pair into probabilities and save it on a file. Finally, This file can be
-given to 6-generate-submission-file.py script.
+given to 1-generate-submission-file.py script.
 
 Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)

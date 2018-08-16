@@ -14,6 +14,7 @@ import os
 import pickle
 
 import matplotlib
+from PIL import Image
 
 matplotlib.use('Agg')
 
@@ -24,15 +25,16 @@ from keras import backend as K
 from sacred import Experiment
 from sklearn.preprocessing import LabelEncoder
 
-from connoisseur.utils.image import load_img, img_to_array
+from keras.preprocessing.image import load_img, img_to_array
 
 ex = Experiment('embed-patches-into-histograms')
 
 
 @ex.config
 def config():
-    data_dir = '/path/to/patches'
-    n_bins = 256
+    data_dir = '/datasets/vangogh/patches/random/'
+    output_dir = '/datasets/vangogh/patches/random/histograms/'
+    n_bins = 64
     histogram_range = (0, 255)
 
 
@@ -47,12 +49,12 @@ def load_data(directory):
     for label in labels:
         samples = os.listdir(os.path.join(directory, label))
 
-        X += [img_to_array(load_img(os.path.join(directory, label, sample), mode='hsv'))
+        X += [img_to_array(load_img(os.path.join(directory, label, sample))
+                           .convert('HSV'))
               for sample in samples]
         y += len(samples) * [label]
         names += samples
 
-    X = np.array(X, copy=False)
     le = LabelEncoder()
     y = le.fit_transform(y)
 
@@ -95,8 +97,8 @@ def compute_data_histograms(X, n_bins, histogram_range):
 
 
 @ex.automain
-def run(data_dir, n_bins, histogram_range):
-    os.makedirs('./results', exist_ok=True)
+def run(data_dir, n_bins, histogram_range, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allow_growth = True
     s = tf.Session(config=config)
@@ -117,6 +119,7 @@ def run(data_dir, n_bins, histogram_range):
 
         print('%s histogram shape and size: %s, %f MB' % (phase, X.shape, X.nbytes / 1024 ** 2))
 
-        with open('./results/%s.0.pickle' % phase, 'wb') as f:
+        output_file = os.path.join(output_dir, '%s.0.pickle' % phase)
+        with open(output_file, 'wb') as f:
             pickle.dump({'data': X, 'target': y, 'names': np.array(names, copy=False)},
                         f, pickle.HIGHEST_PROTOCOL)

@@ -7,7 +7,7 @@ weights. Then use this script to load the trained siamese network, clip
 its limbs and  test from the encoded data instead (it will take a few hours).
 
 Encodes each test paintings' pair into probabilities and save it on a file.
-Finally, This file can be given to 6-generate-submission-file.py script.
+Finally, This file can be given to 1-generate-submission-file.py script.
 
 Author: Lucas David -- <lucasolivdavid@gmail.com>
 Licence: MIT License 2016 (c)
