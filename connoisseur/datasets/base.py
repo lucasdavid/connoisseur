@@ -12,6 +12,7 @@ import shutil
 import tarfile
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
+from math import ceil
 from urllib import request
 
 import numpy as np
@@ -122,7 +123,7 @@ def _load_patches_coroutine(args):
     return patches
 
 
-def _save_image_patches_coroutine(options):
+def _save_image_patches_coroutine(**options):
     image = load_img(options['name'])
     border = np.array(options['patch_size']) - image.size
     painting_name = os.path.splitext(os.path.basename(options['name']))[0]
@@ -505,7 +506,7 @@ class DataSet:
 
         os.makedirs(directory, exist_ok=True)
 
-        phases = list(filter(lambda x: os.path.exists(os.path.join(data_path, x)),
+        phases = list(filter(lambda _p: os.path.exists(os.path.join(data_path, _p)),
                              ('train', 'test', 'valid')))
 
         tensors = None
@@ -535,29 +536,42 @@ class DataSet:
                 print('extracting %s patches to disk...' % phase)
 
                 labels = self.classes or os.listdir(os.path.join(data_path, phase))
-                for label in labels:
-                    class_path = os.path.join(data_path, phase, label)
-                    patches_label_path = os.path.join(directory, phase, label)
-                    os.makedirs(patches_label_path, exist_ok=True)
+                label_paths = [os.path.join(data_path, phase, label) for label in labels]
+                label_samples = [os.listdir(p) for p in label_paths]
+                all_patches = 0
 
-                    samples = os.listdir(class_path)
+                if mode == 'balanced':
+                    label_weights = 1 / np.asarray([len(s) for s in label_samples])
+                    label_weights /= label_weights.max()
+                    _mode = 'random'
+                else:
+                    label_weights = np.ones(len(label_samples))
+                    _mode = mode
+
+                for label, input_dir, samples, weight in zip(labels, label_paths, label_samples, label_weights):
+                    output_dir = os.path.join(directory, phase, label)
+                    os.makedirs(output_dir, exist_ok=True)
 
                     for sample in samples:
                         try:
-                            if os.path.exists(os.path.join(patches_label_path, os.path.splitext(sample)[0] + '-0.jpg')):
+                            if os.path.exists(os.path.join(output_dir, os.path.splitext(sample)[0] + '-0.jpg')):
                                 continue
 
-                            _save_image_patches_coroutine(dict(
-                                name=os.path.join(class_path, sample),
-                                patches_path=patches_label_path,
+                            _save_image_patches_coroutine(
+                                name=os.path.join(input_dir, sample),
+                                patches_path=output_dir,
                                 patch_size=patch_size,
-                                n_patches=n_patches,
-                                mode=mode,
+                                n_patches=ceil(n_patches * weight),
+                                mode=_mode,
                                 low_threshold=low_threshold,
                                 pool_size=pool_size,
-                                tensors=tensors))
+                                tensors=tensors)
+
+                            all_patches += ceil(n_patches * weight)
                         except MemoryError:
                             print('failed')
 
+                    print('%i patches extracted from %i samples '
+                          % (all_patches, label))
         print('patches extraction completed.')
         return self
