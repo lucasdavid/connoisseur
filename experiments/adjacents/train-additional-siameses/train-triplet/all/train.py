@@ -1,4 +1,4 @@
-"""6 Triplet Loss Full Network Training From Scratch.
+"""1 Triplet Loss Full Network Training From Scratch.
 
 Author: Lucas David -- <lucasolivdavid@gmail.com>
 License: MIT (c) 2016
@@ -42,8 +42,8 @@ FLAGS = tf.app.flags.FLAGS
 
 
 def train():
-    os.makedirs('/work/ckpt/6-triplets/training-from-scratch/opt/', exist_ok=True)
-    os.makedirs('/work/ckpt/6-triplets/training-from-scratch/progress/', exist_ok=True)
+    os.makedirs('/work/ckpt/1-triplets/training-from-scratch/opt/', exist_ok=True)
+    os.makedirs('/work/ckpt/1-triplets/training-from-scratch/progress/', exist_ok=True)
 
     tf.logging.info('building model...')
 
@@ -121,12 +121,12 @@ def train():
 
                 if val_loss < best_val_loss:
                     tf.logging.info('val_acc improved from %.4f to %.4f', best_val_loss, val_loss)
-                    optimal_saver.save(s, '/work/ckpt/6-triplets/training-from-scratch/opt/'
+                    optimal_saver.save(s, '/work/ckpt/1-triplets/training-from-scratch/opt/'
                                           'opt.ckpt', global_step=gs)
                     best_val_loss = val_loss
 
             if not it % FLAGS.nb_save_interval:
-                progress_saver.save(s, '/work/ckpt/6-triplets/training-from-scratch/progress/'
+                progress_saver.save(s, '/work/ckpt/1-triplets/training-from-scratch/progress/'
                                        'progress.ckpt', global_step=gs)
 
 

@@ -1,4 +1,4 @@
-"""6 Evaluate Triplet.
+"""1 Evaluate Triplet.
 
 Evaluate the 3-Dense network trained to recognize triplets of features
 extracted from the InceptionV3 base in `.../2-transform-inception/run.py`
@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_string('data_dir', '/datasets/vangogh/vgdb_2016',
                            'directory containing the data files')
 tf.app.flags.DEFINE_string('device', '/gpu:0',
                            'device in which training will occur')
-tf.app.flags.DEFINE_string('ckpt_file', '/work/ckpt/vangogh/6-triplets/'
+tf.app.flags.DEFINE_string('ckpt_file', '/work/ckpt/vangogh/1-triplets/'
                                         'frozen-base/opt/'
                                         'opt.ckpt-0',
                            'checkpoint file containing the trained model')

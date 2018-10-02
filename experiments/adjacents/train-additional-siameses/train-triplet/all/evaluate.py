@@ -10,7 +10,7 @@ from connoisseur.fusion import strategies
 
 tf.app.flags.DEFINE_string('data_dir', '/datasets/vangogh/',
                            'directory containing the data files')
-tf.app.flags.DEFINE_string('ckpt_file', '/work/ckpt/vangogh/6-triplets/'
+tf.app.flags.DEFINE_string('ckpt_file', '/work/ckpt/vangogh/1-triplets/'
                                         'training-from-scratch/opt/'
                                         'opt.ckpt-0',
                            'checkpoint file containing the trained model')

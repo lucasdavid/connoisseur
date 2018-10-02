@@ -1,4 +1,4 @@
-"""6 Train Triplet.
+"""1 Train Triplet.
 
 Train 3-Dense network to recognize triplets of features extracted from the
 InceptionV3 base in `.../2-transform-inception/run.py` script.
@@ -44,8 +44,8 @@ FLAGS = tf.app.flags.FLAGS
 
 def train(X_train, y_train, names_train,
           X_valid, y_valid, names_valid):
-    os.makedirs('/work/ckpt/vangogh/6-triplets/frozen-base/opt/', exist_ok=True)
-    os.makedirs('/work/ckpt/vangogh/6-triplets/frozen-base/progress/', exist_ok=True)
+    os.makedirs('/work/ckpt/vangogh/1-triplets/frozen-base/opt/', exist_ok=True)
+    os.makedirs('/work/ckpt/vangogh/1-triplets/frozen-base/progress/', exist_ok=True)
 
     tf.logging.info('building model...')
 
@@ -122,13 +122,13 @@ def train(X_train, y_train, names_train,
                     tf.logging.info('val_acc improved from %.4f to %.4f',
                                     best_val_loss, _val_loss)
                     opt_saver.save(
-                        s, '/work/ckpt/vangogh/6-triplets/frozen-base/opt/opt.ckpt',
+                        s, '/work/ckpt/vangogh/1-triplets/frozen-base/opt/opt.ckpt',
                         global_step=gs)
                     best_val_loss = _val_loss
 
             if not it % FLAGS.nb_save_interval:
                 progress_saver.save(
-                    s, '/work/ckpt/vangogh/6-triplets/frozen-base/progress/progress.ckpt',
+                    s, '/work/ckpt/vangogh/1-triplets/frozen-base/progress/progress.ckpt',
                     global_step=gs)
 
 

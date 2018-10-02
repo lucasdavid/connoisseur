@@ -2,6 +2,8 @@ __pycache__/
 bin/
 .idea/
 data/
+*.zip
 *.hdf5
 *egg-info/
 .eggs/
+logs/
