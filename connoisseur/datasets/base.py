@@ -165,7 +165,7 @@ def _save_image_patches_coroutine(**options):
 
         starting_points = np.array([c[:, 1], c[:, 0]]).T
 
-    elif mode == 'random':
+    elif mode in ('random', 'balanced'):
         starting_points = (
             np.random.rand(n_patches, 2)
             * (image.width - patch_size[0], image.height - patch_size[1])
@@ -538,40 +538,47 @@ class DataSet:
                 labels = self.classes or os.listdir(os.path.join(data_path, phase))
                 label_paths = [os.path.join(data_path, phase, label) for label in labels]
                 label_samples = [os.listdir(p) for p in label_paths]
-                all_patches = 0
 
                 if mode == 'balanced':
-                    label_weights = 1 / np.asarray([len(s) for s in label_samples])
+                    label_weights = np.asarray([len(s) for s in label_samples], 'float')
+                    label_weights = 1.0 / np.maximum(label_weights, 1)
                     label_weights /= label_weights.max()
-                    _mode = 'random'
                 else:
                     label_weights = np.ones(len(label_samples))
-                    _mode = mode
+
+                print('weights:', label_weights.tolist())
 
                 for label, input_dir, samples, weight in zip(labels, label_paths, label_samples, label_weights):
                     output_dir = os.path.join(directory, phase, label)
+                    all_patches = 0
+
+                    _n_patches = ceil(n_patches * weight)
+
+                    if os.path.exists(output_dir):
+                        print('  skipped', label)
+                        continue
+
                     os.makedirs(output_dir, exist_ok=True)
 
                     for sample in samples:
                         try:
-                            if os.path.exists(os.path.join(output_dir, os.path.splitext(sample)[0] + '-0.jpg')):
-                                continue
-
                             _save_image_patches_coroutine(
                                 name=os.path.join(input_dir, sample),
                                 patches_path=output_dir,
                                 patch_size=patch_size,
-                                n_patches=ceil(n_patches * weight),
-                                mode=_mode,
+                                n_patches=_n_patches,
+                                mode=mode,
                                 low_threshold=low_threshold,
                                 pool_size=pool_size,
                                 tensors=tensors)
 
-                            all_patches += ceil(n_patches * weight)
+                            all_patches += _n_patches
                         except MemoryError:
                             print('failed')
 
-                    print('%i patches extracted from %i samples '
-                          % (all_patches, label))
+                    print('%i patches extracted from %i samples of %s'
+                          % (all_patches, len(samples), label))
+
         print('patches extraction completed.')
+
         return self

@@ -518,5 +518,8 @@ different-painters      20069328 (93%)  1559369  (7%)
 | --- | --- | --- | --- | --- | --- |
 | InceptionV3 softmax | artist, style, genre | 1024, 256, 256 | .898 | .914 | .9176 .6295 |
 | InceptionV3 sigmoid | artist, style, genre | 1024, 256, 256 | .884 | .878 | .8802 .6769 |
+
+```{r echo=FALSE, eval=FALSE}
 | InceptionV3 sigmoid | artist, style, genre | 2048, 256, 128 | ? | ? | ? |
 | InceptionResNetV2 sigmoid | artist, style, genre | 2048, 256, 128 | ? | ? | ? |
+```

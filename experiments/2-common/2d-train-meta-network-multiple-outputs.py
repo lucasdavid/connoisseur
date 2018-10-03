@@ -46,6 +46,7 @@ def config():
     resuming_from = None
     epochs = 500
     steps_per_epoch = None
+    validation_steps = None
     initial_epoch = 0
     early_stop_patience = 20
     first_trainable_layer = None
@@ -64,7 +65,8 @@ def config():
 @ex.automain
 def run(_run, data_dir, shape, batch_size, device, train_info,
         use_gram_matrix, ckpt_file, dense_layers,
-        opt_params, dropout_p, resuming_from, epochs, steps_per_epoch,
+        opt_params, dropout_p, resuming_from,
+        epochs, steps_per_epoch, validation_steps,
         initial_epoch, early_stop_patience, first_trainable_layer,
         class_weight, outputs_meta, layer_name, chunks):
     try:
@@ -147,6 +149,7 @@ def run(_run, data_dir, shape, batch_size, device, train_info,
                       batch_size=batch_size,
                       steps_per_epoch=steps_per_epoch,
                       validation_data=(x_valid, y_valid),
+                      validation_steps=validation_steps,
                       initial_epoch=initial_epoch,
                       verbose=2,
                       class_weight=class_weight,

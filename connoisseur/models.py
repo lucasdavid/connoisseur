@@ -79,25 +79,27 @@ def build_meta_limb(shape, dropout_p=.5,
     if use_gram_matrix:
         sizes = K.get_variable_shape(x)
         k = sizes[-1]
-        x = Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
+        y = Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
                    name='gram', output_shape=[k, k])(x)
+    else:
+        y = x
 
     if include_top:
-        if K.ndim(x) > 2:
-            x = Flatten(name='flatten')(x)
+        if K.ndim(y) > 2:
+            y = Flatten(name='flatten')(y)
 
         for l_id, n_units in enumerate(dense_layers):
-            x = Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
-            x = Dropout(dropout_p)(x)
+            y = Dense(n_units, activation='relu', name='fc%i' % l_id)(y)
+            y = Dropout(dropout_p)(y)
 
         if not isinstance(classes, (list, tuple)):
             classes, predictions_activation, predictions_name = (
                 [classes], [predictions_activation], [predictions_name])
         outputs = []
         for u, a, n in zip(classes, predictions_activation, predictions_name):
-            outputs += [Dense(u, activation=a, name=n)(x)]
+            outputs += [Dense(u, activation=a, name=n)(y)]
     else:
-        outputs = [x]
+        outputs = [y]
 
     return Model(inputs=x, outputs=outputs, name=model_name)
 
