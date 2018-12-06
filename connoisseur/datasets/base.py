@@ -365,6 +365,8 @@ class DataSet:
             if isinstance(self.classes, int):
                 labels = labels[:self.classes]
 
+        self.classes = labels
+
         n_samples_per_label = np.array(
             [len(os.listdir(os.path.join(data_path, 'train', label)))
              for label in labels])
