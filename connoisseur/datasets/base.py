@@ -238,7 +238,6 @@ class DataSet:
         self.valid_n_patches = valid_n_patches
         self.test_n_patches = test_n_patches
         self.image_shape = image_shape
-        self.classes = classes
         self.min_label_rate = min_label_rate
         self.train_augmentations = train_augmentations
         self.train_enhancer = PaintingEnhancer(train_augmentations)
@@ -251,6 +250,14 @@ class DataSet:
 
         self.label_encoder_ = None
         self.feature_names_ = None
+
+        if isinstance(classes, list):
+            self.classes = classes
+        else:
+            self.classes = sorted(os.listdir(os.path.join(self.full_data_path, 'train')))
+
+            if isinstance(classes, int):
+                self.classes = self.classes[:classes]
 
     @property
     def full_data_path(self):
@@ -356,16 +363,7 @@ class DataSet:
         # Keras (height, width) -> PIL Image (width, height)
         patch_size = self.image_shape
         patch_size = [patch_size[1], patch_size[0]]
-
-        if isinstance(self.classes, list):
-            labels = self.classes
-        else:
-            labels = sorted(os.listdir(os.path.join(data_path, 'train')))
-
-            if isinstance(self.classes, int):
-                labels = labels[:self.classes]
-
-        self.classes = labels
+        labels = self.classes
 
         n_samples_per_label = np.array(
             [len(os.listdir(os.path.join(data_path, 'train', label)))
@@ -427,7 +425,7 @@ class DataSet:
 
         results = []
         data_path = self.full_data_path
-        labels = self.classes or os.listdir(os.path.join(data_path, 'train'))
+        labels = self.classes
         r = self.random_state
 
         for phase in phases:
