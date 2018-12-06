@@ -74,23 +74,21 @@ def build_meta_limb(shape, dropout_p=.5,
                     include_top=True,
                     predictions_activation='softmax',
                     predictions_name='predictions', model_name=None):
-    x = Input(shape=shape)
+    y = x = Input(shape=shape)
 
     if use_gram_matrix:
-        sizes = K.get_variable_shape(x)
+        sizes = K.get_variable_shape(y)
         k = sizes[-1]
         y = Lambda(gram_matrix, arguments=dict(norm_by_channels=False),
-                   name='gram', output_shape=[k, k])(x)
-    else:
-        y = x
+                   name='gram', output_shape=[k, k])(y)
 
     if include_top:
         if K.ndim(y) > 2:
             y = Flatten(name='flatten')(y)
 
         for l_id, n_units in enumerate(dense_layers):
-            y = Dense(n_units, activation='relu', name='fc%i' % l_id)(y)
             y = Dropout(dropout_p)(y)
+            y = Dense(n_units, activation='relu', name='fc%i' % l_id)(y)
 
         if not isinstance(classes, (list, tuple)):
             classes, predictions_activation, predictions_name = (
@@ -117,13 +115,10 @@ def build_siamese_meta(limb_outputs_meta,
         inputs += [y]
 
         if e:
+            y = Dropout(dropout_rate, name='%s_d1' % n)(y)
             y = Dense(e, name='%s_em0' % n, activation='relu')(y)
-            # y = BatchNormalization(name='%s_bn1' % n)(y)
-            # y = Activation('relu', name='%s_ac0' % n)(y)
             y = Dropout(dropout_rate, name='%s_d1' % n)(y)
             y = Dense(e, name='%s_em1' % n, activation='relu')(y)
-            # y = BatchNormalization(name='%s_bn2' % n)(y)
-            # y = Activation('relu', name='%s_ac1' % n)(y)
 
         outputs += [y]
 
