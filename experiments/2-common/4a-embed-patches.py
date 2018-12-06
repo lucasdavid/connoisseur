@@ -34,23 +34,23 @@ K.set_session(s)
 
 @ex.config
 def config():
-    dataset_seed = 4
-    batch_size = 128
+    dataset_seed = 42
+    batch_size = 256
     architecture = 'InceptionV3'
     weights = 'imagenet'
     image_shape = (299, 299, 3)
-    device = "/gpu:0"
+    device = "/cpu:0"
     data_dir = "/datasets/pbn/patches/random299"
     output_dir = data_dir
     phases = ['test']
-    ckpt_file = '/work/pbn/irn-mo-balanced/22/weights.hdf5'
+    ckpt_file = None # '/work/pbn/irn-mo-balanced/22/weights.hdf5'
     pooling = 'avg'
     dense_layers = []
     override = False
     last_base_layer = None
     use_gram_matrix = False
     include_base_top = False
-    include_top = True
+    include_top = False
     embedded_files_max_size = 5 * 1024 ** 3
     o_meta = [
         dict(n='artist', u=1584, a='sigmoid'),
@@ -59,7 +59,7 @@ def config():
         dict(n='date', u=1, a='linear')
     ]
 
-    selected_layers = ['artist', 'style', 'genre', 'date']
+    selected_layers=['avg_pool'] # selected_layers = ['artist', 'style', 'genre', 'date']
 
 
 @ex.automain

@@ -37,7 +37,6 @@ def config():
     classes = None
     layer = 'avg_pool'
     ckpt_file_name = ex_tag + '.pkl'
-    results_file_name = './results-%s.json' % ex_tag
     submission_info_path = '/datasets/pbn/submission_info.csv'
     solution_path = '/datasets/pbn/solution_painter.csv'
 
@@ -84,7 +83,14 @@ def evaluate(model, x, y, names, pairs, tag):
         p = p[pair_indices]
         p = (p[0] == p[1]).astype(np.float)
         score = metrics.accuracy_score(y, p)
-        print('score using', strategy_tag, 'strategy:', score, '\n',
+
+        hd = hyperplane_distance.mean(axis=(1, 2))[pair_indices]
+        hd = hd[0] * hd[1]
+
+        roc_auc = metrics.roc_auc_score(y, hd)
+
+        print('roc auc: ', roc_auc, '\n',
+              'score using', strategy_tag, 'strategy:', score, '\n',
               metrics.classification_report(y, p),
               '\nConfusion matrix:\n',
               metrics.confusion_matrix(y, p))
@@ -100,8 +106,10 @@ def evaluate(model, x, y, names, pairs, tag):
 
 
 @ex.automain
-def run(ex_tag, data_dir, phases, classes, layer, ckpt_file_name,
-        results_file_name, submission_info_path, solution_path):
+def run(_run, ex_tag, data_dir, phases, classes, layer, ckpt_file_name,
+        submission_info_path, solution_path):
+    report_dir = _run.observers[0].dir
+
     from connoisseur.datasets import load_pickle_data
 
     print('loading model...', end=' ')
@@ -133,5 +141,5 @@ def run(ex_tag, data_dir, phases, classes, layer, ckpt_file_name,
         layer_results['layer'] = layer
         results.append(layer_results)
 
-    with open(results_file_name, 'w') as file:
-        json.dump(results, file)
+    with open(os.path.join(report_dir, 'report.json'), 'w') as file:
+        json.dump(results, file, indent=0)

@@ -29,7 +29,7 @@ class Fusion(ClassifierMixin):
         :param labels: array-like, shaped as (paintings, patches).
         :return: y, predicted labels, according to a fusion strategy.
         """
-        assert probabilities is not None or all(x is not None for x in (labels, hyperplane_distance))
+        assert probabilities is not None or labels is not None and hyperplane_distance is not None
 
         if labels is None:
             labels = np.argmax(probabilities, axis=-1)

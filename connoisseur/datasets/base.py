@@ -356,7 +356,14 @@ class DataSet:
         # Keras (height, width) -> PIL Image (width, height)
         patch_size = self.image_shape
         patch_size = [patch_size[1], patch_size[0]]
-        labels = self.classes or os.listdir(os.path.join(data_path, 'train'))
+
+        if isinstance(self.classes, list):
+            labels = self.classes
+        else:
+            labels = sorted(os.listdir(os.path.join(data_path, 'train')))
+
+            if isinstance(self.classes, int):
+                labels = labels[:self.classes]
 
         n_samples_per_label = np.array(
             [len(os.listdir(os.path.join(data_path, 'train', label)))
