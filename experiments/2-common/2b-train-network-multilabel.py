@@ -174,7 +174,7 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
             del _trainable
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      metrics=['accuracy'],
+                      metrics=['binary_accuracy', 'categorical_accuracy', 'top_k_categorical_accuracy'],
                       loss='binary_crossentropy')
 
         if resuming_from:
@@ -202,7 +202,7 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed,
             del random_model
 
             model.compile(optimizer=optimizers.Adam(**opt_params),
-                          metrics=['accuracy'],
+                          metrics=['cateprocal_accuracy'],
                           loss='binary_crossentropy')
 
         print('training from epoch %i...' % initial_epoch)

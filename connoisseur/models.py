@@ -216,6 +216,8 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5,
 
     if not isinstance(joints, (list, tuple)):
         joints = [joints]
+        ya = [ya]
+        yb = [yb]
 
     outputs = []
     for n, j, _ya, _yb in zip(predictions_name, joints, ya, yb):
