@@ -99,6 +99,9 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         fill_mode='reflect',
         preprocessing_function=None)
 
+    if isinstance(classes, int):
+        classes = sorted(os.listdir(os.path.join(data_dir, 'train')))[:classes}
+
     train_data = g.flow_from_directory(
         os.path.join(data_dir, 'train'),
         target_size=image_shape[:2], classes=classes,
