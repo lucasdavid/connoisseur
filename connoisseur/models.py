@@ -32,8 +32,8 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
                                               input_shape=tuple(image_shape),
                                               pooling=pooling)
     x = (base_model.get_layer(last_base_layer).output
-    if last_base_layer
-    else base_model.output)
+         if last_base_layer
+         else base_model.output)
 
     summary = '%s ' % architecture
 
@@ -65,6 +65,44 @@ def build_model(image_shape, architecture, dropout_p=.5, weights='imagenet',
         outputs = [x]
 
     print('model summary:', summary)
+    return Model(inputs=base_model.input, outputs=outputs, name=model_name)
+
+
+def build_gram_model(image_shape, architecture, dropout_p=.5, weights='imagenet', classes=1000,
+                     base_layers=(),
+                     dense_layers=(), pooling='avg', include_base_top=False,
+                     include_top=True, predictions_activation='softmax',
+                     predictions_name='predictions', model_name=None):
+    base_model = get_base_model(architecture)(include_top=include_base_top,
+                                              weights=weights,
+                                              input_shape=tuple(image_shape),
+                                              pooling=pooling)
+    x = [base_model.get_layer(l).output for l in base_layers]
+    sizes = [K.get_variable_shape(l) for l in x]
+    ks = [s[-1] for s in sizes]
+    x = [Lambda(gram_matrix,
+                arguments={'norm_by_channels': True},
+                output_shape=[k, k])(l) for l, k in zip(x, ks)]
+
+    x = layers.concatenate(x)
+
+    if include_top:
+        if K.ndim(x) > 2:
+            x = Flatten(name='flatten')(x)
+
+        for l_id, n_units in enumerate(dense_layers):
+            x = Dense(n_units, activation='relu', name='fc%i' % l_id)(x)
+            x = Dropout(dropout_p)(x)
+
+        if not isinstance(classes, (list, tuple)):
+            classes, predictions_activation, predictions_name = (
+                [classes], [predictions_activation], [predictions_name])
+        outputs = []
+        for u, a, n in zip(classes, predictions_activation, predictions_name):
+            outputs += [Dense(u, activation=a, name=n)(x)]
+    else:
+        outputs = [x]
+
     return Model(inputs=base_model.input, outputs=outputs, name=model_name)
 
 

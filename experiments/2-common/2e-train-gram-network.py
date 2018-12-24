@@ -22,10 +22,10 @@ from keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
-from connoisseur.models import build_model
+from connoisseur.models import build_gram_model
 from connoisseur.utils import get_preprocess_fn
 
-ex = Experiment('train-network')
+ex = Experiment('train-gram-network')
 
 ex.captured_out_filter = apply_backspaces_and_linefeeds
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -39,25 +39,25 @@ K.set_session(s)
 
 @ex.config
 def config():
-    data_dir = "/datasets/vangogh/random_32/"
+    data_dir = "/datasets/pbn/"
     batch_size = 64
-    image_shape = [32, 32, 3]
-    architecture = 'DenseNet264'
+    image_shape = [299, 299, 3]
+    architecture = 'VGG16'
     weights = 'imagenet'
-    last_base_layer = None
-    use_gram_matrix = False
+    base_layers = None
+    use_gram_matrix = True
     dense_layers = ()
     pooling = 'avg'
     train_shuffle = True
     dataset_train_seed = 12
     valid_shuffle = False
     dataset_valid_seed = 98
-    device = "/gpu:0"
+    device = "/cpu:0"
 
     classes = None
 
     opt_params = {'lr': .001}
-    dropout_p = 0.2
+    dropout_p = 0.4
     resuming_from_ckpt_file = None
     epochs = 500
     steps_per_epoch = None
@@ -82,7 +82,7 @@ def get_class_weights(y):
 @ex.automain
 def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes, class_mode, class_weight,
-        architecture, weights, batch_size, last_base_layer, use_gram_matrix, pooling, dense_layers,
+        architecture, weights, batch_size, base_layers, use_gram_matrix, pooling, dense_layers,
         device, opt_params, dropout_p, resuming_from_ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         tensorboard_tag, first_trainable_layer, first_reset_layer):
@@ -123,9 +123,10 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
 
     with tf.device(device):
         print('building...')
-        model = build_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
-                            classes=train_data.num_classes, last_base_layer=last_base_layer,
-                            use_gram_matrix=use_gram_matrix, pooling=pooling, dense_layers=dense_layers)
+        model = build_gram_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
+                                 classes=train_data.num_classes, base_layers=base_layers,
+                                 pooling=pooling, dense_layers=dense_layers)
+        model.summary()
 
         layer_names = [l.name for l in model.layers]
 
@@ -146,27 +147,6 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         if resuming_from_ckpt_file:
             print('re-loading weights...')
             model.load_weights(resuming_from_ckpt_file)
-
-        if first_reset_layer:
-            if first_reset_layer not in layer_names:
-                raise ValueError('%s is not a layer in the model: %s'
-                                 % (first_reset_layer, layer_names))
-            print('first layer to have its weights reset:', first_reset_layer)
-            random_model = build_model(image_shape, architecture=architecture, weights=None, dropout_p=dropout_p,
-                                       classes=train_data.num_class, last_base_layer=last_base_layer,
-                                       use_gram_matrix=use_gram_matrix,
-                                       dense_layers=dense_layers)
-            _reset = False
-            for layer, random_layer in zip(model.layers, random_model.layers):
-                if layer.name == first_reset_layer:
-                    _reset = True
-                if _reset:
-                    layer.set_weights(random_layer.get_weights())
-            del random_model
-
-            model.compile(optimizer=optimizers.Adam(**opt_params),
-                          metrics=['accuracy'],
-                          loss='categorical_crossentropy')
 
         print('training from epoch %i...' % initial_epoch)
         try:
