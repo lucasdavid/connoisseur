@@ -80,15 +80,15 @@ def build_gram_model(image_shape, architecture, dropout_p=.5, weights='imagenet'
     x = [base_model.get_layer(l).output for l in base_layers]
     sizes = [K.get_variable_shape(l) for l in x]
     ks = [s[-1] for s in sizes]
-    x = [Lambda(gram_matrix,
-                arguments={'norm_by_channels': True},
-                output_shape=[k, k])(l) for l, k in zip(x, ks)]
+    x = [Flatten()(Lambda(gram_matrix,
+                          arguments={'norm_by_channels': True},
+                          output_shape=[k, k])(l)) for l, k in zip(x, ks)]
 
     x = layers.concatenate(x)
 
     if include_top:
         if K.ndim(x) > 2:
-            x = Flatten(name='flatten')(x)
+            x = Flatten()(x)
 
         for l_id, n_units in enumerate(dense_layers):
             x = Dense(n_units, activation='relu', name='fc%i' % l_id)(x)

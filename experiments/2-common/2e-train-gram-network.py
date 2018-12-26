@@ -45,7 +45,6 @@ def config():
     architecture = 'VGG16'
     weights = 'imagenet'
     base_layers = None
-    use_gram_matrix = True
     dense_layers = ()
     pooling = 'avg'
     train_shuffle = True
@@ -68,7 +67,6 @@ def config():
     early_stop_patience = 30
     tensorboard_tag = 'vangogh_%s' % architecture
     first_trainable_layer = None
-    first_reset_layer = None
     class_weight = 'balanced'
     class_mode = 'categorical'
 
@@ -82,10 +80,10 @@ def get_class_weights(y):
 @ex.automain
 def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes, class_mode, class_weight,
-        architecture, weights, batch_size, base_layers, use_gram_matrix, pooling, dense_layers,
+        architecture, weights, batch_size, base_layers, pooling, dense_layers,
         device, opt_params, dropout_p, resuming_from_ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
-        tensorboard_tag, first_trainable_layer, first_reset_layer):
+        tensorboard_tag, first_trainable_layer):
     report_dir = _run.observers[0].dir
 
     g = ImageDataGenerator(
