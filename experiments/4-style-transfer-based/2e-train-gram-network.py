@@ -56,10 +56,12 @@ def config():
     dataset_train_seed = 12
     valid_shuffle = False
     dataset_valid_seed = 98
-    device = "/cpu:0"
+    device = "/gpu:0"
 
     classes = None
 
+    metrics = ['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy']
+    loss = 'sparse_categorical_crossentropy'
     opt_params = {'lr': .001}
     dropout_p = 0.4
     resuming_from_ckpt_file = None
@@ -86,6 +88,7 @@ def get_class_weights(y):
 def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes, class_mode, class_weight,
         architecture, weights, batch_size, base_layers, pooling, dense_layers, predictions_activation,
+        metrics, loss,
         device, opt_params, dropout_p, resuming_from_ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         tensorboard_tag, first_trainable_layer):
@@ -145,8 +148,8 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
                 layer.trainable = False
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      metrics=['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy'],
-                      loss='sparse_categorical_crossentropy')
+                      metrics=metrics,
+                      loss=loss)
 
         if resuming_from_ckpt_file:
             print('re-loading weights...')
