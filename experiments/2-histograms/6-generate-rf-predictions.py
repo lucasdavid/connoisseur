@@ -30,7 +30,7 @@ ex = Experiment('generate-rf-predictions')
 
 @ex.config
 def config():
-    data_dir = '/datasets/vangogh/patches/random/histograms'
+    data_dir = '/datasets/vangogh/patches/random/2-histograms'
     ckpt = './logs/1/model.pkl'
     results_file_name = 'report.json'
     group_patches = True

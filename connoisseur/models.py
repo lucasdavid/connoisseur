@@ -241,10 +241,10 @@ def build_siamese_model(image_shape, architecture, dropout_rate=.5,
     outputs = []
     for n, u, x in zip(predictions_name, embedding_units, limb.outputs):
         if u:
-            x = Dense(u, activation='relu', name='%s_em1' % n)(x)
             x = Dropout(dropout_rate, name='%s_dr1' % n)(x)
-            x = Dense(u, activation='relu', name='%s_em2' % n)(x)
+            x = Dense(u, activation='relu', name='%s_em1' % n)(x)
             x = Dropout(dropout_rate, name='%s_dr2' % n)(x)
+            x = Dense(u, activation='relu', name='%s_em2' % n)(x)
         outputs += [x]
     limb = Model(inputs=limb.inputs, outputs=outputs)
 

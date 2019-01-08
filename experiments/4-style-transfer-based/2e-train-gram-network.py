@@ -45,8 +45,13 @@ def config():
     architecture = 'VGG16'
     weights = 'imagenet'
     base_layers = None
-    dense_layers = ()
+    dense_layers = [
+        "block1_conv1",
+        "block2_conv1",
+        "block3_conv1"
+    ]
     pooling = 'avg'
+    predictions_activation = 'softmax'
     train_shuffle = True
     dataset_train_seed = 12
     valid_shuffle = False
@@ -68,7 +73,7 @@ def config():
     tensorboard_tag = 'vangogh_%s' % architecture
     first_trainable_layer = None
     class_weight = 'balanced'
-    class_mode = 'categorical'
+    class_mode = 'sparse'
 
 
 def get_class_weights(y):
@@ -80,7 +85,7 @@ def get_class_weights(y):
 @ex.automain
 def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_shuffle, dataset_valid_seed,
         classes, class_mode, class_weight,
-        architecture, weights, batch_size, base_layers, pooling, dense_layers,
+        architecture, weights, batch_size, base_layers, pooling, dense_layers, predictions_activation,
         device, opt_params, dropout_p, resuming_from_ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         tensorboard_tag, first_trainable_layer):
@@ -123,7 +128,8 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
         print('building...')
         model = build_gram_model(image_shape, architecture=architecture, weights=weights, dropout_p=dropout_p,
                                  classes=train_data.num_classes, base_layers=base_layers,
-                                 pooling=pooling, dense_layers=dense_layers)
+                                 pooling=pooling, dense_layers=dense_layers,
+                                 predictions_activation=predictions_activation)
         model.summary()
 
         layer_names = [l.name for l in model.layers]
@@ -139,8 +145,8 @@ def run(_run, image_shape, data_dir, train_shuffle, dataset_train_seed, valid_sh
                 layer.trainable = False
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
-                      metrics=['categorical_accuracy', 'top_k_categorical_accuracy'],
-                      loss='categorical_crossentropy')
+                      metrics=['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy'],
+                      loss='sparse_categorical_crossentropy')
 
         if resuming_from_ckpt_file:
             print('re-loading weights...')

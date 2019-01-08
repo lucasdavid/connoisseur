@@ -27,13 +27,13 @@ from sklearn.preprocessing import LabelEncoder
 
 from keras.preprocessing.image import load_img, img_to_array
 
-ex = Experiment('embed-patches-into-histograms')
+ex = Experiment('embed-patches-into-2-histograms')
 
 
 @ex.config
 def config():
     data_dir = '/datasets/vangogh/patches/random/'
-    output_dir = '/datasets/vangogh/patches/random/histograms/'
+    output_dir = '/datasets/vangogh/patches/random/2-histograms/'
     n_bins = 64
     histogram_range = (0, 255)
 
