@@ -313,6 +313,65 @@ def build_siamese_mo_model(image_shape, architecture, outputs_meta,
     return Model(inputs=model.inputs, outputs=y, name=top_model_name)
 
 
+def build_siamese_gram_model(image_shape, architecture, dropout_rate=.5,
+                             weights='imagenet',
+                             classes=1000,
+                             base_layers=(),
+                             dense_layers=(), pooling='avg', include_base_top=False,
+                             include_top=True,
+                             predictions_activation='softmax',
+                             predictions_name='predictions', model_name=None,
+                             limb_weights=None, trainable_limbs=True,
+                             embedding_units=1024, joints='multiply'):
+        limb = build_gram_model(image_shape, architecture, dropout_rate, weights,
+                                classes, base_layers, dense_layers, pooling,
+                                include_base_top, include_top, predictions_activation,
+                                predictions_name, model_name)
+        if limb_weights:
+            print('loading weights from', limb_weights)
+            limb.load_weights(limb_weights)
+
+        if not trainable_limbs:
+            for l in limb.layers:
+                l.trainable = False
+
+        if not isinstance(embedding_units, (list, tuple)):
+            embedding_units = len(limb.outputs) * [embedding_units]
+
+        outputs = []
+        for n, u, x in zip(predictions_name, embedding_units, limb.outputs):
+            if u:
+                x = Dropout(dropout_rate, name='%s_dr1' % n)(x)
+                x = Dense(u, activation='relu', name='%s_em1' % n)(x)
+                x = Dropout(dropout_rate, name='%s_dr2' % n)(x)
+                x = Dense(u, activation='relu', name='%s_em2' % n)(x)
+            outputs += [x]
+        limb = Model(inputs=limb.inputs, outputs=outputs)
+
+        ia, ib = Input(shape=image_shape), Input(shape=image_shape)
+        ya = limb(ia)
+        yb = limb(ib)
+
+        if not isinstance(joints, (list, tuple)):
+            joints = [joints]
+            ya = [ya]
+            yb = [yb]
+
+        outputs = []
+        for n, j, _ya, _yb in zip(predictions_name, joints, ya, yb):
+            if j == 'multiply':
+                x = multiply([_ya, _yb], name='%s_merge' % n)
+            else:
+                if isinstance(j, str):
+                    j = siamese_functions[j]
+                x = Lambda(j, name='%s_merge' % n)([_yb, _yb])
+
+            x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
+            outputs += [x]
+
+        return Model(inputs=[ia, ib], outputs=outputs)
+
+
 def Inejc(include_top=False, weights=None, input_shape=(256, 256, 3),
           dropout_p=.5, pooling=None):
     weights_init_fn = 'he_normal'
