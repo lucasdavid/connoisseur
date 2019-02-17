@@ -322,7 +322,7 @@ def build_siamese_gram_model(image_shape, architecture, dropout_rate=.5,
                              predictions_activation='softmax',
                              predictions_name='predictions', model_name=None,
                              limb_weights=None, trainable_limbs=True,
-                             embedding_units=1024, joints='multiply'):
+                             embedding_units=1024, joints='multiply', include_sigmoid_unit=True):
         limb = build_gram_model(image_shape, architecture, dropout_rate, weights,
                                 classes, base_layers, dense_layers, pooling,
                                 include_base_top, include_top, predictions_activation,
@@ -366,7 +366,8 @@ def build_siamese_gram_model(image_shape, architecture, dropout_rate=.5,
                     j = siamese_functions[j]
                 x = Lambda(j, name='%s_merge' % n)([_yb, _yb])
 
-            x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
+            if include_sigmoid_unit:
+                x = Dense(1, activation='sigmoid', name='%s_binary_predictions' % n)(x)
             outputs += [x]
 
         return Model(inputs=[ia, ib], outputs=outputs)
