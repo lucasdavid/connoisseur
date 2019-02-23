@@ -13,7 +13,6 @@ Licence: MIT License 2016 (c)
 """
 import os
 from collections import Counter
-from math import ceil
 
 import tensorflow as tf
 from PIL import ImageFile
@@ -23,7 +22,7 @@ from sacred import Experiment
 from sacred.utils import apply_backspaces_and_linefeeds
 
 from connoisseur.models import build_siamese_gram_model
-from connoisseur.utils import get_preprocess_fn
+from connoisseur.utils import get_preprocess_fn, contrastive_loss
 from connoisseur.utils.image import BalancedDirectoryPairsSequence
 
 ex = Experiment('train-gram-network')
@@ -60,7 +59,6 @@ def config():
     classes = None
 
     metrics = ['sparse_categorical_accuracy', 'sparse_top_k_categorical_accuracy']
-    loss = 'sparse_categorical_crossentropy'
     opt_params = {'lr': .001}
     dropout_p = 0.4
     resuming_from_ckpt_file = None
@@ -86,7 +84,7 @@ def get_class_weights(y):
 def run(_run, image_shape, data_dir, train_pairs, valid_pairs,
         classes, class_weight,
         architecture, weights, batch_size, base_layers, pooling, dense_layers,
-        metrics, loss,
+        metrics,
         device, opt_params, dropout_p, resuming_from_ckpt_file, steps_per_epoch,
         epochs, validation_steps, workers, use_multiprocessing, initial_epoch, early_stop_patience,
         tensorboard_tag, first_trainable_layer):
@@ -137,7 +135,7 @@ def run(_run, image_shape, data_dir, train_pairs, valid_pairs,
 
         model.compile(optimizer=optimizers.Adam(**opt_params),
                       metrics=metrics,
-                      loss=loss)
+                      loss=contrastive_loss)
 
         if resuming_from_ckpt_file:
             print('re-loading weights...')
