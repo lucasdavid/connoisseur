@@ -155,7 +155,7 @@ def build_siamese_meta(limb_outputs_meta,
         if e:
             y = Dropout(dropout_rate, name='%s_d1' % n)(y)
             y = Dense(e, name='%s_em0' % n, activation='relu')(y)
-            y = Dropout(dropout_rate, name='%s_d1' % n)(y)
+            y = Dropout(dropout_rate, name='%s_d2' % n)(y)
             y = Dense(e, name='%s_em1' % n, activation='relu')(y)
 
         outputs += [y]
