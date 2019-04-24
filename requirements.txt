@@ -8,3 +8,5 @@ image
 sacred
 opencv-python
 pandas
+seaborn
+jupyter
