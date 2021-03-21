@@ -9,13 +9,14 @@ Licence: MIT License 2016 (c)
 
 import os
 
+import joblib
 import numpy as np
 from sacred import Experiment
-from sklearn.decomposition import PCA
-from sklearn.externals import joblib
 from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 
 from connoisseur.datasets import load_pickle_data, group_by_paintings
 
@@ -24,24 +25,24 @@ ex = Experiment('train-top-classifier')
 
 @ex.config
 def config():
-    data_dir = '/datasets/vangogh/random_224'
+    data_dir = '/mnt/files/datasets/vgdb_2016/embed/patches/random/'
     ckpt_file_name = 'model.pkl'
-    phases = ('train',)
+    phases = ('train','valid')
     nb_samples_used = None
-    chunks_loaded = [0, 1]
-    grid_searching = True
+    chunks_loaded = [0]
+    grid_searching = False
     param_grid = {
         # 'pca__n_components': [.95, .99],
         'svc__C': [0.1, 1.0, 10, 100, 1000],
-        # 'svc__kernel': ['linear', 'rbf'],
+        'svc__kernel': ['rbf'],
         'svc__class_weight': [None, 'balanced'],
     }
     cv = None
-    n_jobs = 2
+    n_jobs = 4
     classes = None
-    max_patches = None
-    layer = 'fc2'
-    using_pca = False
+    max_patches = 50
+    layer = 'global_average_pooling2d'
+    using_pca = True
 
 
 @ex.automain
@@ -87,11 +88,12 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
     x = x.reshape(x.shape[0], -1)
 
     steps = []
+    steps.append(('stan', StandardScaler()))
 
     if using_pca:
         steps.append(('pca', PCA(n_components=.99, random_state=7)))
 
-    steps.append(('svc', LinearSVC(dual=False)))
+    steps.append(('svc', SVC(max_iter=10000)))
     model = Pipeline(steps)
 
     if grid_searching:
@@ -105,10 +107,12 @@ def run(_run, data_dir, phases, nb_samples_used, grid_searching, param_grid, cv,
         model.fit(x, y)
 
     if using_pca:
-        pca = model.steps[0][1]
-        print('done -- training score:', model.score(x, y),
-              'pca components:', pca.n_components_,
-              '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
+        try:
+            pca = model.steps[1][1]
+            print('done -- training score:', model.score(x, y),
+                'pca components:', pca.n_components_,
+                '(%f energy conserved)' % sum(pca.explained_variance_ratio_))
+        except: ...
 
     print('saving model...', end=' ')
     joblib.dump(model, os.path.join(report_dir, ckpt_file_name))

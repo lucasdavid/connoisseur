@@ -12,19 +12,21 @@ import shutil
 import tarfile
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from math import ceil
 from urllib import request
 
 import numpy as np
 import tensorflow as tf
-from PIL import ImageOps
 from keras.preprocessing.image import img_to_array, load_img
+from PIL import ImageOps
 from skimage import feature
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
 from ..utils.image import PaintingEnhancer
 
+K1 = None
 
 def load_pickle_data(data_dir, phases=None, keys=None, chunks=(0,),
                      layers=None, classes=None):
@@ -81,7 +83,7 @@ def group_by_paintings(*arrays,
     _x, _y, _names = [], [], []
     outputs = [[] for _ in arrays]
     # Remove patches indices, leaving just the painting name.
-    clipped_names = np.array(['-'.join(n.split('-')[:-1]) for n in names])
+    clipped_names = np.asarray(['-'.join(n.split('-')[:-1]) for n in names])
     for name in set(clipped_names):
         s = clipped_names == name
 
@@ -95,6 +97,20 @@ def group_by_paintings(*arrays,
         _names.append(clipped_names[indices][0])
 
     return [np.asarray(o) for o in outputs] + [np.asarray(_names)]
+
+        
+def pool_large_image(x, k, patch_size, pool_size, max_size=(9000, 9000)):
+    if max(x.shape) > 7000:
+        x = tf.image.resize(x[..., tf.newaxis], max_size, preserve_aspect_ratio=True)[..., 0]
+
+    x = x[tf.newaxis, ..., tf.newaxis]
+    y = tf.nn.avg_pool2d(x, (1, pool_size, pool_size, 1), strides=pool_size, padding='SAME')
+    y = tf.nn.conv2d(y, k, strides=(1, 1, 1, 1), padding="SAME")
+    y = y[0, ..., 0]
+
+    y -= tf.reduce_min(y)
+    y /= tf.reduce_sum(y)
+    return y
 
 
 def _load_patch_coroutine(options):
@@ -124,10 +140,14 @@ def _load_patches_coroutine(args):
 
 
 def _save_image_patches_coroutine(**options):
+    global K1
+
     image = load_img(options['name'])
-    border = np.array(options['patch_size']) - image.size
+    border = np.asarray(options['patch_size']) - image.size
     painting_name = os.path.splitext(os.path.basename(options['name']))[0]
     patches_path = options['patches_path']
+
+    print(' ', options['name'], image.size)
 
     if np.any(border > 0):
         # The image is smaller than the patch size in any dimension.
@@ -138,20 +158,18 @@ def _save_image_patches_coroutine(**options):
     mode = options['mode']
     patch_size = options.get('patch_size', [256, 256])
     n_patches = options['n_patches']
+    pool_size = options.get('pool_size', 8)
 
     if mode in ('min-gradient', 'max-gradient'):
         gray_image = image.convert('L')
         gray_tensor = img_to_array(gray_image).squeeze(-1)
         e = feature.canny(gray_tensor, low_threshold=options['low_threshold'], use_quantiles=True).astype(np.float)
 
-        pool_size = options.get('pool_size', 2)
-        x, y = options['tensors']
+        if K1 is None:
+            K1 = tf.ones([patch_size[0] // pool_size, patch_size[1] // pool_size, 1, 1])
 
-        p = y.eval(feed_dict={x: e.reshape((1,) + e.shape + (1,))})
-        p = p.squeeze((0, -1))
-
-        p = np.exp(p / p.sum())
-        p /= p.sum()
+        x = tf.convert_to_tensor(e, dtype=tf.float32)
+        p = pool_large_image(x, K1, patch_size, pool_size).numpy()
 
         if mode == 'min-gradient':
             p = 1 - p
@@ -159,11 +177,11 @@ def _save_image_patches_coroutine(**options):
 
         c = np.random.choice(np.arange(np.product(p.shape)), size=(n_patches, 1), p=p.flatten())
         c = np.concatenate((c // p.shape[1], c % p.shape[1]), axis=-1).astype(np.int)
-        c += np.array(patch_size) // (2 * pool_size)  # restore sizes before convolution
+        c += np.asarray(patch_size) // (2 * pool_size)  # restore sizes before convolution
         c *= pool_size  # restore sizes before max_pooling2d
-        c -= np.array(patch_size) // 2  # center selected pixels
+        c -= np.asarray(patch_size) // 2  # center selected pixels
 
-        starting_points = np.array([c[:, 1], c[:, 0]]).T
+        starting_points = np.asarray([c[:, 1], c[:, 0]]).T
 
     elif mode in ('random', 'balanced'):
         starting_points = (
@@ -335,7 +353,7 @@ class DataSet:
         files = [list(map(lambda x: os.path.join(l, x),
                           os.listdir(os.path.join(base, 'train', l))))
                  for l in labels]
-        files = np.array(list(itertools.chain(*files)))
+        files = np.asarray(list(itertools.chain(*files)))
         self.random_state.shuffle(files)
 
         faction = (fraction if isinstance(fraction, int) else
@@ -365,7 +383,7 @@ class DataSet:
         patch_size = [patch_size[1], patch_size[0]]
         labels = self.classes
 
-        n_samples_per_label = np.array(
+        n_samples_per_label = np.asarray(
             [len(os.listdir(os.path.join(data_path, 'train', label)))
              for label in labels])
         rates = n_samples_per_label / n_samples_per_label.sum()
@@ -415,8 +433,8 @@ class DataSet:
                                  'to initialize the label encoder that will '
                                  'be used to transform the %s data.' % phase)
             y = self.label_encoder_.transform(y)
-            results.append([np.array(X, copy=False), y,
-                            np.array(names, copy=False)])
+            results.append([np.asarray(X, copy=False), y,
+                            np.asarray(names, copy=False)])
         print('loading completed.')
         return results
 
@@ -475,8 +493,8 @@ class DataSet:
                                  'to initialize the label encoder that will '
                                  'be used to transform the %s data.' % phase)
             y = self.label_encoder_.transform(y)
-            results.append([np.array(X, copy=False), y,
-                            np.array(names, copy=False)])
+            results.append([np.asarray(X, copy=False), y,
+                            np.asarray(names, copy=False)])
         return results
 
     def save_patches_to_disk(self, directory, mode='all', low_threshold=.9, pool_size=2):
@@ -516,75 +534,53 @@ class DataSet:
         phases = list(filter(lambda _p: os.path.exists(os.path.join(data_path, _p)),
                              ('train', 'test', 'valid')))
 
-        tensors = None
+        for phase in phases:
+            n_patches = getattr(self, '%s_n_patches' % phase)
 
-        if mode in ('min-gradient', 'max-gradient'):
-            with tf.name_scope('max_gradient_patches'):
-                x = tf.placeholder(tf.float32, shape=(1, None, None, 1))
+            print('extracting %s patches to disk...' % phase)
 
-                with tf.name_scope('max_pool_1'):
-                    y = tf.layers.average_pooling2d(x, pool_size=pool_size, strides=pool_size)
+            labels = self.classes or os.listdir(os.path.join(data_path, phase))
+            label_paths = [os.path.join(data_path, phase, label) for label in labels]
+            label_samples = [os.listdir(p) for p in label_paths]
 
-                with tf.name_scope('conv_1'):
-                    kernel_weights = tf.ones([patch_size[0] // pool_size, patch_size[1] // pool_size, 1, 1],
-                                             name='kernel')
-                    y = tf.nn.conv2d(y, kernel_weights, strides=(1, 1, 1, 1), padding="VALID", name='op')
+            if mode == 'balanced':
+                label_weights = np.asarray([len(s) for s in label_samples], 'float')
+                label_weights = 1.0 / np.maximum(label_weights, 1)
+                label_weights /= label_weights.max()
+            else:
+                label_weights = np.ones(len(label_samples))
 
-            tensors = (x, y)
+            print('weights:', label_weights.tolist())
 
-        tf_config = tf.ConfigProto(allow_soft_placement=True)
-        tf_config.gpu_options.allow_growth = True
-        with tf.Session(config=tf_config):
-            tf.global_variables_initializer().run()
+            for label, input_dir, samples, weight in zip(labels, label_paths, label_samples, label_weights):
+                output_dir = os.path.join(directory, phase, label)
+                all_patches = 0
 
-            for phase in phases:
-                n_patches = getattr(self, '%s_n_patches' % phase)
+                _n_patches = ceil(n_patches * weight)
 
-                print('extracting %s patches to disk...' % phase)
+                if os.path.exists(output_dir):
+                    print('  skipped', label)
+                    continue
 
-                labels = self.classes or os.listdir(os.path.join(data_path, phase))
-                label_paths = [os.path.join(data_path, phase, label) for label in labels]
-                label_samples = [os.listdir(p) for p in label_paths]
+                os.makedirs(output_dir, exist_ok=True)
 
-                if mode == 'balanced':
-                    label_weights = np.asarray([len(s) for s in label_samples], 'float')
-                    label_weights = 1.0 / np.maximum(label_weights, 1)
-                    label_weights /= label_weights.max()
-                else:
-                    label_weights = np.ones(len(label_samples))
+                for sample in samples:
+                    try:
+                        _save_image_patches_coroutine(
+                            name=os.path.join(input_dir, sample),
+                            patches_path=output_dir,
+                            patch_size=patch_size,
+                            n_patches=_n_patches,
+                            mode=mode,
+                            low_threshold=low_threshold,
+                            pool_size=pool_size)
 
-                print('weights:', label_weights.tolist())
+                        all_patches += _n_patches
+                    except MemoryError:
+                        print('failed')
 
-                for label, input_dir, samples, weight in zip(labels, label_paths, label_samples, label_weights):
-                    output_dir = os.path.join(directory, phase, label)
-                    all_patches = 0
-
-                    _n_patches = ceil(n_patches * weight)
-
-                    if os.path.exists(output_dir):
-                        print('  skipped', label)
-                        continue
-
-                    os.makedirs(output_dir, exist_ok=True)
-
-                    for sample in samples:
-                        try:
-                            _save_image_patches_coroutine(
-                                name=os.path.join(input_dir, sample),
-                                patches_path=output_dir,
-                                patch_size=patch_size,
-                                n_patches=_n_patches,
-                                mode=mode,
-                                low_threshold=low_threshold,
-                                pool_size=pool_size,
-                                tensors=tensors)
-
-                            all_patches += _n_patches
-                        except MemoryError:
-                            print('failed')
-
-                    print('%i patches extracted from %i samples of %s'
-                          % (all_patches, len(samples), label))
+                print('%i patches extracted from %i samples of %s'
+                      % (all_patches, len(samples), label))
 
         print('patches extraction completed.')
 

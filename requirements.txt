@@ -1,12 +1,13 @@
 numpy
 scipy
+tensorflow
 scikit-learn
 scikit-image
 h5py
-keras
 image
 sacred
 opencv-python
 pandas
 seaborn
 jupyter
+joblib

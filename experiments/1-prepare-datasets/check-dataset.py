@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from keras.preprocessing.image import load_img
+from tensorflow.keras.preprocessing.image import load_img
 from sacred import Experiment
 
 ex = Experiment('check-dataset')

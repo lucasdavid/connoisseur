@@ -20,20 +20,20 @@ ex = Experiment('extract-patches-to-disk')
 def config():
     dataset_seed = 4
     classes = None
-    image_shape = [224, 224, 3]
+    image_shape = [300, 300, 3]
     n_jobs = 1
     dataset_name = 'VanGogh'
-    data_dir = '/datasets/vangogh-test-recaptures/recaptures-vangogh-museum/original'
-    saving_directory = '/datasets/vangogh-test-recaptures/recaptures-vangogh-museum/original/patches/random_224'
-    valid_size = 0
-    train_n_patches = 50
-    valid_n_patches = 50
-    test_n_patches = 50
+    data_dir = '/mnt/files/datasets'
+    saving_directory = '/mnt/files/datasets/vgdb_2016/patches/min-grad'
+    valid_size = 0.3
+    train_n_patches = 100
+    valid_n_patches = 100
+    test_n_patches = 100
     downloading = False
     extracting = False
     preparing = False
-    pool_size = 4
-    patches_saving_mode = 'all'
+    pool_size = 8
+    patches_saving_mode = 'min-gradient'
     device = '/cpu:0'
 
 

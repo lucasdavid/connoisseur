@@ -11,7 +11,8 @@ import shutil
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import LabelEncoder, Imputer, OneHotEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
 
 from .base import DataSet
 
@@ -40,7 +41,7 @@ def load_multiple_outputs(train_info, outputs_meta, encode='onehot'):
             encoded = en.fit_transform(y_train[n].apply(str).str.lower()).astype('float')
             encoded[is_nan] = np.nan
 
-            flow = make_pipeline(Imputer(strategy='most_frequent'),
+            flow = make_pipeline(SimpleImputer(strategy='most_frequent'),
                                  OneHotEncoder(sparse=False) if encode == 'onehot' else None)
             encoded = flow.fit_transform(encoded.reshape(-1, 1))
         else:

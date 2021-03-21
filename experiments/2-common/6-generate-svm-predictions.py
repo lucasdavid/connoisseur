@@ -10,13 +10,12 @@ Licence: MIT License 2016 (c)
 import json
 import os
 
+import joblib
 import matplotlib
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from sacred import Experiment
 from sklearn import metrics
-from sklearn.externals import joblib
 
 from connoisseur.datasets import group_by_paintings
 from connoisseur.fusion import Fusion, strategies
@@ -25,28 +24,25 @@ matplotlib.use('agg')
 
 from connoisseur.datasets import load_pickle_data
 
-tf.logging.set_verbosity(tf.logging.DEBUG)
-
 ex = Experiment('generate-svm-predictions')
 
 
 @ex.config
 def config():
-    data_dir = '/datasets/vangogh-test-recaptures/recaptures-vangogh-museum-lower-quality/original/patches/random_299'
-    ckpt = '/work/vangogh/ckpt/min-gradient-svm.pkl'
+    data_dir = '/mnt/files/datasets/vgdb_2016/embed/patches/random_efficientnetb3/'
+    ckpt = 'logs/vg/efficientb3-svc/1/model.pkl'
     results_file_name = 'report.json'
     group_patches = True
     group_recaptures = False
     phases = ['test']
     classes = None
-    layer = 'global_average_pooling2d_1'
+    layer = 'avg_pool'
     max_patches = None
 
 
 def evaluate(model, x, y, names,
              group_patches=False,
-             group_recaptures=False,
-             max_patches=None):
+             group_recaptures=False):
     try:
         probabilities = model.predict_proba(x)
         labels = np.argmax(probabilities, axis=-1)
@@ -77,7 +73,7 @@ def evaluate(model, x, y, names,
     }
 
     if group_patches:
-        labels, p, y, names = group_by_paintings(labels, p, y, names=names, max_patches=max_patches)
+        labels, p, y, names = group_by_paintings(labels, p, y, names=names)
         y = np.asarray([_y[0] for _y in y])
 
         patches = p.shape[1] if len(p.shape) > 1 else 'all'
@@ -124,6 +120,14 @@ def evaluate(model, x, y, names,
     return results
 
 
+def limit_patches(x, y, names, max_patches=None):
+    painting_id, patch_id = zip(*[os.path.splitext(os.path.basename(n))[0].split('-') for n in names])
+    patch_id = np.asarray(list(map(int, patch_id)))
+
+    selected = patch_id < max_patches
+    return x[selected], y[selected], names[selected]
+
+
 @ex.automain
 def run(_run, data_dir, phases, classes, layer, ckpt,
         results_file_name, group_patches, group_recaptures,
@@ -146,10 +150,12 @@ def run(_run, data_dir, phases, classes, layer, ckpt,
         x = x[layer]
         x = x.reshape(x.shape[0], -1)
 
+        if max_patches:
+            x, y, names = limit_patches(x, y, names, max_patches)
+
         layer_results = evaluate(model, x, y, names,
                                  group_patches=group_patches,
-                                 group_recaptures=group_recaptures,
-                                 max_patches=max_patches)
+                                 group_recaptures=group_recaptures)
         layer_results['phase'] = p
         layer_results['layer'] = layer
         results.append(layer_results)

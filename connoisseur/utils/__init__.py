@@ -1,4 +1,7 @@
-from keras import backend as K
+import inspect
+
+import tensorflow as tf
+from tensorflow.keras import backend as K
 
 from . import image
 
@@ -68,14 +71,8 @@ def gram_matrix(x, norm_by_channels=False):
 
 def get_preprocess_fn(architecture):
     # get appropriate pre-process function
-    if 'densenet' in architecture.lower():
-        from keras_contrib.applications.densenet import preprocess_input
-    elif 'vgg' in architecture.lower():
-        from keras.applications.vgg19 import preprocess_input
-    else:
-        from keras.applications.inception_v3 import preprocess_input
-
-    return preprocess_input
+    arch = getattr(tf.keras.applications, architecture)
+    return inspect.getmodule(arch).preprocess_input
 
 
 siamese_functions = {

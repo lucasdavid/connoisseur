@@ -15,10 +15,8 @@ import pickle
 
 import numpy as np
 import tensorflow as tf
-from keras import backend as K
-from keras import layers
-from keras.engine import Model
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sacred import Experiment
 
 from connoisseur.models import build_model
@@ -26,23 +24,18 @@ from connoisseur.utils import gram_matrix, get_preprocess_fn
 
 ex = Experiment('embed-patches')
 
-tf_config = tf.ConfigProto(allow_soft_placement=True)
-tf_config.gpu_options.allow_growth = True
-s = tf.Session(config=tf_config)
-K.set_session(s)
-
 
 @ex.config
 def config():
     dataset_seed = 42
     batch_size = 256
-    architecture = 'InceptionV3'
+    architecture = 'EfficientNetB4'
     weights = 'imagenet'
-    image_shape = (299, 299, 3)
+    image_shape = (300, 300, 3)
     device = "/cpu:0"
-    data_dir = "/datasets/pbn/patches/random299"
-    output_dir = data_dir
-    phases = ['test']
+    data_dir = "/home/ldavid/datasets/vgdb_2016/patches/random"
+    output_dir = "/home/ldavid/datasets/vgdb_2016/embed/patches/random"
+    phases = ['train', 'valid', 'test']
     ckpt_file = None # '/work/pbn/irn-mo-balanced/22/weights.hdf5'
     pooling = 'avg'
     dense_layers = []
@@ -98,7 +91,7 @@ def run(dataset_seed, image_shape, batch_size, device, data_dir, output_dir,
             gram_layer = layers.Lambda(gram_matrix, arguments=dict(norm_by_channels=False))
             style_features = [gram_layer(f) for f in style_features]
 
-        model = Model(inputs=model.inputs, outputs=style_features)
+        model = tf.keras.Model(inputs=model.inputs, outputs=style_features)
 
     g = ImageDataGenerator(preprocessing_function=get_preprocess_fn(architecture))
 

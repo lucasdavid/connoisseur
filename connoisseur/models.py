@@ -1,7 +1,6 @@
-from keras import applications, layers, models, regularizers, backend as K, \
-    Input
-from keras.engine import Model
-from keras.layers import Dropout, Dense, Lambda, Flatten, multiply
+from tensorflow.keras import (Model, applications, layers, models,
+                              regularizers, backend as K, Input)
+from tensorflow.keras.layers import Dropout, Dense, Lambda, Flatten, multiply
 
 from .utils import siamese_functions, gram_matrix
 
