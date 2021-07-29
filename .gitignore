@@ -8,3 +8,4 @@ data/
 .eggs/
 logs/
 .ipynb_checkpoints/
+model.png
