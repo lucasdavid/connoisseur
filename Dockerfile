@@ -12,4 +12,3 @@ RUN cp /lib/connoisseur
 RUN python setup.py develop
  
 ENV JOBLIB_TEMP_FOLDER /joblib_tmp/
-
