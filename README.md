@@ -4,10 +4,15 @@
 “Battle of Grunwald”, Jan Matejko, 1878. From Public Domain.  
 Available at: [wikiart.org/en/jan-matejko/battle-of-grunwald-1878](https://www.wikiart.org/en/jan-matejko/battle-of-grunwald-1878).
 
-A few machine learning experiments on painting provenance.  
+This repository holds the experiments on Machine Learning applied to the analysis of painting provenance.  
 Check the [INSTALL.md](docs/INSTALL.md) file for instructions on how to
 prepare your environment to run connoisseur.  
 Results can be seen at [REPORTS.md](docs/REPORTS.md).
+
+## Associated Publications
+
+- David L.O., Pedrini H., Dias Z., Rocha A. (2021) Authentication of Vincent van Gogh’s Work. In: Computer Analysis of Images and Patterns (CAIP). Lecture Notes in Computer Science, vol 13053. Springer, Cham.
+- L. David, H. Pedrini, Z. Dias and A. Rocha. "Connoisseur: Provenance Analysis in Paintings," IEEE Symposium Series on Computational Intelligence (SSCI), 2021.
 
 ## Running Experiments
 
